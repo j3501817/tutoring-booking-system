@@ -1,8 +1,13 @@
-/* 登入頁專用樣式：深色毛玻璃卡片 + 極光星河世界與夢想插畫背景 */
+/* 登入頁專用樣式：明亮現代感晴空、Q版師生與世界夢想背景 + 毛玻璃登入卡片 */
 *,
 *::before,
 *::after {
     box-sizing: border-box;
+}
+
+/* 防護：即使部署期間快取殘留舊版左側 .login-brand，也強制隱藏不顯示 */
+.login-brand {
+    display: none !important;
 }
 
 html,
@@ -10,8 +15,8 @@ body.login-body {
     margin: 0;
     padding: 0;
     min-height: 100%;
-    background: #030914;
-    color: #eaf4f2;
+    background: #2596ff;
+    color: #ffffff;
     font-family: "Noto Sans TC", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
 }
@@ -38,28 +43,21 @@ body.login-body {
     pointer-events: none;
 }
 
+/* 針對明亮日間背景，僅在左下文字區與右側卡片區提供柔和對比襯底，保持整體明亮現代感 */
 .login-scene-overlay {
     position: fixed;
     inset: 0;
     z-index: -1;
     background:
-        radial-gradient(circle at 18% 78%, rgba(3, 9, 20, 0.72) 0%, rgba(3, 9, 20, 0.25) 48%, transparent 75%),
-        linear-gradient(90deg, rgba(3, 9, 20, 0.62) 0%, rgba(3, 9, 20, 0.18) 52%, rgba(3, 9, 20, 0.45) 100%);
+        radial-gradient(circle at 18% 82%, rgba(6, 52, 54, 0.48) 0%, rgba(6, 52, 54, 0.16) 38%, transparent 68%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(7, 56, 54, 0.22) 100%);
     pointer-events: none;
 }
 
-/* 動態：星點閃爍與世界夢想元素漂浮 */
-.twinkle { animation: twinkle 3.8s ease-in-out infinite; }
-.twinkle.d2 { animation-delay: 1.2s; }
-.twinkle.d3 { animation-delay: 2.4s; }
-@keyframes twinkle {
-    0%, 100% { opacity: 0.28; }
-    50% { opacity: 1; }
-}
-
-.float-a { animation: floatA 7.5s ease-in-out infinite; }
-.float-b { animation: floatB 9s ease-in-out infinite; }
-.float-c { animation: floatA 10.5s ease-in-out infinite reverse; }
+/* 動態：雲朵、世界地球與熱氣球輕柔漂浮 */
+.float-a { animation: floatA 7s ease-in-out infinite; }
+.float-b { animation: floatB 8.5s ease-in-out infinite; }
+.float-c { animation: floatA 10s ease-in-out infinite reverse; }
 @keyframes floatA {
     0%, 100% { translate: 0 0; }
     50% { translate: 0 -12px; }
@@ -69,68 +67,76 @@ body.login-body {
     50% { translate: 6px -10px; }
 }
 
-/* 左側品牌宣言：固定在畫面中下方安全區域，絕不超出視窗底部 */
+/* 左下品牌宣言：固定在畫面左下方安全區域，絕不超出視窗底部 */
 .login-hero {
     align-self: end;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding-bottom: clamp(36px, 7vh, 84px);
+    padding-bottom: clamp(36px, 7vh, 80px);
     min-height: 0;
 }
 
 .login-hero-body {
-    max-width: 560px;
+    max-width: 540px;
+    padding: 22px 26px;
+    border-radius: 22px;
+    background: rgba(8, 52, 56, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(12px) saturate(135%);
+    -webkit-backdrop-filter: blur(12px) saturate(135%);
+    box-shadow: 0 18px 42px rgba(6, 40, 44, 0.22);
 }
 
 .login-eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.76rem;
-    font-weight: 600;
-    letter-spacing: 0.28em;
-    color: #8ff0c9;
-    margin-bottom: 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.26em;
+    color: #ffe885;
+    margin-bottom: 12px;
 }
 
 .login-eyebrow .dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #8ff0c9;
-    box-shadow: 0 0 12px #8ff0c9;
+    background: #ffe885;
+    box-shadow: 0 0 12px #ffe885;
 }
 
 .login-hero h1 {
-    font-size: clamp(2rem, 3.8vw, 3.15rem);
+    font-size: clamp(1.95rem, 3.5vw, 2.95rem);
     font-weight: 800;
     line-height: 1.26;
-    margin: 0 0 14px;
+    margin: 0 0 12px;
+    color: #ffffff;
     letter-spacing: 0.01em;
-    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.65);
+    text-shadow: 0 3px 16px rgba(5, 38, 42, 0.45);
 }
 
 .login-hero p {
-    font-size: 0.96rem;
-    line-height: 1.78;
-    color: rgba(234, 244, 242, 0.88);
+    font-size: 0.95rem;
+    line-height: 1.76;
+    color: rgba(255, 255, 255, 0.94);
     margin: 0;
     max-width: 470px;
-    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
+    text-shadow: 0 2px 10px rgba(5, 38, 42, 0.38);
 }
 
-/* 右側登入卡片 */
+/* 右側登入卡片：深海翡冷翠毛玻璃卡片，在明亮背景下清晰立體 */
 .login-card {
     position: relative;
     width: 100%;
     padding: 32px 32px 26px;
     border-radius: 24px;
-    background: rgba(8, 21, 34, 0.68);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(20px) saturate(145%);
-    -webkit-backdrop-filter: blur(20px) saturate(145%);
-    box-shadow: 0 28px 72px rgba(0, 0, 0, 0.55);
+    background: rgba(9, 32, 46, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    box-shadow: 0 28px 68px rgba(7, 36, 52, 0.42);
 }
 
 /* 卡片頂部：校徽 + 柏拉圖文理補習班名稱 */
@@ -140,7 +146,7 @@ body.login-body {
     gap: 16px;
     margin-bottom: 18px;
     padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .login-card-logo {
@@ -151,7 +157,7 @@ body.login-body {
     background: #ffffff;
     display: grid;
     place-items: center;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .login-card-logo img {
@@ -168,7 +174,7 @@ body.login-body {
 }
 
 .login-card-school {
-    font-size: 1.22rem;
+    font-size: 1.24rem;
     font-weight: 800;
     color: #ffffff;
     letter-spacing: 0.04em;
@@ -179,18 +185,18 @@ body.login-body {
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.24em;
-    color: rgba(234, 244, 242, 0.68);
+    color: rgba(234, 244, 242, 0.78);
 }
 
 /* 放大「輔導預約系統」字樣 */
 .login-card-eyebrow {
     display: inline-block;
-    font-size: 1.28rem;
+    font-size: 1.32rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     color: #8ff0c9;
     margin-bottom: 6px;
-    text-shadow: 0 0 18px rgba(143, 240, 201, 0.25);
+    text-shadow: 0 0 18px rgba(143, 240, 201, 0.28);
 }
 
 .login-card h2 {
@@ -201,8 +207,8 @@ body.login-body {
 }
 
 .login-card-sub {
-    font-size: 0.84rem;
-    color: rgba(234, 244, 242, 0.68);
+    font-size: 0.85rem;
+    color: rgba(234, 244, 242, 0.78);
     margin: 0 0 20px;
 }
 
@@ -215,7 +221,7 @@ body.login-body {
     font-size: 0.82rem;
     font-weight: 600;
     margin: 14px 0 8px;
-    color: rgba(234, 244, 242, 0.9);
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .login-input {
@@ -224,8 +230,8 @@ body.login-body {
     height: 48px;
     padding: 0 16px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(4, 11, 20, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(5, 19, 29, 0.65);
     color: #ffffff;
     font-family: inherit;
     font-size: 0.94rem;
@@ -234,13 +240,13 @@ body.login-body {
 }
 
 .login-input::placeholder {
-    color: rgba(234, 244, 242, 0.42);
+    color: rgba(234, 244, 242, 0.48);
 }
 
 .login-input:focus {
     border-color: #8ff0c9;
-    background: rgba(4, 11, 20, 0.82);
-    box-shadow: 0 0 0 3px rgba(143, 240, 201, 0.2);
+    background: rgba(5, 19, 29, 0.85);
+    box-shadow: 0 0 0 3px rgba(143, 240, 201, 0.24);
 }
 
 .login-input-wrap {
@@ -261,7 +267,7 @@ body.login-body {
     height: 36px;
     border: 0;
     background: transparent;
-    color: rgba(234, 244, 242, 0.68);
+    color: rgba(234, 244, 242, 0.75);
     cursor: pointer;
     border-radius: 8px;
     display: grid;
@@ -283,17 +289,17 @@ body.login-body {
     border: 0;
     border-radius: 12px;
     font-family: inherit;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 0.96rem;
-    color: #05231c;
-    background: linear-gradient(90deg, #a8f5d6 0%, #8ff0c9 55%, #b6f7e0 100%);
+    color: #052921;
+    background: linear-gradient(90deg, #9ef7d4 0%, #74ebb8 55%, #ffe694 100%);
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.2s;
 }
 
 .login-submit:hover {
     transform: translateY(-1px);
-    box-shadow: 0 10px 28px rgba(143, 240, 201, 0.35);
+    box-shadow: 0 10px 28px rgba(116, 235, 184, 0.4);
 }
 
 .login-logout-form {
@@ -304,9 +310,9 @@ body.login-body {
     width: 100%;
     height: 42px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.24);
     background: transparent;
-    color: rgba(234, 244, 242, 0.85);
+    color: rgba(255, 255, 255, 0.9);
     font-family: inherit;
     cursor: pointer;
 }
@@ -322,27 +328,27 @@ body.login-body {
 }
 
 .login-alert-error {
-    background: rgba(255, 99, 99, 0.14);
-    border: 1px solid rgba(255, 99, 99, 0.4);
-    color: #ffc9c9;
+    background: rgba(255, 99, 99, 0.18);
+    border: 1px solid rgba(255, 120, 120, 0.45);
+    color: #ffd4d4;
 }
 
 .login-alert-success {
-    background: rgba(143, 240, 201, 0.12);
-    border: 1px solid rgba(143, 240, 201, 0.4);
-    color: #c9fbe8;
+    background: rgba(143, 240, 201, 0.16);
+    border: 1px solid rgba(143, 240, 201, 0.45);
+    color: #d2fced;
 }
 
 .login-demo {
     margin-top: 18px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
     padding-top: 14px;
 }
 
 .login-demo summary {
     cursor: pointer;
     font-size: 0.78rem;
-    color: rgba(234, 244, 242, 0.72);
+    color: rgba(234, 244, 242, 0.82);
     list-style: none;
 }
 
@@ -368,9 +374,9 @@ body.login-body {
     align-items: center;
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.04);
-    color: #eaf4f2;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
     font-family: inherit;
     font-size: 0.82rem;
     cursor: pointer;
@@ -378,21 +384,21 @@ body.login-body {
 }
 
 .login-demo-item:hover {
-    background: rgba(143, 240, 201, 0.1);
-    border-color: rgba(143, 240, 201, 0.4);
+    background: rgba(143, 240, 201, 0.16);
+    border-color: rgba(143, 240, 201, 0.45);
 }
 
 .login-demo-role {
     font-size: 0.7rem;
     padding: 2px 8px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.16);
 }
 
 .login-foot {
     text-align: center;
     font-size: 0.74rem;
-    color: rgba(234, 244, 242, 0.52);
+    color: rgba(234, 244, 242, 0.65);
     margin: 16px 0 0;
 }
 
@@ -402,7 +408,7 @@ body.login-body {
         padding: 20px clamp(28px, 5vw, 64px);
     }
     .login-hero {
-        padding-bottom: 24px;
+        padding-bottom: 20px;
     }
     .login-card {
         padding: 24px 28px 20px;
@@ -446,7 +452,7 @@ body.login-body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .twinkle, .float-a, .float-b, .float-c {
+    .float-a, .float-b, .float-c {
         animation: none;
     }
 }
