@@ -13,8 +13,27 @@ var builder = WebApplication.CreateBuilder(args);
 Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath, "App_Data"));
 
 var (dbProvider, resolvedConnectionString, dbDescription) = ResolveDatabaseConfiguration(builder.Configuration);
+var azureSqlClientOrigin = Environment.GetEnvironmentVariable("AZURE_SQL_CLIENT_ORIGIN")
+                           ?? builder.Configuration["AZURE_SQL_CLIENT_ORIGIN"];
 
-builder.Services.AddSingleton(new DeploymentRuntimeInfo(dbProvider, dbDescription));
+builder.Services.AddSingleton(new DeploymentRuntimeInfo(dbProvider, dbDescription, azureSqlClientOrigin));
+
+if (!string.IsNullOrWhiteSpace(azureSqlClientOrigin))
+{
+    var origins = azureSqlClientOrigin
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.WithOrigins(origins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+    });
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -40,7 +59,7 @@ builder.Services.AddScoped<AttachmentStorageService>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
@@ -69,6 +88,11 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+
+if (!string.IsNullOrWhiteSpace(azureSqlClientOrigin))
+{
+    app.UseCors();
+}
 
 using (var scope = app.Services.CreateScope())
 {
@@ -146,42 +170,28 @@ static (string Provider, string ConnectionString, string Description) ResolveDat
         Environment.GetEnvironmentVariable("DB_PROVIDER"),
         config["Database:Provider"]);
 
-    // 1. 優先讀取完整連線字串環境變數（相容 Azure Web App 與一般容器環境變數）
+    // 1. 優先讀取 Web App 已設定之 AZURE_SQL_CONNECTION_STRING
+    var azureSqlConn = FirstNonEmpty(
+        Environment.GetEnvironmentVariable("AZURE_SQL_CONNECTION_STRING"),
+        config["AZURE_SQL_CONNECTION_STRING"]);
+
+    if (!string.IsNullOrWhiteSpace(azureSqlConn))
+    {
+        var originInfo = Environment.GetEnvironmentVariable("AZURE_SQL_CLIENT_ORIGIN");
+        var suffix = string.IsNullOrWhiteSpace(originInfo) ? "" : $" | Origin: {originInfo}";
+        return ("SqlServer", azureSqlConn, $"Azure SQL (AZURE_SQL_CONNECTION_STRING{suffix})");
+    }
+
+    // 2. 相容其他環境變數名稱
     var rawConn = FirstNonEmpty(
         Environment.GetEnvironmentVariable("DB_CONNECTION_STRING"),
         Environment.GetEnvironmentVariable("DATABASE_URL"),
+        Environment.GetEnvironmentVariable("SQLAZURECONNSTR_AZURE_SQL_CONNECTION_STRING"),
         Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection"),
         Environment.GetEnvironmentVariable("SQLCONNSTR_DefaultConnection"),
         Environment.GetEnvironmentVariable("POSTGRESQLCONNSTR_DefaultConnection"),
         Environment.GetEnvironmentVariable("CUSTOMCONNSTR_DefaultConnection"),
         config.GetConnectionString("DefaultConnection"));
-
-    // 2. 若未提供完整字串，支援由獨立環境變數 (DB_HOST / DB_NAME / DB_USER / DB_PASSWORD) 自動組裝
-    var dbHost = FirstNonEmpty(Environment.GetEnvironmentVariable("DB_HOST"), Environment.GetEnvironmentVariable("DB_SERVER"));
-    var dbName = FirstNonEmpty(Environment.GetEnvironmentVariable("DB_NAME"), Environment.GetEnvironmentVariable("DB_DATABASE")) ?? "plato_tutoring";
-    var dbUser = FirstNonEmpty(Environment.GetEnvironmentVariable("DB_USER"), Environment.GetEnvironmentVariable("DB_USERNAME"));
-    var dbPass = FirstNonEmpty(Environment.GetEnvironmentVariable("DB_PASSWORD"), Environment.GetEnvironmentVariable("DB_PASS"));
-    var dbPort = FirstNonEmpty(Environment.GetEnvironmentVariable("DB_PORT"));
-
-    if (!string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbUser))
-    {
-        var isPg = string.Equals(explicitProvider, "PostgreSql", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(explicitProvider, "Postgres", StringComparison.OrdinalIgnoreCase) ||
-                   dbPort == "5432";
-
-        if (isPg)
-        {
-            var port = dbPort ?? "5432";
-            var builtPg = $"Host={dbHost};Port={port};Database={dbName};Username={dbUser};Password={dbPass};SSL Mode=Prefer;Trust Server Certificate=true";
-            return ("PostgreSql", builtPg, $"PostgreSQL 外部資料庫 ({dbHost}:{port}/{dbName})");
-        }
-        else
-        {
-            var serverPart = string.IsNullOrWhiteSpace(dbPort) ? dbHost : $"{dbHost},{dbPort}";
-            var builtSql = $"Server={serverPart};Initial Catalog={dbName};User ID={dbUser};Password={dbPass};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;";
-            return ("SqlServer", builtSql, $"SQL Server / Azure SQL 外部資料庫 ({serverPart}/{dbName})");
-        }
-    }
 
     if (!string.IsNullOrWhiteSpace(rawConn))
     {
@@ -204,9 +214,12 @@ static (string Provider, string ConnectionString, string Description) ResolveDat
     }
 
     var fallbackSqlite = "Data Source=App_Data/plato_tutoring.db";
-    return ("Sqlite", fallbackSqlite, "本機預設 SQLite (未設定外部 DB 環境變數時自動啟用)");
+    return ("Sqlite", fallbackSqlite, "本機預設 SQLite (未設定 AZURE_SQL_CONNECTION_STRING 時自動啟用)");
 }
 
-public record DeploymentRuntimeInfo(string DatabaseProvider, string DatabaseDescription);
+public record DeploymentRuntimeInfo(
+    string DatabaseProvider,
+    string DatabaseDescription,
+    string? AzureSqlClientOrigin = null);
 
 public partial class Program { }
