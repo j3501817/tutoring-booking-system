@@ -30,6 +30,24 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // 統一將資料表前綴設為 BK_
+        modelBuilder.Entity<AppUser>().ToTable("BK_Users");
+        modelBuilder.Entity<Student>().ToTable("BK_Students");
+        modelBuilder.Entity<ParentStudentLink>().ToTable("BK_ParentStudentLinks");
+        modelBuilder.Entity<Semester>().ToTable("BK_Semesters");
+        modelBuilder.Entity<CourseProgress>().ToTable("BK_CourseProgresses");
+        modelBuilder.Entity<AttendancePurposeOption>().ToTable("BK_AttendancePurposeOptions");
+        modelBuilder.Entity<SystemSetting>().ToTable("BK_SystemSettings");
+        modelBuilder.Entity<TutoringSlot>().ToTable("BK_TutoringSlots");
+        modelBuilder.Entity<Booking>().ToTable("BK_Bookings");
+        modelBuilder.Entity<WaitlistEntry>().ToTable("BK_WaitlistEntries");
+        modelBuilder.Entity<RemittanceAttachment>().ToTable("BK_RemittanceAttachments");
+        modelBuilder.Entity<TopUpBatch>().ToTable("BK_TopUpBatches");
+        modelBuilder.Entity<CreditLedgerEntry>().ToTable("BK_CreditLedgerEntries");
+        modelBuilder.Entity<DropoutSettlement>().ToTable("BK_DropoutSettlements");
+        modelBuilder.Entity<HomeworkWatchItem>().ToTable("BK_HomeworkWatchItems");
+        modelBuilder.Entity<LineNotificationLog>().ToTable("BK_LineNotificationLogs");
+
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.Username)
             .IsUnique();

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using PlatoTutoring.Web.Models;
 using PlatoTutoring.Web.Services;
 
@@ -13,8 +15,19 @@ public static class DbInitializer
     {
         await db.Database.EnsureCreatedAsync();
 
-        if (await db.Users.AnyAsync())
-            return;
+        try
+        {
+            if (await db.Users.AnyAsync())
+                return;
+        }
+        catch
+        {
+            // 若共用之 Azure SQL 資料庫已存在其他非 BK_ 資料表，EnsureCreatedAsync 不會建表，改呼叫 CreateTablesAsync 建立 BK_ 資料表
+            var creator = db.Database.GetService<IRelationalDatabaseCreator>();
+            await creator.CreateTablesAsync();
+            if (await db.Users.AnyAsync())
+                return;
+        }
 
         // 1. 系統設定 (SystemSettings)
         db.SystemSettings.AddRange(

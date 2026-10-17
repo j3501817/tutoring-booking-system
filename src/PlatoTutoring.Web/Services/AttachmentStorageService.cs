@@ -37,20 +37,24 @@ public class AttachmentStorageService
         _storageRoot = Path.Combine(env.ContentRootPath, "App_Data", "PrivateAttachments");
         Directory.CreateDirectory(_storageRoot);
 
-        var containerName = GetEnvOrConfig(config, "BLOB_CONTAINER_NAME", "AzureBlob:ContainerName")
+        var containerName = GetEnvOrConfig(config, "AZURE_STORAGE_CONTAINER", "AzureBlob:ContainerName")
+                            ?? GetEnvOrConfig(config, "BLOB_CONTAINER_NAME", "AzureBlob:ContainerName")
                             ?? "plato-remittance-attachments";
 
-        var blobConnStr = GetEnvOrConfig(config, "BLOB_CONNECTION_STRING", "AzureBlob:ConnectionString");
-        var blobAccount = GetEnvOrConfig(config, "BLOB_ACCOUNT_NAME", "AzureBlob:AccountName")
-                          ?? GetEnvOrConfig(config, "BLOB_USER", "AzureBlob:User");
-        var blobKey = GetEnvOrConfig(config, "BLOB_ACCOUNT_KEY", "AzureBlob:AccountKey")
-                      ?? GetEnvOrConfig(config, "BLOB_PASSWORD", "AzureBlob:Password");
+        var blobConnStr = GetEnvOrConfig(config, "AZURE_STORAGE_CONNECTION_STRING", "AzureBlob:ConnectionString")
+                          ?? GetEnvOrConfig(config, "BLOB_CONNECTION_STRING", "AzureBlob:ConnectionString");
+
+        var blobAccount = GetEnvOrConfig(config, "AZURE_STORAGE_ACCOUNT_NAME", "AzureBlob:AccountName")
+                          ?? GetEnvOrConfig(config, "BLOB_ACCOUNT_NAME", "AzureBlob:AccountName");
+
+        var blobKey = GetEnvOrConfig(config, "BLOB_ACCOUNT_KEY", "AzureBlob:AccountKey");
         var blobEndpoint = GetEnvOrConfig(config, "BLOB_ENDPOINT_URL", "AzureBlob:EndpointUrl");
 
         if (!string.IsNullOrWhiteSpace(blobConnStr))
         {
             _blobContainerClient = new BlobContainerClient(blobConnStr, containerName);
-            StorageModeDescription = $"Azure Blob Storage (ConnectionString / Container: {containerName})";
+            var accountDisplay = string.IsNullOrWhiteSpace(blobAccount) ? "ConnectionString" : blobAccount;
+            StorageModeDescription = $"Azure Blob Storage (帳號: {accountDisplay} / 容器: {containerName})";
         }
         else if (!string.IsNullOrWhiteSpace(blobAccount) && !string.IsNullOrWhiteSpace(blobKey))
         {
@@ -60,7 +64,7 @@ public class AttachmentStorageService
 
             var credential = new StorageSharedKeyCredential(blobAccount, blobKey);
             _blobContainerClient = new BlobContainerClient(serviceUri, credential);
-            StorageModeDescription = $"Azure Blob Storage (帳號: {blobAccount} / Container: {containerName})";
+            StorageModeDescription = $"Azure Blob Storage (帳號: {blobAccount} / 容器: {containerName})";
         }
         else
         {
@@ -74,7 +78,7 @@ public class AttachmentStorageService
         if (!string.IsNullOrWhiteSpace(envVal))
             return envVal.Trim();
 
-        var cfgVal = config?[configKey] ?? config?[envName];
+        var cfgVal = config?[envName] ?? config?[configKey];
         return string.IsNullOrWhiteSpace(cfgVal) ? null : cfgVal.Trim();
     }
 
