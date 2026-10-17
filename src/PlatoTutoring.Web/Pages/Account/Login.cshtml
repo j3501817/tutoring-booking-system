@@ -19,144 +19,223 @@
 </head>
 <body class="login-body">
     <main class="login-stage">
-        <!-- 背景插畫：老師引導學生走向自己的路、輔導作業 -->
+        <!-- 背景插畫：極光星河、世界星軌、夢想羅盤與通往未來的光之航道 -->
         <svg class="login-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
             <defs>
-                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#050d18" />
-                    <stop offset="0.45" stop-color="#0b2233" />
-                    <stop offset="0.72" stop-color="#14465a" />
-                    <stop offset="0.88" stop-color="#e29a63" stop-opacity="0.85" />
-                    <stop offset="1" stop-color="#f7c58c" />
+                <linearGradient id="skyGrad" x1="0" y1="0" x2="0.2" y2="1">
+                    <stop offset="0" stop-color="#030914" />
+                    <stop offset="0.38" stop-color="#07192d" />
+                    <stop offset="0.68" stop-color="#0d3149" />
+                    <stop offset="0.86" stop-color="#194d5c" />
+                    <stop offset="1" stop-color="#28646a" />
                 </linearGradient>
-                <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
-                    <stop offset="0" stop-color="#ffe3b3" stop-opacity="0.95" />
-                    <stop offset="0.35" stop-color="#ffb870" stop-opacity="0.45" />
-                    <stop offset="1" stop-color="#ffb870" stop-opacity="0" />
+
+                <linearGradient id="auroraRibbon1" x1="0" y1="0" x2="1" y2="0.4">
+                    <stop offset="0" stop-color="#4de6b8" stop-opacity="0" />
+                    <stop offset="0.28" stop-color="#62f2c5" stop-opacity="0.38" />
+                    <stop offset="0.62" stop-color="#45c4e8" stop-opacity="0.28" />
+                    <stop offset="1" stop-color="#a18cff" stop-opacity="0" />
+                </linearGradient>
+
+                <linearGradient id="auroraRibbon2" x1="1" y1="0" x2="0" y2="0.6">
+                    <stop offset="0" stop-color="#7ef7d1" stop-opacity="0" />
+                    <stop offset="0.4" stop-color="#8ff0c9" stop-opacity="0.32" />
+                    <stop offset="0.75" stop-color="#ffd599" stop-opacity="0.22" />
+                    <stop offset="1" stop-color="#ffd599" stop-opacity="0" />
+                </linearGradient>
+
+                <radialGradient id="horizonGlow" cx="0.42" cy="0.64" r="0.48">
+                    <stop offset="0" stop-color="#ffebc2" stop-opacity="0.92" />
+                    <stop offset="0.28" stop-color="#ffbe78" stop-opacity="0.52" />
+                    <stop offset="0.62" stop-color="#5cd6b8" stop-opacity="0.22" />
+                    <stop offset="1" stop-color="#07192d" stop-opacity="0" />
                 </radialGradient>
-                <linearGradient id="pathGrad" x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0" stop-color="#f6d9ad" stop-opacity="0.15" />
-                    <stop offset="0.6" stop-color="#ffd9a1" stop-opacity="0.55" />
-                    <stop offset="1" stop-color="#fff0cf" stop-opacity="0.95" />
+
+                <radialGradient id="planetGlow" cx="0.35" cy="0.3" r="0.7">
+                    <stop offset="0" stop-color="#d6fff0" stop-opacity="0.45" />
+                    <stop offset="0.55" stop-color="#58d5c9" stop-opacity="0.2" />
+                    <stop offset="1" stop-color="#103752" stop-opacity="0.06" />
+                </radialGradient>
+
+                <linearGradient id="mountainFar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#174559" />
+                    <stop offset="1" stop-color="#0c2636" />
                 </linearGradient>
-                <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#1c5163" />
-                    <stop offset="1" stop-color="#0f3040" />
+
+                <linearGradient id="mountainMid" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#0e2f41" />
+                    <stop offset="1" stop-color="#071824" />
                 </linearGradient>
-                <linearGradient id="hillMid" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#0f3a4a" />
-                    <stop offset="1" stop-color="#08202c" />
+
+                <linearGradient id="mountainNear" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#071a26" />
+                    <stop offset="1" stop-color="#030b12" />
                 </linearGradient>
-                <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#08202c" />
-                    <stop offset="1" stop-color="#040e16" />
+
+                <linearGradient id="dreamPathGrad" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0" stop-color="#8ff0c9" stop-opacity="0.12" />
+                    <stop offset="0.55" stop-color="#ffe1a8" stop-opacity="0.55" />
+                    <stop offset="1" stop-color="#fff7df" stop-opacity="0.95" />
                 </linearGradient>
-                <filter id="softBlur" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="2" />
+
+                <linearGradient id="arcLineGrad" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0" stop-color="#ffd89c" stop-opacity="0" />
+                    <stop offset="0.4" stop-color="#ffd89c" stop-opacity="0.65" />
+                    <stop offset="0.8" stop-color="#8ff0c9" stop-opacity="0.85" />
+                    <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+                </linearGradient>
+
+                <filter id="auroraBlur" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="24" />
+                </filter>
+
+                <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
                 </filter>
             </defs>
 
+            <!-- 深邃夜空與地平線暖光 -->
             <rect width="1600" height="900" fill="url(#skyGrad)" />
+            <circle cx="670" cy="580" r="640" fill="url(#horizonGlow)" />
 
-            <!-- 星點 -->
-            <g fill="#ffffff" opacity="0.75">
-                <circle class="twinkle" cx="140" cy="90" r="1.6" />
-                <circle class="twinkle d2" cx="320" cy="150" r="1.2" />
-                <circle class="twinkle d3" cx="520" cy="70" r="1.8" />
-                <circle class="twinkle" cx="740" cy="130" r="1.3" />
-                <circle class="twinkle d2" cx="930" cy="60" r="1.6" />
-                <circle class="twinkle d3" cx="1100" cy="170" r="1.2" />
-                <circle class="twinkle" cx="1280" cy="90" r="1.7" />
-                <circle class="twinkle d2" cx="1460" cy="140" r="1.3" />
-                <circle class="twinkle d3" cx="240" cy="260" r="1.1" />
-                <circle class="twinkle" cx="620" cy="250" r="1.4" />
-                <circle class="twinkle d2" cx="1020" cy="290" r="1.1" />
-                <circle class="twinkle d3" cx="1380" cy="270" r="1.4" />
+            <!-- 極光流帶 -->
+            <g filter="url(#auroraBlur)">
+                <path d="M-80 260 C 240 110, 560 320, 920 170 C 1180 65, 1410 190, 1680 110 L 1680 340 C 1380 410, 1140 270, 880 370 C 520 490, 230 300, -80 420 Z" fill="url(#auroraRibbon1)" />
+                <path d="M-40 160 C 310 290, 660 80, 1040 230 C 1280 320, 1470 160, 1660 220 L 1660 390 C 1440 340, 1240 460, 990 360 C 640 210, 310 410, -40 280 Z" fill="url(#auroraRibbon2)" />
             </g>
 
-            <!-- 地平線晨光 -->
-            <circle cx="470" cy="600" r="360" fill="url(#sunGlow)" />
-            <circle cx="470" cy="600" r="46" fill="#fff1d2" opacity="0.95" />
-
-            <!-- 山丘層次 -->
-            <path d="M0 620 L110 560 L220 610 L340 540 L470 600 L600 520 L760 610 L900 550 L1060 620 L1200 560 L1360 625 L1500 570 L1600 610 L1600 900 L0 900 Z" fill="url(#hillFar)" opacity="0.9" />
-            <path d="M0 680 Q180 600 360 660 T720 650 T1080 680 T1440 640 T1600 670 L1600 900 L0 900 Z" fill="url(#hillMid)" />
-
-            <!-- 蜿蜒向前的道路 -->
-            <path d="M360 900 C 330 820 520 790 480 730 C 450 690 520 665 470 625 L 478 625 C 540 668 480 695 520 735 C 575 800 470 830 560 900 Z" fill="url(#pathGrad)" />
-            <path d="M0 760 Q220 720 420 780 T 820 790 T 1250 770 T1600 790 L1600 900 L0 900 Z" fill="url(#hillNear)" />
-            <path d="M360 900 C 330 820 520 790 480 730 C 450 690 520 665 470 625 L 478 625 C 540 668 480 695 520 735 C 575 800 470 830 560 900 Z" fill="url(#pathGrad)" opacity="0.55" />
-
-            <!-- 老師與學生剪影 -->
-            <g class="figures" transform="translate(0,0)">
-                <!-- 老師：手指向前方，另一手持作業本 -->
-                <g transform="translate(445,792)" fill="#07141d" stroke="#ffd9a1" stroke-opacity="0.55" stroke-width="1.2">
-                    <circle cx="0" cy="-152" r="13" />
-                    <path d="M-19 -136 Q0 -145 19 -136 L24 -66 L-24 -66 Z" />
-                    <rect x="-16" y="-68" width="12" height="68" rx="4" />
-                    <rect x="4" y="-68" width="12" height="68" rx="4" />
-                    <path d="M15 -128 L64 -160" fill="none" stroke="#07141d" stroke-width="9" stroke-linecap="round" />
-                    <path d="M-15 -128 L-27 -98 L-6 -94" fill="none" stroke="#07141d" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-                    <rect x="-34" y="-104" width="22" height="30" rx="2" transform="rotate(-14 -23 -90)" fill="#e9f7f3" stroke="none" opacity="0.9" />
-                </g>
-                <!-- 學生：背著書包，朝晨光邁步 -->
-                <g transform="translate(528,748)" fill="#07141d" stroke="#ffd9a1" stroke-opacity="0.6" stroke-width="1.2">
-                    <rect x="-26" y="-108" width="18" height="48" rx="6" />
-                    <circle cx="0" cy="-122" r="11" />
-                    <path d="M-15 -110 Q0 -118 15 -110 L18 -52 L-18 -52 Z" />
-                    <path d="M-10 -52 L-16 0" fill="none" stroke="#07141d" stroke-width="10" stroke-linecap="round" />
-                    <path d="M8 -52 L18 -4" fill="none" stroke="#07141d" stroke-width="10" stroke-linecap="round" />
-                    <path d="M13 -104 L38 -132" fill="none" stroke="#07141d" stroke-width="8" stroke-linecap="round" />
-                </g>
+            <!-- 漫天星斗 -->
+            <g fill="#ffffff">
+                <circle class="twinkle" cx="110" cy="78" r="1.5" opacity="0.8" />
+                <circle class="twinkle d2" cx="235" cy="142" r="1.2" opacity="0.65" />
+                <circle class="twinkle d3" cx="380" cy="64" r="1.8" opacity="0.85" />
+                <circle class="twinkle" cx="540" cy="118" r="1.3" opacity="0.75" />
+                <circle class="twinkle d2" cx="720" cy="58" r="1.6" opacity="0.8" />
+                <circle class="twinkle d3" cx="890" cy="105" r="1.4" opacity="0.7" />
+                <circle class="twinkle" cx="1080" cy="68" r="1.9" opacity="0.85" />
+                <circle class="twinkle d2" cx="1290" cy="96" r="1.3" opacity="0.7" />
+                <circle class="twinkle d3" cx="1475" cy="74" r="1.6" opacity="0.8" />
+                <circle class="twinkle" cx="165" cy="248" r="1.2" opacity="0.6" />
+                <circle class="twinkle d2" cx="630" cy="220" r="1.4" opacity="0.75" />
+                <circle class="twinkle d3" cx="1165" cy="215" r="1.2" opacity="0.65" />
             </g>
 
-            <!-- 飄浮的作業、公式與鉛筆（暗示輔導作業） -->
-            <g class="float-a" transform="translate(150,330) rotate(-8)">
-                <rect width="120" height="150" rx="10" fill="#ffffff" opacity="0.1" stroke="#ffffff" stroke-opacity="0.35" />
-                <g stroke="#ffffff" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round">
-                    <line x1="16" y1="32" x2="92" y2="32" /><line x1="16" y1="54" x2="104" y2="54" />
-                    <line x1="16" y1="76" x2="80" y2="76" /><line x1="16" y1="98" x2="98" y2="98" />
-                </g>
-                <path d="M18 128 l12 12 l26 -28" fill="none" stroke="#8ff0c9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+            <!-- 流星（象徵願望與啟程） -->
+            <g opacity="0.85">
+                <line x1="820" y1="88" x2="710" y2="142" stroke="url(#arcLineGrad)" stroke-width="2.2" stroke-linecap="round" />
+                <circle cx="710" cy="142" r="2.6" fill="#ffffff" filter="url(#softGlow)" />
+                <line x1="360" y1="96" x2="275" y2="138" stroke="url(#arcLineGrad)" stroke-width="1.8" stroke-linecap="round" />
+                <circle cx="275" cy="138" r="2" fill="#8ff0c9" filter="url(#softGlow)" />
             </g>
-            <g class="float-b" transform="translate(1180,250) rotate(7)">
-                <rect width="130" height="100" rx="10" fill="#ffffff" opacity="0.09" stroke="#ffffff" stroke-opacity="0.3" />
-                <text x="16" y="44" fill="#ffffff" fill-opacity="0.75" font-size="26" font-family="Plus Jakarta Sans, sans-serif" font-weight="700">y = x² + 1</text>
-                <text x="16" y="78" fill="#8ff0c9" fill-opacity="0.9" font-size="30" font-family="Plus Jakarta Sans, sans-serif" font-weight="800">A+</text>
+
+            <!-- 象徵「世界與眼界」：發光星體地球儀與環繞星軌（左上方空中） -->
+            <g class="float-a" transform="translate(270, 235)">
+                <!-- 外層星軌環 -->
+                <ellipse cx="0" cy="0" rx="138" ry="42" transform="rotate(-22)" fill="none" stroke="#8ff0c9" stroke-opacity="0.38" stroke-width="1.4" stroke-dasharray="6 6" />
+                <ellipse cx="0" cy="0" rx="112" ry="30" transform="rotate(16)" fill="none" stroke="#ffd89c" stroke-opacity="0.32" stroke-width="1.1" />
+                <!-- 地球球體與經緯度線 -->
+                <circle cx="0" cy="0" r="70" fill="url(#planetGlow)" stroke="#9ef7d6" stroke-opacity="0.65" stroke-width="1.6" />
+                <ellipse cx="0" cy="0" rx="70" ry="26" fill="none" stroke="#9ef7d6" stroke-opacity="0.35" stroke-width="1.1" />
+                <ellipse cx="0" cy="0" rx="70" ry="52" fill="none" stroke="#9ef7d6" stroke-opacity="0.22" stroke-width="1" />
+                <ellipse cx="0" cy="0" rx="28" ry="70" fill="none" stroke="#9ef7d6" stroke-opacity="0.35" stroke-width="1.1" />
+                <ellipse cx="0" cy="0" rx="54" ry="70" fill="none" stroke="#9ef7d6" stroke-opacity="0.22" stroke-width="1" />
+                <line x1="-70" y1="0" x2="70" y2="0" stroke="#ffd89c" stroke-opacity="0.4" stroke-width="1.1" />
+                <line x1="0" y1="-70" x2="0" y2="70" stroke="#ffd89c" stroke-opacity="0.4" stroke-width="1.1" />
+                <!-- 軌道上的發光節點 -->
+                <circle cx="-118" cy="48" r="4.5" fill="#ffd89c" filter="url(#softGlow)" />
+                <circle cx="104" cy="-42" r="4" fill="#8ff0c9" filter="url(#softGlow)" />
+                <circle cx="38" cy="-24" r="3" fill="#ffffff" opacity="0.9" />
             </g>
-            <g class="float-c" transform="translate(870,360) rotate(-24)">
-                <rect width="120" height="12" rx="3" fill="#ffd36e" opacity="0.8" />
-                <path d="M120 0 L138 6 L120 12 Z" fill="#f3d3a6" opacity="0.9" />
-                <rect x="-10" y="0" width="12" height="12" rx="3" fill="#f58aa0" opacity="0.85" />
+
+            <!-- 象徵「方向與夢想」：星象羅盤與北極星（中上方空中） -->
+            <g class="float-b" transform="translate(880, 210)">
+                <circle cx="0" cy="0" r="64" fill="none" stroke="#ffd89c" stroke-opacity="0.28" stroke-width="1.2" stroke-dasharray="3 5" />
+                <circle cx="0" cy="0" r="46" fill="none" stroke="#8ff0c9" stroke-opacity="0.35" stroke-width="1.2" />
+                <!-- 羅盤十字星芒 -->
+                <path d="M0 -56 L7 -9 L56 0 L7 9 L0 56 L-7 9 L-56 0 L-7 -9 Z" fill="#fff3d1" fill-opacity="0.75" filter="url(#softGlow)" />
+                <path d="M0 -30 L12 -12 L30 0 L12 12 L0 30 L-12 12 L-30 0 L-12 -12 Z" fill="#8ff0c9" fill-opacity="0.45" />
+                <circle cx="0" cy="0" r="4.5" fill="#ffffff" />
             </g>
-            <g class="float-b" transform="translate(690,210)" fill="#8ff0c9" opacity="0.8">
-                <path d="M0 0 l5 -14 l5 14 l14 5 l-14 5 l-5 14 l-5 -14 l-14 -5 z" />
+
+            <!-- 象徵「探索未知星座圖」：星群連線 -->
+            <g class="float-c" stroke="#9ef7d6" stroke-opacity="0.38" stroke-width="1.2" fill="#ffffff">
+                <polyline points="480,150 535,118 595,144 645,102 700,132" fill="none" stroke-dasharray="4 4" />
+                <circle cx="480" cy="150" r="2.8" />
+                <circle cx="535" cy="118" r="3.4" fill="#8ff0c9" />
+                <circle cx="595" cy="144" r="2.6" />
+                <circle cx="645" cy="102" r="3.8" fill="#ffd89c" />
+                <circle cx="700" cy="132" r="2.6" />
             </g>
-            <g class="float-a" transform="translate(1010,480)" fill="#ffd9a1" opacity="0.75">
-                <path d="M0 0 l4 -11 l4 11 l11 4 l-11 4 l-4 11 l-4 -11 l-11 -4 z" />
+
+            <!-- 象徵「夢想啟航」：由地平線升起的金色光軌與展翅紙飛機 -->
+            <path d="M 650 575 C 610 470, 680 370, 795 290 C 890 224, 995 190, 1085 150" fill="none" stroke="url(#arcLineGrad)" stroke-width="2.6" stroke-dasharray="8 6" />
+            <path d="M 650 575 C 520 490, 455 395, 365 305" fill="none" stroke="url(#arcLineGrad)" stroke-width="1.8" opacity="0.65" />
+
+            <!-- 主夢想紙飛機（右上翱翔） -->
+            <g class="float-a" transform="translate(1065, 152) rotate(-24)" filter="url(#softGlow)">
+                <polygon points="0,0 -48,18 -20,26" fill="#ffffff" fill-opacity="0.95" />
+                <polygon points="0,0 -20,26 -14,38" fill="#8ff0c9" fill-opacity="0.85" />
+                <polygon points="0,0 -14,38 -6,28" fill="#ffd89c" fill-opacity="0.9" />
+            </g>
+
+            <!-- 次夢想紙飛機（中左升空） -->
+            <g class="float-b" transform="translate(765, 312) rotate(-32)" opacity="0.85">
+                <polygon points="0,0 -34,13 -14,19" fill="#fff5db" />
+                <polygon points="0,0 -14,19 -9,27" fill="#8ff0c9" />
+            </g>
+
+            <!-- 地平線遠方晨曦與星門光環 -->
+            <circle cx="670" cy="575" r="54" fill="#fff2d4" opacity="0.92" filter="url(#softGlow)" />
+            <circle cx="670" cy="575" r="96" fill="none" stroke="#ffe5b4" stroke-opacity="0.35" stroke-width="1.5" />
+            <circle cx="670" cy="575" r="142" fill="none" stroke="#8ff0c9" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="6 8" />
+
+            <!-- 層疊壯麗山巒 -->
+            <path d="M0 595 L95 535 L205 575 L345 485 L485 565 L595 515 L670 575 L765 505 L895 560 L1045 470 L1195 555 L1335 495 L1485 560 L1600 520 L1600 900 L0 900 Z" fill="url(#mountainFar)" opacity="0.92" />
+            <path d="M0 645 Q190 575 390 630 T750 618 T1130 640 T1460 595 T1600 625 L1600 900 L0 900 Z" fill="url(#mountainMid)" />
+
+            <!-- 通往世界與未來的光之道路（延伸向地平線光芒） -->
+            <path d="M 520 900 C 540 805, 695 755, 650 685 C 620 640, 685 612, 666 575 L 676 575 C 702 612, 648 642, 688 688 C 748 758, 635 812, 710 900 Z" fill="url(#dreamPathGrad)" filter="url(#softGlow)" />
+
+            <!-- 前景山脊與靜謐湖岸線條 -->
+            <path d="M0 735 Q240 695 495 755 T920 765 T1340 735 T1600 760 L1600 900 L0 900 Z" fill="url(#mountainNear)" />
+            <path d="M 520 900 C 540 805, 695 755, 650 685 C 620 640, 685 612, 666 575 L 676 575 C 702 612, 648 642, 688 688 C 748 758, 635 812, 710 900 Z" fill="url(#dreamPathGrad)" opacity="0.68" />
+
+            <!-- 光點漂浮（象徵夢想微光） -->
+            <g fill="#ffe9b8" opacity="0.8">
+                <circle class="twinkle" cx="620" cy="690" r="2.5" />
+                <circle class="twinkle d2" cx="695" cy="650" r="2" />
+                <circle class="twinkle d3" cx="645" cy="610" r="2.2" />
+                <circle class="twinkle" cx="585" cy="755" r="3" />
+                <circle class="twinkle d2" cx="725" cy="730" r="2.4" />
             </g>
         </svg>
         <div class="login-scene-overlay"></div>
 
-        <!-- 左側品牌文案 -->
+        <!-- 左下品牌宣言（不再放左上角重複校徽，並預留充足底部安全間距） -->
         <section class="login-hero">
-            <div class="login-brand">
-                <span class="login-brand-logo"><img src="~/images/plato-logo.png" alt="柏拉圖補習班校徽" /></span>
-                <span class="login-brand-text">
-                    <strong>柏拉圖文理補習班</strong>
-                    <small>PLATO ACADEMY</small>
-                </span>
-            </div>
             <div class="login-hero-body">
-                <div class="login-eyebrow"><span class="dot"></span> TUTORING SPACE</div>
+                <div class="login-eyebrow"><span class="dot"></span> WORLD &amp; DREAMS</div>
                 <h1>陪你看見方向，<br />走出屬於自己的路。</h1>
-                <p>每一份作業的批改、每一次耐心的輔導，都是為了讓孩子帶著把握，走向更遠的未來。</p>
+                <p>每一次耐心的引導與陪伴，都是為了讓孩子累積探索世界的底氣，勇敢飛向心中的理想與未來。</p>
             </div>
         </section>
 
         <!-- 右側登入卡片 -->
         <section class="login-card" aria-label="登入表單">
-            <div class="login-card-logo"><img src="~/images/plato-logo.png" alt="柏拉圖補習班校徽" /></div>
+            <div class="login-card-header">
+                <div class="login-card-logo">
+                    <img src="~/images/plato-logo.png" alt="柏拉圖文理補習班校徽" />
+                </div>
+                <div class="login-card-brand">
+                    <span class="login-card-school">柏拉圖文理補習班</span>
+                    <span class="login-card-school-en">PLATO ACADEMY</span>
+                </div>
+            </div>
+
             <div class="login-card-eyebrow">輔導預約系統</div>
             <h2>歡迎回來</h2>
             <p class="login-card-sub">登入後，管理輔導預約、堂數與學習進度。</p>
@@ -170,7 +249,7 @@
                 <div class="login-alert login-alert-success" role="status"><i class="bi bi-check-circle-fill"></i> @successMsg</div>
             }
 
-            <form method="post" autocomplete="on">
+            <form method="post" autocomplete="on" class="login-form">
                 <label for="Username" class="login-label">帳號</label>
                 <input type="text" id="Username" name="Username" class="login-input"
                        value="@Model.Username" placeholder="請輸入帳號" autocomplete="username" required />
@@ -189,7 +268,7 @@
 
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <form method="post" asp-page-handler="Logout" class="mt-3">
+                <form method="post" asp-page-handler="Logout" class="login-logout-form">
                     <button type="submit" class="login-secondary">登出目前帳號</button>
                 </form>
             }
