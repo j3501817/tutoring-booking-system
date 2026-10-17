@@ -1,0 +1,11 @@
+{
+  "id": "auto-fix-hardening-20260520-1145",
+  "title": "Harden local Codex auto-fix workflow",
+  "pmApproved": true,
+  "requiredArtifacts": [
+    "status.md",
+    "assumptions.md",
+    "TEST_REPORT.md",
+    "DELIVERY_REPORT.md"
+  ]
+}

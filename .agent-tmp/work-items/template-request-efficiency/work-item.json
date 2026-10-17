@@ -1,0 +1,13 @@
+{
+  "id": "template-request-efficiency",
+  "title": "Improve agentic template request efficiency gates",
+  "source": "pm-request",
+  "pmApproved": true,
+  "requiredArtifacts": [
+    "status.md",
+    "assumptions.md",
+    "PLAN.md",
+    "TEST_REPORT.md",
+    "DELIVERY_REPORT.md"
+  ]
+}

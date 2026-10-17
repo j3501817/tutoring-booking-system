@@ -1,0 +1,79 @@
+@page
+@model PlatoTutoring.Web.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "帳號登入與 LINE 通知綁定";
+}
+
+<div class="row justify-content-center g-4 py-2">
+    <div class="col-12 col-lg-5">
+        <div class="card-plato p-4 p-md-5 h-100">
+            <div class="eyebrow-tag">
+                <i class="bi bi-shield-lock-fill"></i>
+                <span>Identity & Access</span>
+            </div>
+            <h1 class="h4 fw-bold mb-2">登入柏拉圖輔導預約系統</h1>
+            <p class="text-secondary small mb-4">
+                支援家長、老師與管理員登入。依角色權限自動隔離授權資源。
+            </p>
+
+            <form method="post">
+                <div class="mb-3">
+                    <label for="Username" class="form-label fw-semibold">帳號</label>
+                    <input type="text" id="Username" name="Username" class="form-control"
+                           value="@Model.Username" placeholder="例如：parent.lin / teacher.wang / admin" required />
+                </div>
+                <div class="mb-4">
+                    <label for="Password" class="form-label fw-semibold">密碼</label>
+                    <input type="password" id="Password" name="Password" class="form-control"
+                           value="demo123" required />
+                    <div class="form-text">預設展示密碼皆為 <code>demo123</code></div>
+                </div>
+                <button type="submit" class="btn btn-accent w-100">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>登入系統
+                </button>
+            </form>
+
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <hr class="my-4" />
+                <form method="post" asp-page-handler="Logout">
+                    <button type="submit" class="btn btn-outline-secondary w-100">登出目前帳號</button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card-plato p-4 p-md-5 h-100">
+            <div class="eyebrow-tag">
+                <i class="bi bi-lightning-charge-fill"></i>
+                <span>Quick Role Preview</span>
+            </div>
+            <h2 class="h4 fw-bold mb-2">測試帳號一覽（一鍵體驗切換）</h2>
+            <p class="small text-secondary mb-4">
+                點擊下方任一角色卡片即可立即切換身分並進入對應工作台：
+            </p>
+
+            <div class="d-grid gap-3">
+                @foreach (var u in Model.DemoUsers)
+                {
+                    <form method="post" asp-page-handler="QuickSwitch">
+                        <input type="hidden" name="username" value="@u.Username" />
+                        <button type="submit" class="student-selector-card w-100 text-start">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="metric-icon-box @(u.Role == UserRole.Parent ? "ocean" : u.Role == UserRole.Teacher ? "sage" : "")">
+                                    <i class="bi @(u.Role == UserRole.Parent ? "bi-people-fill" : u.Role == UserRole.Teacher ? "bi-easel2-fill" : "bi-shield-check")"></i>
+                                </span>
+                                <div>
+                                    <div class="fw-bold">@u.DisplayName</div>
+                                    <div class="small text-muted">帳號：<code>@u.Username</code> ｜ 電話：@u.Phone</div>
+                                </div>
+                            </div>
+                            <span class="badge bg-dark px-3 py-2">@u.Role</span>
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

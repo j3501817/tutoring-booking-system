@@ -1,0 +1,149 @@
+@page
+@model PlatoTutoring.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "系統總覽儀表板";
+}
+
+<div class="card-plato p-4 p-md-5 mb-4">
+    <div class="row align-items-center g-4">
+        <div class="col-12 col-xl-8">
+            <div class="eyebrow-tag">
+                <i class="bi bi-mortarboard-fill"></i>
+                <span>Plato Academy · 教務與輔導預約數位平台</span>
+            </div>
+            <h1 class="h2 fw-bold mb-2">柏拉圖補習班 － 網頁輔導預約與堂數管理系統</h1>
+            <p class="text-secondary mb-0">
+                整合家長線上選位、候補 30 分鐘保留輪替、老師匯款儲值登錄與點名、不可篡改分軌堂數流水帳，以及 LINE 即時推播通知。請透過左側功能列或下方入口切換角色工作台。
+            </p>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="d-grid gap-2">
+                <a class="btn btn-accent d-flex align-items-center justify-content-between px-3" asp-page="/Parent/Index">
+                    <span><i class="bi bi-calendar2-check me-2"></i>進入家長預約與堂數中心</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                <a class="btn btn-primary d-flex align-items-center justify-content-between px-3" asp-page="/Teacher/Index">
+                    <span><i class="bi bi-journal-check me-2"></i>進入老師點名與儲值後台</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                <a class="btn btn-outline-dark d-flex align-items-center justify-content-between px-3" asp-page="/Admin/Index">
+                    <span><i class="bi bi-bar-chart-line me-2"></i>進入管理員營運與月報表</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 核心營運指標卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-secondary small fw-semibold">目前開放學期／進度</span>
+                <span class="metric-icon-box"><i class="bi bi-bookmark-star-fill"></i></span>
+            </div>
+            <div class="fw-bold fs-5">@Model.CurrentProgressTitle</div>
+            <div class="small text-muted mt-1">@Model.CurrentSemesterName</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="metric-card metric-ocean h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-secondary small fw-semibold">在籍學生 / 總可用堂數</span>
+                <span class="metric-icon-box ocean"><i class="bi bi-people-fill"></i></span>
+            </div>
+            <div class="fw-bold fs-3">@Model.ActiveStudentCount <span class="fs-6 fw-normal text-muted">位</span> / @Model.TotalSystemCredits <span class="fs-6 fw-normal text-muted">堂</span></div>
+            <div class="small text-muted mt-1">付費與贈送堂數分軌核算</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="metric-card metric-sage h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-secondary small fw-semibold">有效預約 / 候補排隊中</span>
+                <span class="metric-icon-box sage"><i class="bi bi-calendar-event-fill"></i></span>
+            </div>
+            <div class="fw-bold fs-3">@Model.ConfirmedBookingCount <span class="fs-6 fw-normal text-muted">筆</span> / @Model.ActiveWaitlistCount <span class="fs-6 fw-normal text-muted">筆</span></div>
+            <div class="small text-muted mt-1">名額釋出自動保留 30 分鐘</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-secondary small fw-semibold">LINE 通知累計推播</span>
+                <span class="metric-icon-box"><i class="bi bi-bell-fill"></i></span>
+            </div>
+            <div class="fw-bold fs-3">@Model.LineSentCount <span class="fs-6 fw-normal text-muted">則</span></div>
+            <div class="small text-muted mt-1">作業催促 / 48h 二次提醒 / 候補通知</div>
+        </div>
+    </div>
+</div>
+
+<!-- 三大角色模組精選卡片 -->
+<div class="row g-4">
+    <div class="col-12 col-lg-4">
+        <div class="card-plato card-plato-interactive p-4 h-100 d-flex flex-column">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span class="metric-icon-box ocean"><i class="bi bi-person-hearts"></i></span>
+                <div>
+                    <h2 class="h5 fw-bold mb-0">家長端預約與堂數中心</h2>
+                    <div class="small text-muted">Mobile-First 直覺選位體驗</div>
+                </div>
+            </div>
+            <ul class="small text-secondary mb-4 ps-3 flex-grow-1">
+                <li class="mb-2">關聯與一鍵切換多位孩子，嚴格保障學生個資隔離</li>
+                <li class="mb-2">桌機月曆與時段並排、手機直式日期與大觸控卡片</li>
+                <li class="mb-2">五種到班目的選擇、同進度改期、開課 24 小時前取消自動退堂</li>
+                <li class="mb-2">滿額登記候補，釋出名額發送 LINE 通知並保留 30 分鐘回網站確認</li>
+                <li>分軌檢視「贈送堂數（優先扣抵）」與「付費堂數」流水帳</li>
+            </ul>
+            <a class="btn btn-outline-dark w-100 fw-semibold" asp-page="/Parent/Index">
+                開啟家長端工作台 <i class="bi bi-chevron-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card-plato card-plato-interactive p-4 h-100 d-flex flex-column">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span class="metric-icon-box sage"><i class="bi bi-easel2-fill"></i></span>
+                <div>
+                    <h2 class="h5 fw-bold mb-0">老師端教務、點名與儲值</h2>
+                    <div class="small text-muted">手機拍照上傳憑證與課堂點名</div>
+                </div>
+            </div>
+            <ul class="small text-secondary mb-4 ps-3 flex-grow-1">
+                <li class="mb-2">替學生登錄匯款儲值（金額、堂數、末五碼、手機拍照或相簿上傳憑證）</li>
+                <li class="mb-2">發放贈送堂數與沖正調整，自動產生不可覆寫之稽核流水帳</li>
+                <li class="mb-2">每日輔導名單點名（出席／缺席／爽約）與課後定案</li>
+                <li class="mb-2">勾選作業不佳學生發送 LINE 催促，逾 48 小時未約自動二次提醒</li>
+                <li>建立常態／考前加開時段，並支援代學生預約</li>
+            </ul>
+            <a class="btn btn-outline-dark w-100 fw-semibold" asp-page="/Teacher/Index">
+                開啟老師端工作台 <i class="bi bi-chevron-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card-plato card-plato-interactive p-4 h-100 d-flex flex-column">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span class="metric-icon-box"><i class="bi bi-shield-lock-fill"></i></span>
+                <div>
+                    <h2 class="h5 fw-bold mb-0">管理員營運與月報表中心</h2>
+                    <div class="small text-muted">財務對帳、退班結算與學期控制</div>
+                </div>
+            </div>
+            <ul class="small text-secondary mb-4 ps-3 flex-grow-1">
+                <li class="mb-2">管理學期、每週開放進度、五種到班目的與團體課爽約停權規則</li>
+                <li class="mb-2">插班生依剩餘天數比例四捨五入發放贈送堂數，學期結束一鍵歸零</li>
+                <li class="mb-2">退班結算計算器：按各批儲值當時單價 × 剩餘付費堂數精算應退金額</li>
+                <li class="mb-2">學生堂數 CSV 匯出、夜間流水帳三方對帳檢核、90 天過期憑證清理</li>
+                <li>完整月度營運報表：儲值入帳、預收款、出席率、滿座率與 LINE 用量</li>
+            </ul>
+            <a class="btn btn-outline-dark w-100 fw-semibold" asp-page="/Admin/Index">
+                開啟管理員後台 <i class="bi bi-chevron-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>

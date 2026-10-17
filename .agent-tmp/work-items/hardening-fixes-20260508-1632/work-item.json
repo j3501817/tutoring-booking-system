@@ -1,0 +1,20 @@
+{
+  "id": "hardening-fixes-20260508-1632",
+  "title": "Agentic template hardening fixes",
+  "stage": "DELIVER",
+  "pmApproved": true,
+  "approvedAt": "2026-05-08T16:32:51+08:00",
+  "riskLevel": "risk",
+  "requiredArtifacts": [
+    "Intent-Spec.md",
+    "PLAN.md",
+    "ASSIGNMENT.md",
+    "status.md",
+    "TEST_REPORT.md"
+  ],
+  "expectedChecks": [
+    "npm run agentic:validate",
+    "npm run agentic:check-secrets",
+    "npm audit --audit-level=high"
+  ]
+}

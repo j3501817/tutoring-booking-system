@@ -1,0 +1,16 @@
+{
+  "id": "booking-system-web-v1",
+  "title": "柏拉圖補習班－網頁輔導預約與堂數管理系統 (ASP.NET Core Web App)",
+  "source": "local-pm-request",
+  "pmApproved": true,
+  "queueState": "delivered",
+  "retryCount": 0,
+  "maxRetries": 3,
+  "requiredArtifacts": [
+    "work-item.json",
+    "assumptions.md",
+    "PLAN.md",
+    "status.md",
+    "TEST_REPORT.md"
+  ]
+}

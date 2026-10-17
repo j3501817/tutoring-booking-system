@@ -1,0 +1,19 @@
+{
+  "name": "agentic-governance-tooling",
+  "private": true,
+  "description": "Language-neutral governance tooling for the Agentic Project Template. This package is not the application runtime.",
+  "scripts": {
+    "agentic:lint": "node --check scripts/notify-pm.js && node --check scripts/validate-work-item.js && node --check scripts/check-secrets.js && node --check scripts/run-app-checks.js && node --check scripts/generate-project-profile.js && node --check scripts/artifact-contract.js && node --check scripts/self-check-artifact-contract.js",
+    "agentic:validate": "node scripts/validate-work-item.js",
+    "agentic:validate:changed": "node scripts/validate-work-item.js --changed",
+    "agentic:contract:self-check": "node scripts/self-check-artifact-contract.js",
+    "agentic:check-secrets": "node scripts/check-secrets.js",
+    "agentic:app-checks": "node scripts/run-app-checks.js",
+    "agentic:profile:refresh": "node scripts/generate-project-profile.js",
+    "agentic:test:manifestless": "node scripts/validate-work-item.js --changed --work-item manifestless-changed-validation-test",
+    "agentic:test": "npm run agentic:contract:self-check && npm run agentic:test:manifestless && npm run agentic:validate && npm run agentic:check-secrets && npm run agentic:app-checks"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

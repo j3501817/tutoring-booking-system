@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic work item artifact contract",
+  "type": "object",
+  "additionalProperties": true,
+  "agenticArtifactContract": {
+    "version": 1,
+    "requiredArtifacts": {
+      "common": [
+        "work-item.json",
+        "assumptions.md",
+        "PLAN.md",
+        "status.md",
+        "TEST_REPORT.md"
+      ],
+      "githubIssue": [
+        "issue.json",
+        "issue.md",
+        "CONTEXT.md"
+      ]
+    },
+    "completionArtifacts": {
+      "githubIssueOneOf": [
+        "DELIVERY_REPORT.md",
+        "PM_Review.md"
+      ]
+    },
+    "skeletonArtifacts": {
+      "githubIssueReady": [
+        "work-item.json",
+        "issue.json",
+        "issue.md",
+        "CONTEXT.md",
+        "assumptions.md",
+        "PLAN.md",
+        "status.md",
+        "TEST_REPORT.md",
+        "DELIVERY_REPORT.md"
+      ],
+      "githubIssueManualReview": [
+        "work-item.json",
+        "issue.json",
+        "issue.md",
+        "CONTEXT.md",
+        "assumptions.md",
+        "PLAN.md",
+        "status.md",
+        "TEST_REPORT.md",
+        "PM_Review.md"
+      ]
+    }
+  }
+}

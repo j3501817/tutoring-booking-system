@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "governance": {
+    "runtime": "node",
+    "packageManager": "npm",
+    "purpose": "Runs template governance checks only. This does not define the application runtime language.",
+    "commands": {
+      "lint": "npm run agentic:lint",
+      "validate": "npm run agentic:validate",
+      "validateChanged": "npm run agentic:validate:changed",
+      "checkSecrets": "npm run agentic:check-secrets"
+    }
+  },
+  "projectProfile": {
+    "path": ".agent-tmp/project-profile.json",
+    "primaryLanguage": "unknown",
+    "applicationType": "unknown",
+    "safeValidationCommands": [
+      "npm run agentic:test"
+    ],
+    "focusedValidationCommands": [],
+    "requiredEnvPlaceholders": {},
+    "optInTestMarkers": [
+      "connectivity",
+      "e2e"
+    ],
+    "refreshTriggers": [
+      "agentic.config.json changed",
+      "package.json changed",
+      "package-lock.json changed",
+      ".github/workflows changed",
+      "manual refresh requested"
+    ]
+  },
+  "applicationChecks": {
+    "enabled": false,
+    "mode": "auto",
+    "profiles": {
+      "node": {
+        "detect": [
+          "package.json"
+        ],
+        "commands": [
+          "npm test"
+        ]
+      },
+      "python": {
+        "detect": [
+          "pyproject.toml",
+          "requirements.txt",
+          "pytest.ini"
+        ],
+        "commands": [
+          "python -m pytest"
+        ]
+      },
+      "dotnet": {
+        "detect": [
+          "*.sln",
+          "*.csproj"
+        ],
+        "commands": [
+          "dotnet test"
+        ]
+      },
+      "java_maven": {
+        "detect": [
+          "pom.xml"
+        ],
+        "commands": [
+          "mvn test"
+        ]
+      },
+      "java_gradle": {
+        "detect": [
+          "build.gradle",
+          "build.gradle.kts",
+          "settings.gradle",
+          "settings.gradle.kts"
+        ],
+        "commands": [
+          "gradle test"
+        ]
+      },
+      "go": {
+        "detect": [
+          "go.mod"
+        ],
+        "commands": [
+          "go test ./...",
+          "go vet ./..."
+        ]
+      },
+      "rust": {
+        "detect": [
+          "Cargo.toml"
+        ],
+        "commands": [
+          "cargo fmt --check",
+          "cargo clippy --all-targets --all-features -- -D warnings",
+          "cargo test"
+        ]
+      },
+      "php": {
+        "detect": [
+          "composer.json"
+        ],
+        "commands": [
+          "composer install --no-interaction --prefer-dist",
+          "composer test"
+        ]
+      },
+      "ruby": {
+        "detect": [
+          "Gemfile"
+        ],
+        "commands": [
+          "bundle install",
+          "bundle exec rake test"
+        ]
+      },
+      "docker": {
+        "detect": [
+          "docker-compose.yml",
+          "compose.yml"
+        ],
+        "commands": [
+          "docker compose config"
+        ]
+      }
+    }
+  }
+}

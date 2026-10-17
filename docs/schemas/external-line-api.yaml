@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: External LINE API Contract Draft
+  version: 0.1.0
+  description: >
+    Template OpenAPI document for LINE integration boundaries. Replace this
+    draft with the official endpoint subset required by the project before
+    implementation.
+servers:
+  - url: https://api.line.me
+    description: LINE Messaging API production endpoint
+paths: {}
+components:
+  securitySchemes:
+    lineChannelAccessToken:
+      type: http
+      scheme: bearer
+      bearerFormat: LINE Channel Access Token
+security: []

@@ -1,0 +1,13 @@
+[
+  {
+    "number": 900001,
+    "title": "Mock issue for local dry run",
+    "body": "Implement a harmless documentation-only mock change for validating local dry-run routing without invoking Codex or GitHub mutations.",
+    "url": "https://example.invalid/issues/900001",
+    "labels": [
+      {
+        "name": "codex:auto-fix"
+      }
+    ]
+  }
+]

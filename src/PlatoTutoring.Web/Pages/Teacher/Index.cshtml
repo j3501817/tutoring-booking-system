@@ -1,0 +1,597 @@
+@page
+@model PlatoTutoring.Web.Pages.Teacher.IndexModel
+@{
+    ViewData["Title"] = "老師教務、點名與儲值中心";
+    var unresolvedHwCount = Model.HomeworkItems.Count(h => !h.IsResolvedByBooking);
+    var openSlotsCount = Model.Slots.Count(s => s.RemainingSeats > 0);
+}
+
+<!-- 頂部老師工作台標題與快捷統計 -->
+<div class="card-plato p-3 p-md-4 mb-4">
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
+        <div>
+            <div class="eyebrow-tag">
+                <i class="bi bi-journal-check"></i>
+                <span>授課老師工作台 · Teacher Workspace</span>
+            </div>
+            <h1 class="h3 fw-bold mb-1">教務點名、儲值入帳與輔導排課中心</h1>
+            <p class="text-secondary small mb-0">
+                授課老師：<strong>@Model.CurrentUser.DisplayName</strong> ｜ 手機單欄表單最佳化 ｜ 支援手機拍照或相簿上傳匯款憑證
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <form method="post" asp-page-handler="Trigger48hReminder">
+                <button type="submit" class="btn btn-accent btn-sm">
+                    <i class="bi bi-bell-fill me-1"></i>執行 48 小時未預約二次催促掃描
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 老師工作台即時概況指標列 -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small text-secondary fw-semibold">待點名與有效預約</span>
+                <span class="metric-icon-box"><i class="bi bi-person-check-fill"></i></span>
+            </div>
+            <div class="fs-3 fw-bold">@Model.AllConfirmedBookings.Count <span class="fs-6 fw-normal text-muted">筆</span></div>
+            <div class="small text-muted">支援課後定案鎖定紀錄</div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="metric-card metric-ocean h-100">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small text-secondary fw-semibold">近期儲值登錄批次</span>
+                <span class="metric-icon-box ocean"><i class="bi bi-cash-coin"></i></span>
+            </div>
+            <div class="fs-3 fw-bold">@Model.RecentTopUps.Count <span class="fs-6 fw-normal text-muted">批</span></div>
+            <div class="small text-muted">私有保存匯款憑證 90 天</div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="metric-card metric-sage h-100">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small text-secondary fw-semibold">尚有名額輔導時段</span>
+                <span class="metric-icon-box sage"><i class="bi bi-calendar-plus-fill"></i></span>
+            </div>
+            <div class="fs-3 fw-bold">@openSlotsCount <span class="fs-6 fw-normal text-muted">場</span></div>
+            <div class="small text-muted">可隨時加開考前加強時段</div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small text-secondary fw-semibold">待家長預約作業追蹤</span>
+                <span class="metric-icon-box"><i class="bi bi-exclamation-octagon-fill"></i></span>
+            </div>
+            <div class="fs-3 fw-bold">@unresolvedHwCount <span class="fs-6 fw-normal text-muted">位</span></div>
+            <div class="small text-muted">逾 48 小時自動二次催促</div>
+        </div>
+    </div>
+</div>
+
+<!-- 膠囊式分段工作區頁籤 (Segmented Workspace Tabs) -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <ul class="nav nav-pills workspace-tabs-shell" id="teacherWorkspaceTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="btn-teacher-rollcall" data-bs-toggle="pill"
+                    data-bs-target="#tab-teacher-rollcall" type="button" role="tab">
+                <i class="bi bi-person-check-fill"></i>
+                <span>今日課堂點名</span>
+                <span class="workspace-tab-count">@Model.AllConfirmedBookings.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="btn-teacher-topup" data-bs-toggle="pill"
+                    data-bs-target="#tab-teacher-topup" type="button" role="tab">
+                <i class="bi bi-cash-coin"></i>
+                <span>儲值與堂數調整</span>
+                <span class="workspace-tab-count">@Model.RecentTopUps.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="btn-teacher-slots" data-bs-toggle="pill"
+                    data-bs-target="#tab-teacher-slots" type="button" role="tab">
+                <i class="bi bi-calendar-plus-fill"></i>
+                <span>時段排課與代約</span>
+                <span class="workspace-tab-count">@Model.Slots.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="btn-teacher-homework" data-bs-toggle="pill"
+                    data-bs-target="#tab-teacher-homework" type="button" role="tab">
+                <i class="bi bi-bell-fill"></i>
+                <span>作業追蹤與催促</span>
+                <span class="workspace-tab-count">@Model.HomeworkItems.Count</span>
+            </button>
+        </li>
+    </ul>
+
+    <span class="small text-secondary">
+        <i class="bi bi-compass me-1"></i>點選上方頁籤或左側子選單可快速切換作業工作區
+    </span>
+</div>
+
+<div class="tab-content" id="teacherWorkspaceTabContent">
+    <!-- 分頁一：今日課堂點名與課後定案 -->
+    <div class="tab-pane fade show active" id="tab-teacher-rollcall" role="tabpanel">
+        <div class="card-plato p-3 p-md-4">
+            <div class="section-header-clean">
+                <div class="section-header-title">
+                    <span class="metric-icon-box"><i class="bi bi-person-check-fill"></i></span>
+                    <div>
+                        <h2 class="h5 fw-bold mb-0">每日輔導任務與課堂點名</h2>
+                        <div class="small text-muted">支援標記出席、缺席請假、爽約未到與課後點名定案</div>
+                    </div>
+                </div>
+                <span class="badge bg-light text-dark border px-3 py-2">
+                    共 @Model.AllConfirmedBookings.Count 筆有效預約
+                </span>
+            </div>
+
+            @if (!Model.AllConfirmedBookings.Any())
+            {
+                <div class="text-muted small py-4 text-center">目前尚無有效預約需點名。</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
+                        <thead>
+                            <tr>
+                                <th>時段時間</th>
+                                <th>學生 / 班別</th>
+                                <th>類型 / 到班目的</th>
+                                <th>代約/建立人</th>
+                                <th>目前點名狀態</th>
+                                <th>執行點名與定案</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.AllConfirmedBookings)
+                            {
+                                var startTpe = BookingService.ToTaipeiTime(b.TutoringSlot!.StartsAtUtc);
+                                <tr>
+                                    <td data-label="時段時間">
+                                        <div class="fw-bold">@startTpe.ToString("MM/dd (ddd) HH:mm")</div>
+                                        <div class="small text-muted">
+                                            @b.TutoringSlot.CourseProgress?.Code
+                                            @if (b.TutoringSlot.IsAttendanceFinalized)
+                                            {
+                                                <span class="badge bg-dark ms-1">已課後定案</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td data-label="學生 / 班別">
+                                        <strong>@b.Student?.FullName</strong>
+                                        <span class="text-muted small">(@b.Student?.GradeClass)</span>
+                                    </td>
+                                    <td data-label="類型 / 目的">
+                                        <span class="badge @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
+                                            @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
+                                        </span>
+                                        <span class="small ms-1">@b.PurposeName</span>
+                                    </td>
+                                    <td data-label="建立人" class="small">
+                                        @b.CreatedByName (@b.CreatedByRole)
+                                    </td>
+                                    <td data-label="點名狀態">
+                                        <span class="badge @(b.AttendanceStatus == AttendanceStatus.Present ? "bg-success" : b.AttendanceStatus == AttendanceStatus.NoShow ? "bg-danger" : "bg-secondary")">
+                                            @b.AttendanceStatus
+                                        </span>
+                                    </td>
+                                    <td data-label="執行點名">
+                                        <form method="post" asp-page-handler="RecordAttendance" class="d-flex flex-wrap gap-1 align-items-center justify-content-end">
+                                            <input type="hidden" name="bookingId" value="@b.Id" />
+                                            <select name="attendanceStatus" class="form-select form-select-sm" style="width: auto;" aria-label="點名狀態">
+                                                <option value="Present" selected="@(b.AttendanceStatus == AttendanceStatus.Present)">出席 (Present)</option>
+                                                <option value="Absent" selected="@(b.AttendanceStatus == AttendanceStatus.Absent)">缺席請假 (Absent)</option>
+                                                <option value="NoShow" selected="@(b.AttendanceStatus == AttendanceStatus.NoShow)">爽約未到 (NoShow)</option>
+                                            </select>
+                                            <div class="form-check form-check-inline ms-1 mb-0 small">
+                                                <input class="form-check-input" type="checkbox" name="finalizeSlot" value="true" id="fin_@b.Id"
+                                                       checked="@b.TutoringSlot.IsAttendanceFinalized" />
+                                                <label class="form-check-label" for="fin_@b.Id">定案</label>
+                                            </div>
+                                            <button type="submit" class="btn btn-sm btn-dark">儲存點名</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- 分頁二：儲值登錄、匯款憑證上傳與堂數沖正調整 -->
+    <div class="tab-pane fade" id="tab-teacher-topup" role="tabpanel">
+        <div class="row g-4 mb-4">
+            <!-- 學生儲值登錄與匯款憑證上傳 -->
+            <div class="col-12 col-xl-7">
+                <div class="card-plato p-3 p-md-4 h-100">
+                    <div class="section-header-clean">
+                        <div class="section-header-title">
+                            <span class="metric-icon-box ocean"><i class="bi bi-cash-coin"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">學生儲值登錄與匯款憑證上傳</h2>
+                                <div class="small text-muted">預設小組指導每堂 NT$500、6 堂一組（NT$3,000）</div>
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" asp-page-handler="RecordTopUp" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="topupStudent">選擇儲值學生</label>
+                            <select id="topupStudent" name="studentId" class="form-select" required>
+                                @foreach (var s in Model.ActiveStudents)
+                                {
+                                    <option value="@s.Id">@s.FullName (@s.GradeClass) － 目前付費:@s.PaidCredits 堂 / 贈送:@s.BonusCredits 堂</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-semibold" for="amountNtd">儲值金額 (NT$)</label>
+                                <input type="number" id="amountNtd" name="amountNtd" class="form-control" value="3000" min="100" step="100" required />
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-semibold" for="creditsAdded">增加付費堂數</label>
+                                <input type="number" id="creditsAdded" name="creditsAdded" class="form-control" value="6" min="1" max="100" required />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-semibold" for="remittanceDate">匯款日期</label>
+                                <input type="date" id="remittanceDate" name="remittanceDate" class="form-control"
+                                       value="@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-semibold" for="accountLastFiveDigits">匯款帳號末五碼</label>
+                                <input type="text" id="accountLastFiveDigits" name="accountLastFiveDigits" class="form-control"
+                                       maxlength="5" minlength="5" placeholder="例如：12345" required />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="attachmentFile">匯款截圖／憑證附件（支援手機拍照或相簿選取，保留 90 天）</label>
+                            <input type="file" id="attachmentFile" name="attachmentFile" class="form-control"
+                                   accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment"
+                                   onchange="previewRemittanceImage(this)" />
+                            <div id="attachmentPreviewBox" class="mt-2 d-none">
+                                <div class="small text-success fw-semibold mb-1">附件即時預覽：</div>
+                                <img id="attachmentPreviewImg" src="" alt="匯款憑證預覽" class="img-thumbnail" style="max-height: 160px;" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="topupNote">備註說明</label>
+                            <input type="text" id="topupNote" name="note" class="form-control" placeholder="例如：家長轉帳 6 堂小組指導" />
+                        </div>
+                        <button type="submit" class="btn btn-accent w-100">
+                            <i class="bi bi-check2-circle me-1"></i>確認登錄儲值並寫入流水帳
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 發放贈送堂數與沖正更正 -->
+            <div class="col-12 col-xl-5">
+                <div class="card-plato p-3 p-md-4 h-100">
+                    <div class="section-header-clean">
+                        <div class="section-header-title">
+                            <span class="metric-icon-box"><i class="bi bi-arrow-left-right"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">發放贈送堂數／沖正更正堂數</h2>
+                                <div class="small text-muted">所有更正均以新交易沖正調整，不修改原始歷史流水帳</div>
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" asp-page-handler="AdjustCredits">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="adjStudent">選擇學生</label>
+                            <select id="adjStudent" name="studentId" class="form-select" required>
+                                @foreach (var s in Model.ActiveStudents)
+                                {
+                                    <option value="@s.Id">@s.FullName (@s.GradeClass) － 付費:@s.PaidCredits / 贈送:@s.BonusCredits</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="bonusDelta">贈送堂數異動 (+/-)</label>
+                                <input type="number" id="bonusDelta" name="bonusDelta" class="form-control" value="1" min="-20" max="20" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="paidDelta">付費堂數異動 (+/-)</label>
+                                <input type="number" id="paidDelta" name="paidDelta" class="form-control" value="0" min="-20" max="20" required />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="adjReason">沖正或贈送原因（必填稽核紀錄）</label>
+                            <input type="text" id="adjReason" name="reason" class="form-control" placeholder="例如：段考進步獎勵贈送 1 堂 / 登錄錯誤沖正" required />
+                        </div>
+                        <button type="submit" class="btn btn-outline-dark w-100 fw-semibold">
+                            <i class="bi bi-journal-plus me-1"></i>送出堂數調整流水帳
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 近期匯款儲值批次與憑證檢視 -->
+        <div class="card-plato p-3 p-md-4">
+            <div class="section-header-clean">
+                <div class="section-header-title">
+                    <span class="metric-icon-box ocean"><i class="bi bi-receipt-cutoff"></i></span>
+                    <div>
+                        <h2 class="h5 fw-bold mb-0">近期儲值批次與匯款憑證紀錄</h2>
+                        <div class="small text-muted">私有儲存，僅授課老師與管理員具備權限檢視憑證附件</div>
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
+                    <thead>
+                        <tr>
+                            <th>批次編號</th>
+                            <th>學生</th>
+                            <th>金額 / 堂數 / 單價</th>
+                            <th>匯款日 / 末五碼</th>
+                            <th>剩餘可退堂數</th>
+                            <th>匯款憑證附件</th>
+                            <th>登錄老師</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.RecentTopUps)
+                        {
+                            <tr>
+                                <td data-label="批次編號">#@t.Id</td>
+                                <td data-label="學生"><strong>@t.Student?.FullName</strong></td>
+                                <td data-label="金額 / 堂數">NT$@t.AmountNtd.ToString("N0") / +@t.CreditsAdded 堂 (單價 $@t.UnitPriceNtd.ToString("N0"))</td>
+                                <td data-label="匯款日 / 末五碼">@t.RemittanceDate.ToString("yyyy-MM-dd") / <code>@t.AccountLastFiveDigits</code></td>
+                                <td data-label="剩餘可退堂數">@t.RemainingPaidCredits 堂</td>
+                                <td data-label="匯款憑證">
+                                    @if (t.AttachmentId.HasValue && t.Attachment != null && !t.Attachment.IsDeleted)
+                                    {
+                                        <a href="/attachments/@t.AttachmentId" target="_blank" class="btn btn-sm btn-outline-secondary py-1">
+                                            <i class="bi bi-file-earmark-image me-1"></i>檢視憑證 (@t.Attachment.OriginalFileName)
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">無附件</span>
+                                    }
+                                </td>
+                                <td data-label="登錄老師" class="small">@t.RecordedByTeacher?.DisplayName</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分頁三：時段排課與老師代學生預約 -->
+    <div class="tab-pane fade" id="tab-teacher-slots" role="tabpanel">
+        <div class="row g-4">
+            <div class="col-12 col-xl-6">
+                <div class="card-plato p-3 p-md-4 h-100">
+                    <div class="section-header-clean">
+                        <div class="section-header-title">
+                            <span class="metric-icon-box sage"><i class="bi bi-calendar-plus"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">建立常態／加開輔導時段</h2>
+                                <div class="small text-muted">支援常態排課與段考前臨時加開時段</div>
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" asp-page-handler="CreateSlot">
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold" for="slotProgress">所屬課程進度</label>
+                            <select id="slotProgress" name="courseProgressId" class="form-select" required>
+                                @foreach (var p in Model.ProgressList)
+                                {
+                                    <option value="@p.Id">@p.Code @p.Title (@(p.IsCurrentProgress ? "目前進度" : "非目前進度"))</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="slotType">輔導類型</label>
+                                <select id="slotType" name="slotType" class="form-select">
+                                    <option value="SmallGroup">小組指導（扣 1 堂）</option>
+                                    <option value="GroupCounseling">團體輔導（免費 0 堂）</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="slotGradeClass">適用班別</label>
+                                <input type="text" id="slotGradeClass" name="gradeClass" class="form-control" value="國三A班" required />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="slotDate">上課日期</label>
+                                <input type="date" id="slotDate" name="slotDate" class="form-control"
+                                       value="@DateTime.UtcNow.AddDays(3).ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="startTime">開始時間 (台北時間)</label>
+                                <input type="time" id="startTime" name="startTime" class="form-control" value="18:30" required />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="durationMinutes">時長 (分鐘)</label>
+                                <input type="number" id="durationMinutes" name="durationMinutes" class="form-control" value="90" min="30" max="240" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold" for="maxCapacity">容納名額</label>
+                                <input type="number" id="maxCapacity" name="maxCapacity" class="form-control" value="4" min="1" max="50" required />
+                            </div>
+                        </div>
+                        <div class="mb-2 form-check">
+                            <input type="checkbox" class="form-check-input" id="isExtraSlot" name="isExtraSlot" value="true" />
+                            <label class="form-check-label" for="isExtraSlot">標記為「考前／臨時加開時段」</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="slotNotes">時段備註</label>
+                            <input type="text" id="slotNotes" name="notes" class="form-control" placeholder="例如：二次函數重點加強" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                            <i class="bi bi-plus-circle me-1"></i>新增輔導時段
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card-plato p-3 p-md-4 h-100">
+                    <div class="section-header-clean">
+                        <div class="section-header-title">
+                            <span class="metric-icon-box ocean"><i class="bi bi-calendar-check"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">老師代學生預約（保存操作人與時間）</h2>
+                                <div class="small text-muted">嚴格遵守目前進度、名額與每進度堂數限制</div>
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" asp-page-handler="ProxyBook">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="proxyStudent">選擇學生</label>
+                            <select id="proxyStudent" name="studentId" class="form-select" required>
+                                @foreach (var s in Model.ActiveStudents)
+                                {
+                                    <option value="@s.Id">@s.FullName (@s.GradeClass) － 可用:@s.TotalCredits 堂</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="proxySlot">可預約時段</label>
+                            <select id="proxySlot" name="slotId" class="form-select" required>
+                                @foreach (var sl in Model.Slots.Where(x => x.RemainingSeats > 0))
+                                {
+                                    var tpe = BookingService.ToTaipeiTime(sl.StartsAtUtc);
+                                    <option value="@sl.Id">
+                                        @tpe.ToString("MM/dd HH:mm") @sl.CourseProgress?.Code (@(sl.SlotType == SlotType.SmallGroup ? "小組扣1堂" : "團體免費")) 剩餘 @sl.RemainingSeats 名
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="proxyPurpose">五種到班目的</label>
+                            <select id="proxyPurpose" name="purposeName" class="form-select" required>
+                                @foreach (var p in Model.PurposeOptions)
+                                {
+                                    <option value="@p.Name">@p.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-accent w-100 fw-semibold">
+                            <i class="bi bi-person-plus-fill me-1"></i>代學生建立預約
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分頁四：作業追蹤與 LINE 催促通知 -->
+    <div class="tab-pane fade" id="tab-teacher-homework" role="tabpanel">
+        <div class="row g-4">
+            <div class="col-12 col-xl-5">
+                <div class="card-plato p-3 p-md-4 h-100">
+                    <div class="section-header-clean">
+                        <div class="section-header-title">
+                            <span class="metric-icon-box"><i class="bi bi-exclamation-octagon-fill"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">勾選作業不佳學生</h2>
+                                <div class="small text-muted">勾選後立即發送 LINE 通知家長預約；48 小時未預約自動二次催促</div>
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" asp-page-handler="FlagHomework">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="hwStudent">學生</label>
+                            <select id="hwStudent" name="studentId" class="form-select" required>
+                                @foreach (var s in Model.ActiveStudents)
+                                {
+                                    <option value="@s.Id">@s.FullName (@s.GradeClass)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="hwProgress">課程進度</label>
+                            <select id="hwProgress" name="courseProgressId" class="form-select" required>
+                                @foreach (var p in Model.ProgressList)
+                                {
+                                    <option value="@p.Id">@p.Code @p.Title</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="subjectNote">作業狀況說明</label>
+                            <input type="text" id="subjectNote" name="subjectNote" class="form-control"
+                                   placeholder="例如：第7週隨堂考與講義訂正未完成，請預約輔導" required />
+                        </div>
+                        <button type="submit" class="btn btn-accent w-100">
+                            <i class="bi bi-send-fill me-1"></i>發送作業不佳 LINE 通知
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-7">
+                <div class="card-plato p-3 p-md-4 h-100">
+                    <div class="section-header-clean">
+                        <div class="section-header-title">
+                            <span class="metric-icon-box sage"><i class="bi bi-list-stars"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">近期作業追蹤與預約解決狀態</h2>
+                                <div class="small text-muted">家長完成同進度輔導預約後，系統會自動標記為已預約解決</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        @foreach (var hw in Model.HomeworkItems)
+                        {
+                            <div class="p-3 border rounded-3 bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div class="fw-bold">
+                                        @hw.Student?.FullName
+                                        <span class="badge bg-secondary ms-1">@hw.CourseProgress?.Code</span>
+                                    </div>
+                                    <div class="small text-secondary mt-1">@hw.SubjectNote</div>
+                                </div>
+                                <span class="badge @(hw.IsResolvedByBooking ? "bg-success" : hw.IsSecondReminderFlagged ? "bg-danger" : "bg-warning text-dark") px-3 py-2">
+                                    @(hw.IsResolvedByBooking ? "已預約解決" : hw.IsSecondReminderFlagged ? "48h二次催促" : "待家長預約")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function previewRemittanceImage(input) {
+            const box = document.getElementById('attachmentPreviewBox');
+            const img = document.getElementById('attachmentPreviewImg');
+            if (input.files && input.files[0] && input.files[0].type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    img.src = e.target.result;
+                    box.classList.remove('d-none');
+                };
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                box.classList.add('d-none');
+            }
+        }
+    </script>
+}

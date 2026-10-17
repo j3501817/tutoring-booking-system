@@ -1,0 +1,13 @@
+{
+  "id": "manifestless-workitem-ci-fix",
+  "title": "Prevent changed validation failure for manifestless intent work items",
+  "source": "local-pm-request",
+  "pmApproved": true,
+  "requiredArtifacts": [
+    "Intent-Spec.md",
+    "PLAN.md",
+    "ASSIGNMENT.md",
+    "status.md",
+    "TEST_REPORT.md"
+  ]
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "number": 901,
+    "title": "Add context pack generation for issue automation",
+    "body": "Please update the agentic template wrapper to generate CONTEXT.md before Codex runs. Acceptance criteria: the context pack includes project profile summary, issue metadata, safe validation commands, required placeholder environment variable names, opt-in tests, candidate file hints, and explicit scope boundaries. Affected component: scripts/codex-batch-issues.ps1.",
+    "url": "https://github.com/example/repo/issues/901",
+    "labels": [
+      {
+        "name": "codex:auto-fix"
+      },
+      {
+        "name": "area:automation"
+      }
+    ]
+  },
+  {
+    "number": 902,
+    "title": "Broken issue body",
+    "body": "fix it",
+    "url": "https://github.com/example/repo/issues/902",
+    "labels": [
+      {
+        "name": "codex:auto-fix"
+      }
+    ]
+  }
+]

@@ -1,0 +1,36 @@
+# 排除機密與套件
+.env
+node_modules/
+dist/
+build/
+
+# 排除 .NET 編譯產物與執行期本機資料庫/上傳附件/DataProtection金鑰
+bin/
+obj/
+**/bin/
+**/obj/
+**/App_Data/
+.aspnet/
+**/.aspnet/
+*.db
+*.db-shm
+*.db-wal
+
+# 排除 IDE 與系統暫存
+.DS_Store
+.vscode/
+*.log
+
+# ==============================================================================
+# Agentic Project - 強制保留的 AI 核心設定與動態工作單 (Do NOT ignore these)
+# ==============================================================================
+!.github/copilot-instructions.md
+!AGENTS.md
+!docs/00-Intent-Spec.md
+!docs/DUAL-SPEC-UPGRADE.md
+
+# ⚠️ 廢除 agent-sync/，全面追蹤專屬工作單沙盒內的 AI 溝通紀錄與測試報告
+!.agent-tmp/work-items/**/*.md
+
+# Local project profile cache generated during template adoption
+.agent-tmp/project-profile.json

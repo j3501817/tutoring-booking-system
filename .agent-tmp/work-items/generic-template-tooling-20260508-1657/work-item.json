@@ -1,0 +1,21 @@
+{
+  "id": "generic-template-tooling-20260508-1657",
+  "title": "Generic template tooling",
+  "stage": "DELIVER",
+  "pmApproved": true,
+  "approvedAt": "2026-05-08T16:57:21+08:00",
+  "riskLevel": "risk",
+  "requiredArtifacts": [
+    "Intent-Spec.md",
+    "PLAN.md",
+    "ASSIGNMENT.md",
+    "status.md",
+    "TEST_REPORT.md"
+  ],
+  "expectedChecks": [
+    "npm run agentic:validate",
+    "npm run agentic:check-secrets",
+    "npm run agentic:app-checks",
+    "npm audit --audit-level=high"
+  ]
+}

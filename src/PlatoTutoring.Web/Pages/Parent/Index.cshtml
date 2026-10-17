@@ -1,0 +1,572 @@
+@page
+@model PlatoTutoring.Web.Pages.Parent.IndexModel
+@{
+    ViewData["Title"] = "家長預約與堂數中心";
+    var student = Model.SelectedStudent;
+}
+
+<!-- 頂部區塊標題與 LINE 通知綁定 -->
+<div class="card-plato p-3 p-md-4 mb-4">
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
+        <div>
+            <div class="eyebrow-tag">
+                <i class="bi bi-calendar2-check-fill"></i>
+                <span>家長專屬工作台 · Parent Portal</span>
+            </div>
+            <h1 class="h3 fw-bold mb-1">孩子輔導預約與分軌堂數查詢</h1>
+            <p class="text-secondary small mb-0">
+                家長帳號：<strong>@Model.CurrentUser.DisplayName</strong> ｜ 僅顯示獲授權孩子之紀錄 ｜ 扣堂規則：優先扣抵贈送堂數
+            </p>
+        </div>
+
+        <form method="post" asp-page-handler="BindLine" class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="hidden" name="studentId" value="@student?.Id" />
+            <div class="input-group" style="max-width: 380px;">
+                <span class="input-group-text bg-light fw-semibold small">
+                    <i class="bi bi-chat-dots-fill text-success me-1"></i>LINE 通知 ID
+                </span>
+                <input type="text" name="lineUserId" class="form-control" value="@Model.CurrentUser.LineUserId" placeholder="輸入 LINE User ID" />
+                <button type="submit" class="btn btn-outline-dark fw-semibold">儲存綁定</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 關聯孩子切換列 -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="small fw-bold text-secondary">
+            <i class="bi bi-people-fill me-1"></i>切換關聯孩子（共 @Model.AuthorizedStudents.Count 位）
+        </span>
+    </div>
+    <div class="row g-3">
+        @foreach (var s in Model.AuthorizedStudents)
+        {
+            var isSelected = student?.Id == s.Id;
+            <div class="col-12 col-md-6 col-xl-4">
+                <a asp-page="/Parent/Index" asp-route-studentId="@s.Id"
+                   class="student-selector-card @(isSelected ? "active" : "")">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                             style="width: 44px; height: 44px; background: @(isSelected ? "var(--plato-terracotta)" : "var(--plato-terracotta-soft)"); color: @(isSelected ? "#fff" : "var(--plato-terracotta-dark)");">
+                            @s.FullName.Substring(0, 1)
+                        </div>
+                        <div>
+                            <div class="fw-bold fs-6">
+                                @s.FullName
+                                <span class="badge @(isSelected ? "bg-light text-dark" : "bg-secondary") ms-1">@s.GradeClass</span>
+                            </div>
+                            <div class="small @(isSelected ? "text-white-50" : "text-muted")">
+                                入班日：@s.EnrollmentDate.ToString("yyyy-MM-dd")
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small @(isSelected ? "text-white-50" : "text-muted")" style="font-size: 0.75rem;">可用總堂數</div>
+                        <div class="fs-4 fw-bold">@s.TotalCredits <span class="fs-6 fw-normal">堂</span></div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@if (student != null)
+{
+    <!-- 作業不佳催促提醒橫幅 -->
+    @if (Model.OpenHomeworkItems.Any())
+    {
+        <div class="alert alert-warning border-0 shadow-sm mb-3 p-3" role="alert">
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-bell-fill fs-5 text-warning-emphasis"></i>
+                <div class="w-100">
+                    <div class="fw-bold mb-1">老師作業加強提醒（請儘速為 @student.FullName 預約輔導時段）：</div>
+                    <ul class="mb-0 ps-3 small">
+                        @foreach (var hw in Model.OpenHomeworkItems)
+                        {
+                            <li class="mb-1">
+                                <strong>@hw.CourseProgress?.Code @hw.CourseProgress?.Title：</strong>@hw.SubjectNote
+                                <span class="text-muted">（通知時間：@BookingService.ToTaipeiTime(hw.FirstNotifiedAtUtc).ToString("MM/dd HH:mm")）</span>
+                                @if (hw.IsSecondReminderFlagged)
+                                {
+                                    <span class="badge bg-danger ms-1">已逾 48 小時二次催促</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- 候補釋出 30 分鐘確認橫幅 -->
+    var activeHolds = Model.StudentWaitlistEntries
+        .Where(w => w.Status == WaitlistStatus.NotifiedHold)
+        .ToList();
+
+    @if (activeHolds.Any())
+    {
+        <div class="alert alert-info border-0 shadow-sm mb-3 p-3" role="alert">
+            <div class="fw-bold mb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-hourglass-split fs-5"></i>
+                <span>候補名額已釋出！（系統保留 30 分鐘，請於時限內點擊確認轉為正式預約）</span>
+            </div>
+            @foreach (var hold in activeHolds)
+            {
+                var startTpe = BookingService.ToTaipeiTime(hold.TutoringSlot!.StartsAtUtc);
+                var expTpe = hold.HoldExpiresAtUtc.HasValue ? BookingService.ToTaipeiTime(hold.HoldExpiresAtUtc.Value) : startTpe;
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 bg-white p-3 rounded-3 border mb-2">
+                    <div>
+                        <strong>@hold.TutoringSlot.CourseProgress?.Code (@startTpe.ToString("MM/dd HH:mm"))</strong>
+                        － 到班目的：@hold.PurposeName
+                        <span class="badge bg-danger ms-1">保留至 @expTpe.ToString("HH:mm")</span>
+                    </div>
+                    <form method="post" asp-page-handler="ConfirmWaitlist">
+                        <input type="hidden" name="studentId" value="@student.Id" />
+                        <input type="hidden" name="waitlistEntryId" value="@hold.Id" />
+                        <button type="submit" class="btn btn-accent btn-sm">
+                            <i class="bi bi-check2-circle me-1"></i>立即確認轉為正式預約
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- 學生堂數分軌指標卡 -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-4">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="small text-secondary fw-semibold">贈送堂數（優先扣抵）</span>
+                    <span class="metric-icon-box"><i class="bi bi-gift-fill"></i></span>
+                </div>
+                <div class="fs-2 fw-bold">@student.BonusCredits <span class="fs-6 fw-normal text-muted">堂</span></div>
+                <div class="small text-muted">每學期按比例核發，期末未使用歸零</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="metric-card metric-ocean h-100">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="small text-secondary fw-semibold">付費堂數（儲值餘額）</span>
+                    <span class="metric-icon-box ocean"><i class="bi bi-wallet2"></i></span>
+                </div>
+                <div class="fs-2 fw-bold">@student.PaidCredits <span class="fs-6 fw-normal text-muted">堂</span></div>
+                <div class="small text-muted">由老師確認匯款後登錄入帳</div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="metric-card metric-sage h-100">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="small text-secondary fw-semibold">目前可用總堂數</span>
+                    <span class="metric-icon-box sage"><i class="bi bi-layers-fill"></i></span>
+                </div>
+                <div class="fs-2 fw-bold">@student.TotalCredits <span class="fs-6 fw-normal text-muted">堂</span></div>
+                <div class="small text-muted">團體輔導免費不扣堂</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 膠囊式分段工作區頁籤 (Segmented Workspace Tabs) -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <ul class="nav nav-pills workspace-tabs-shell" id="parentWorkspaceTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="btn-parent-book" data-bs-toggle="pill"
+                        data-bs-target="#tab-parent-book" type="button" role="tab">
+                    <i class="bi bi-calendar-week"></i>
+                    <span>線上預約時段</span>
+                    <span class="workspace-tab-count">@Model.AvailableSlots.Count</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="btn-parent-records" data-bs-toggle="pill"
+                        data-bs-target="#tab-parent-records" type="button" role="tab">
+                    <i class="bi bi-list-check"></i>
+                    <span>我的預約與候補</span>
+                    <span class="workspace-tab-count">@Model.StudentBookings.Count(b => b.Status == BookingStatus.Confirmed)</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="btn-parent-ledger" data-bs-toggle="pill"
+                        data-bs-target="#tab-parent-ledger" type="button" role="tab">
+                    <i class="bi bi-journal-text"></i>
+                    <span>堂數異動流水帳</span>
+                    <span class="workspace-tab-count">@Model.StudentLedgerEntries.Count</span>
+                </button>
+            </li>
+        </ul>
+
+        @if (Model.CurrentProgress != null)
+        {
+            <span class="badge bg-dark px-3 py-2 fw-semibold">
+                目前開放進度：@Model.CurrentProgress.Code @Model.CurrentProgress.Title
+            </span>
+        }
+    </div>
+
+    <div class="tab-content" id="parentWorkspaceTabContent">
+        <!-- 分頁一：線上預約時段 -->
+        <div class="tab-pane fade show active" id="tab-parent-book" role="tabpanel">
+            <div class="booking-split-grid">
+                <!-- 左側：日期月曆篩選器 -->
+                <div class="card-plato p-3 p-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold"><i class="bi bi-calendar3 me-1"></i>篩選上課日期</span>
+                        <a asp-page="/Parent/Index" asp-route-studentId="@student.Id"
+                           class="btn btn-sm @(Model.SelectedDate == null ? "btn-dark" : "btn-outline-secondary")">
+                            全部日期
+                        </a>
+                    </div>
+                    <div class="row g-2">
+                        @foreach (var d in Model.SlotDates)
+                        {
+                            var isDateActive = Model.SelectedDate == d;
+                            <div class="col-4 col-sm-3 col-lg-6">
+                                <a asp-page="/Parent/Index"
+                                   asp-route-studentId="@student.Id"
+                                   asp-route-date="@d.ToString("yyyy-MM-dd")"
+                                   class="calendar-day-btn @(isDateActive ? "active" : "")">
+                                    <span class="small opacity-75">@d.ToString("MM/dd")</span>
+                                    <span class="fw-bold">週@("日一二三四五六"[(int)d.DayOfWeek])</span>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                    <hr class="my-3" />
+                    <div class="small text-secondary">
+                        <div class="fw-bold text-dark mb-2"><i class="bi bi-info-circle me-1"></i>預約與改期規則</div>
+                        <ul class="ps-3 mb-0">
+                            <li class="mb-1">小組指導每進度限 1 堂（扣 1 堂）；團體輔導免費不限。</li>
+                            <li class="mb-1">開課前 <strong>24 小時（含）以上</strong>取消自動退還原扣抵堂數；未滿 24 小時取消不退堂。</li>
+                            <li>滿額可登記候補，釋出名額時將發送 LINE 通知並保留 <strong>30 分鐘</strong>。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 右側：時段卡片清單 -->
+                <div class="d-grid gap-3">
+                    @foreach (var slot in Model.AvailableSlots)
+                    {
+                        var startTpe = BookingService.ToTaipeiTime(slot.StartsAtUtc);
+                        var endTpe = BookingService.ToTaipeiTime(slot.EndsAtUtc);
+                        var isFull = slot.RemainingSeats <= 0;
+                        var isGroup = slot.SlotType == SlotType.GroupCounseling;
+                        var fillPct = slot.MaxCapacity > 0 ? Math.Min(100, (int)Math.Round(100.0 * slot.CurrentBookedCount / slot.MaxCapacity)) : 100;
+
+                        <div class="card-plato p-3 p-md-4 slot-card @(isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")">
+                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                        <span class="fw-bold fs-5">
+                                            <i class="bi bi-clock me-1 text-secondary"></i>@startTpe.ToString("yyyy/MM/dd (ddd) HH:mm") – @endTpe.ToString("HH:mm")
+                                        </span>
+                                        @if (slot.SlotType == SlotType.SmallGroup)
+                                        {
+                                            <span class="badge badge-slot-small px-2 py-1">小組指導 · 扣 1 堂</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-slot-group px-2 py-1">團體輔導 · 免費 0 堂</span>
+                                        }
+                                        @if (slot.IsExtraSlot)
+                                        {
+                                            <span class="badge bg-warning text-dark">考前加開</span>
+                                        }
+                                    </div>
+                                    <div class="small text-secondary mb-2">
+                                        <span class="me-3"><i class="bi bi-journal-bookmark me-1"></i>進度：<strong>@slot.CourseProgress?.Code @slot.CourseProgress?.Title</strong></span>
+                                        <span class="me-3"><i class="bi bi-mortarboard me-1"></i>班別：@slot.GradeClass</span>
+                                        <span><i class="bi bi-person-workspace me-1"></i>授課：@slot.TeacherUser?.DisplayName</span>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(slot.Notes))
+                                    {
+                                        <div class="small text-muted"><i class="bi bi-chat-left-text me-1"></i>備註：@slot.Notes</div>
+                                    }
+                                </div>
+
+                                <div class="d-flex flex-column justify-content-between align-items-md-end" style="min-width: 270px;">
+                                    <div class="w-100 mb-2">
+                                        <div class="d-flex justify-content-between align-items-center small mb-1">
+                                            <span class="fw-semibold @(isFull ? "text-danger" : "text-success")">
+                                                @(isFull ? "名額已滿（開放候補）" : $"尚餘 {slot.RemainingSeats} 名空位")
+                                            </span>
+                                            <span class="text-muted">已約 @slot.CurrentBookedCount / @slot.MaxCapacity</span>
+                                        </div>
+                                        <div class="seat-progress">
+                                            <div class="h-100 @(isFull ? "bg-danger" : "bg-success")" style="width: @(fillPct)%;"></div>
+                                        </div>
+                                    </div>
+
+                                    @if (!isFull)
+                                    {
+                                        <form method="post" asp-page-handler="BookSlot" class="w-100">
+                                            <input type="hidden" name="studentId" value="@student.Id" />
+                                            <input type="hidden" name="slotId" value="@slot.Id" />
+                                            <div class="d-flex flex-column flex-sm-row gap-2">
+                                                <select name="purposeName" class="form-select form-select-sm" aria-label="選擇五種到班目的" required>
+                                                    @foreach (var p in Model.PurposeOptions)
+                                                    {
+                                                        <option value="@p.Name">目的：@p.Name</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="btn btn-accent btn-sm text-nowrap px-3"
+                                                        onclick="return confirm('確認要為 @student.FullName 預約此時段嗎？');">
+                                                    <i class="bi bi-check2 me-1"></i>確認預約
+                                                </button>
+                                            </div>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="JoinWaitlist" class="w-100">
+                                            <input type="hidden" name="studentId" value="@student.Id" />
+                                            <input type="hidden" name="slotId" value="@slot.Id" />
+                                            <div class="d-flex flex-column flex-sm-row gap-2">
+                                                <select name="purposeName" class="form-select form-select-sm" aria-label="選擇候補到班目的" required>
+                                                    @foreach (var p in Model.PurposeOptions)
+                                                    {
+                                                        <option value="@p.Name">目的：@p.Name</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap px-3 fw-semibold">
+                                                    <i class="bi bi-clock-history me-1"></i>登記候補
+                                                </button>
+                                            </div>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- 分頁二：我的預約與候補紀錄 -->
+        <div class="tab-pane fade" id="tab-parent-records" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-12 col-xl-8">
+                    <div class="card-plato p-3 p-md-4 h-100">
+                        <div class="section-header-clean">
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">@student.FullName 的預約清單</h2>
+                                <div class="small text-muted">支援相同課程進度內改期，或於開課 24 小時前免費取消退堂</div>
+                            </div>
+                        </div>
+                        @if (!Model.StudentBookings.Any())
+                        {
+                            <div class="text-muted small py-4 text-center">目前尚無預約紀錄。</div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>時段與進度</th>
+                                            <th>類型 / 到班目的</th>
+                                            <th>扣堂明細</th>
+                                            <th>狀態 / 點名</th>
+                                            <th>改期或取消操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var b in Model.StudentBookings)
+                                        {
+                                            var sTpe = BookingService.ToTaipeiTime(b.TutoringSlot!.StartsAtUtc);
+                                            var hoursLeft = (b.TutoringSlot.StartsAtUtc - DateTime.UtcNow).TotalHours;
+                                            var sameProgressTargets = Model.AvailableSlots
+                                                .Where(s => s.CourseProgressId == b.TutoringSlot.CourseProgressId
+                                                            && s.Id != b.TutoringSlotId
+                                                            && s.RemainingSeats > 0
+                                                            && s.SlotType == b.TutoringSlot.SlotType)
+                                                .ToList();
+
+                                            <tr>
+                                                <td data-label="時段與進度">
+                                                    <div>
+                                                        <div class="fw-bold">@sTpe.ToString("MM/dd (ddd) HH:mm")</div>
+                                                        <div class="small text-muted">@b.TutoringSlot.CourseProgress?.Code @b.TutoringSlot.GradeClass</div>
+                                                    </div>
+                                                </td>
+                                                <td data-label="類型 / 目的">
+                                                    <div>
+                                                        <span class="badge @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
+                                                            @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
+                                                        </span>
+                                                        <div class="small fw-semibold mt-1">@b.PurposeName</div>
+                                                    </div>
+                                                </td>
+                                                <td data-label="扣堂明細">
+                                                    @if (b.CreditsDeducted == 0)
+                                                    {
+                                                        <span class="text-muted small">免費 (0 堂)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="small">
+                                                            贈送 @b.BonusCreditsUsed 堂 + 付費 @b.PaidCreditsUsed 堂
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td data-label="狀態 / 點名">
+                                                    <div>
+                                                        <span class="badge @(b.Status == BookingStatus.Confirmed ? "bg-success" : "bg-secondary")">
+                                                            @b.Status
+                                                        </span>
+                                                        <span class="badge bg-light text-dark border ms-1">點名：@b.AttendanceStatus</span>
+                                                    </div>
+                                                </td>
+                                                <td data-label="操作">
+                                                    @if (b.Status == BookingStatus.Confirmed)
+                                                    {
+                                                        <div class="d-flex flex-column gap-1">
+                                                            @if (sameProgressTargets.Any() && hoursLeft >= 24)
+                                                            {
+                                                                <form method="post" asp-page-handler="Reschedule" class="d-flex gap-1">
+                                                                    <input type="hidden" name="studentId" value="@student.Id" />
+                                                                    <input type="hidden" name="existingBookingId" value="@b.Id" />
+                                                                    <select name="targetSlotId" class="form-select form-select-sm" aria-label="選擇改期目標時段">
+                                                                        @foreach (var tgt in sameProgressTargets)
+                                                                        {
+                                                                            var tStart = BookingService.ToTaipeiTime(tgt.StartsAtUtc);
+                                                                            <option value="@tgt.Id">改至 @tStart.ToString("MM/dd HH:mm")</option>
+                                                                        }
+                                                                    </select>
+                                                                    <button type="submit" class="btn btn-outline-dark btn-sm text-nowrap">改期</button>
+                                                                </form>
+                                                            }
+                                                            <form method="post" asp-page-handler="CancelBooking">
+                                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                                <input type="hidden" name="bookingId" value="@b.Id" />
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                                                                        onclick="return confirm('@(hoursLeft >= 24 ? "目前距離開課滿 24 小時，取消將全額退還原扣抵堂數。確定取消？" : "注意：距離開課已不足 24 小時，取消將不退還堂數！確定取消？")');">
+                                                                    取消預約 @(hoursLeft >= 24 ? "(滿24h退堂)" : "(逾時不退)")
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="small text-muted">@b.CancelReason</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-4">
+                    <div class="card-plato p-3 p-md-4 h-100">
+                        <div class="section-header-clean">
+                            <div>
+                                <h2 class="h5 fw-bold mb-0">候補順位與 LINE 通知</h2>
+                                <div class="small text-muted">名額釋出保留 30 分鐘確認紀錄</div>
+                            </div>
+                        </div>
+                        <div class="small fw-semibold text-secondary mb-2">目前候補狀態：</div>
+                        @if (!Model.StudentWaitlistEntries.Any())
+                        {
+                            <div class="text-muted small mb-3">目前無候補登記。</div>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush mb-3 small">
+                                @foreach (var w in Model.StudentWaitlistEntries)
+                                {
+                                    var wTpe = BookingService.ToTaipeiTime(w.TutoringSlot!.StartsAtUtc);
+                                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold">@wTpe.ToString("MM/dd HH:mm") (@w.PurposeName)</div>
+                                            <div class="text-muted">順位：#@w.Position ｜ 狀態：@w.Status</div>
+                                        </div>
+                                        @if (w.Status == WaitlistStatus.NotifiedHold)
+                                        {
+                                            <form method="post" asp-page-handler="ConfirmWaitlist">
+                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                <input type="hidden" name="waitlistEntryId" value="@w.Id" />
+                                                <button type="submit" class="btn btn-sm btn-accent">確認轉正</button>
+                                            </form>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        <div class="small fw-semibold text-secondary mb-2">最近收到的 LINE 通知：</div>
+                        @if (!Model.RecentLineLogs.Any())
+                        {
+                            <div class="text-muted small">尚無通知紀錄。</div>
+                        }
+                        else
+                        {
+                            <div class="d-grid gap-2">
+                                @foreach (var log in Model.RecentLineLogs)
+                                {
+                                    <div class="p-2 bg-light border rounded-3 small">
+                                        <div class="d-flex justify-content-between text-muted mb-1">
+                                            <span class="fw-semibold text-dark">@log.NotificationType</span>
+                                            <span>@BookingService.ToTaipeiTime(log.SentAtUtc).ToString("MM/dd HH:mm")</span>
+                                        </div>
+                                        <div>@log.MessageText</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分頁三：堂數異動流水帳 -->
+        <div class="tab-pane fade" id="tab-parent-ledger" role="tabpanel">
+            <div class="card-plato p-3 p-md-4">
+                <div class="section-header-clean">
+                    <div>
+                        <h2 class="h5 fw-bold mb-0">@student.FullName 的堂數異動流水帳</h2>
+                        <div class="small text-muted">每筆儲值、贈送、扣抵、取消退還與沖正皆為不可覆寫之 Append-Only 紀錄</div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
+                        <thead>
+                            <tr>
+                                <th>時間 (Asia/Taipei)</th>
+                                <th>交易類型</th>
+                                <th>贈送異動</th>
+                                <th>付費異動</th>
+                                <th>異動後餘額 (贈送 / 付費)</th>
+                                <th>摘要與操作人</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in Model.StudentLedgerEntries)
+                            {
+                                <tr>
+                                    <td data-label="時間">@BookingService.ToTaipeiTime(e.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td data-label="交易類型"><span class="badge bg-secondary">@e.TransactionType</span></td>
+                                    <td data-label="贈送異動" class="fw-bold @(e.BonusDelta > 0 ? "text-success" : e.BonusDelta < 0 ? "text-danger" : "text-muted")">
+                                        @(e.BonusDelta > 0 ? $"+{e.BonusDelta}" : e.BonusDelta.ToString())
+                                    </td>
+                                    <td data-label="付費異動" class="fw-bold @(e.PaidDelta > 0 ? "text-primary" : e.PaidDelta < 0 ? "text-danger" : "text-muted")">
+                                        @(e.PaidDelta > 0 ? $"+{e.PaidDelta}" : e.PaidDelta.ToString())
+                                    </td>
+                                    <td data-label="異動後餘額">
+                                        贈送 <strong>@e.BonusBalanceAfter</strong> 堂 / 付費 <strong>@e.PaidBalanceAfter</strong> 堂
+                                    </td>
+                                    <td data-label="摘要與操作人" class="small">
+                                        @e.ReferenceNote <span class="text-muted">(@e.OperatorName)</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}

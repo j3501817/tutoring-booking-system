@@ -1,0 +1,11 @@
+{
+  "id": "git-preflight-proxy-guard-20260520-1454",
+  "title": "Add GitHub Git preflight proxy guard",
+  "pmApproved": true,
+  "requiredArtifacts": [
+    "status.md",
+    "assumptions.md",
+    "TEST_REPORT.md",
+    "DELIVERY_REPORT.md"
+  ]
+}

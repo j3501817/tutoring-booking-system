@@ -1,0 +1,16 @@
+{
+  "id": "governance-flow-improvements",
+  "title": "Implement agentic governance flow improvements",
+  "source": "local-pm-request",
+  "pmApproved": true,
+  "queueState": "delivered",
+  "retryCount": 0,
+  "maxRetries": 1,
+  "requiredArtifacts": [
+    "work-item.json",
+    "assumptions.md",
+    "PLAN.md",
+    "status.md",
+    "TEST_REPORT.md"
+  ]
+}

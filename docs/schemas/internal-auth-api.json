@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/agentic-template/schemas/internal-auth-api.json",
+  "title": "Internal Auth API Contract Draft",
+  "description": "Template contract for documenting internal authentication endpoints. Replace draft endpoints with the real project contract before implementation.",
+  "type": "object",
+  "required": [
+    "status",
+    "endpoints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "method",
+          "path",
+          "purpose"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "authRequired": {
+            "type": "boolean",
+            "default": true
+          },
+          "requestSchema": {
+            "type": "object",
+            "description": "JSON Schema for the request body, query, or params."
+          },
+          "responseSchema": {
+            "type": "object",
+            "description": "JSON Schema for the successful response."
+          },
+          "errorResponses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "status",
+                "code"
+              ],
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

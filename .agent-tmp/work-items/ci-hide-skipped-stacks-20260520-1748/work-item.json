@@ -1,0 +1,11 @@
+{
+  "id": "ci-hide-skipped-stacks-20260520-1748",
+  "title": "Hide unused language checks from PR status list",
+  "pmApproved": true,
+  "requiredArtifacts": [
+    "status.md",
+    "assumptions.md",
+    "TEST_REPORT.md",
+    "DELIVERY_REPORT.md"
+  ]
+}

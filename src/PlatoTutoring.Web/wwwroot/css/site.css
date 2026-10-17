@@ -1,0 +1,598 @@
+:root {
+  --plato-ink: #141c24;
+  --plato-sidebar-bg: #111820;
+  --plato-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --plato-sidebar-active: #c87d4b;
+  --plato-terracotta: #c87d4b;
+  --plato-terracotta-dark: #a96234;
+  --plato-terracotta-soft: #fdf4ed;
+  --plato-sage: #157357;
+  --plato-sage-soft: #e8f6f0;
+  --plato-ocean: #1d5b8c;
+  --plato-ocean-soft: #ebf3fa;
+  --plato-surface: #f5f4f0;
+  --plato-card: #ffffff;
+  --plato-border: #e4e1da;
+  --plato-muted: #646e78;
+  --plato-danger: #c0392b;
+  --sidebar-width: 280px;
+}
+
+html, body {
+  overflow-x: hidden;
+  background-color: var(--plato-surface);
+  color: var(--plato-ink);
+  font-family: "Plus Jakarta Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 應用程式主體雙欄架構：左側固定功能列 + 右側內容區 */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  background: var(--plato-sidebar-bg);
+  color: #e8ecef;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 1030;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar-mobile {
+  background: var(--plato-sidebar-bg);
+  color: #fff;
+  border-bottom: 2px solid var(--plato-terracotta);
+}
+
+/* 左側品牌標題區 */
+.sidebar-brand {
+  padding: 1.4rem 1.35rem 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  color: #fff;
+  display: block;
+}
+
+.sidebar-brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--plato-terracotta);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+  box-shadow: 0 4px 12px rgba(200, 125, 75, 0.35);
+}
+
+.sidebar-section-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8b96a2;
+  padding: 1.1rem 1.35rem 0.45rem;
+  font-weight: 700;
+}
+
+.sidebar-nav {
+  list-style: none;
+  padding: 0 0.75rem;
+  margin: 0;
+}
+
+.sidebar-nav-item {
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.6rem;
+  color: #c5ced6;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.94rem;
+  transition: all 0.16s ease;
+  min-height: 42px;
+}
+
+.sidebar-nav-link i {
+  font-size: 1.1rem;
+  opacity: 0.85;
+}
+
+.sidebar-nav-link:hover {
+  background: var(--plato-sidebar-hover);
+  color: #ffffff;
+}
+
+.sidebar-nav-link.active {
+  background: var(--plato-terracotta);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(200, 125, 75, 0.28);
+}
+
+.sidebar-nav-link.active i {
+  opacity: 1;
+}
+
+/* 左側欄子頁籤樹狀導覽 */
+.sidebar-subnav {
+  list-style: none;
+  padding: 0.35rem 0 0.4rem 2.15rem;
+  margin: 0 0 0.35rem 0;
+  border-left: 1px dashed rgba(255, 255, 255, 0.16);
+  margin-left: 1.45rem;
+}
+
+.sidebar-subnav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.45rem;
+  color: #9aa6b2;
+  text-decoration: none;
+  font-size: 0.84rem;
+  transition: all 0.14s ease;
+  cursor: pointer;
+}
+
+.sidebar-subnav-link:hover,
+.sidebar-subnav-link.sub-active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 600;
+}
+
+/* 左側底部使用者與快速角色切換卡 */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.user-pill-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+
+.role-switch-btn {
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #dbe2e8;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.15s ease;
+  min-height: 38px;
+}
+
+.role-switch-btn:hover {
+  background: rgba(200, 125, 75, 0.22);
+  border-color: var(--plato-terracotta);
+  color: #fff;
+}
+
+/* 膠囊式分段工作區頁籤 (Segmented Workspace Tabs) */
+.workspace-tabs-shell {
+  background: #ebe8e0;
+  padding: 0.35rem;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border: 1px solid #dedad0;
+}
+
+.workspace-tabs-shell .nav-link {
+  color: #495460;
+  font-weight: 600;
+  font-size: 0.93rem;
+  padding: 0.6rem 1.15rem;
+  border-radius: 0.65rem;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.16s ease;
+  min-height: 44px;
+}
+
+.workspace-tabs-shell .nav-link:hover {
+  color: var(--plato-ink);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.workspace-tabs-shell .nav-link.active {
+  background: #ffffff;
+  color: var(--plato-ink);
+  box-shadow: 0 2px 8px rgba(20, 28, 36, 0.08), 0 1px 2px rgba(20, 28, 36, 0.04);
+}
+
+.workspace-tabs-shell .nav-link.active i {
+  color: var(--plato-terracotta);
+}
+
+.workspace-tab-count {
+  font-size: 0.74rem;
+  padding: 0.12rem 0.48rem;
+  border-radius: 999px;
+  background: rgba(20, 28, 36, 0.08);
+  color: var(--plato-ink);
+  font-weight: 700;
+}
+
+.workspace-tabs-shell .nav-link.active .workspace-tab-count {
+  background: var(--plato-terracotta-soft);
+  color: var(--plato-terracotta-dark);
+}
+
+.eyebrow-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--plato-terracotta-dark);
+  background: var(--plato-terracotta-soft);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  margin-bottom: 0.45rem;
+}
+
+/* 卡片與區塊設計感升級 */
+.card-plato {
+  background: var(--plato-card);
+  border: 1px solid var(--plato-border);
+  border-radius: 0.85rem;
+  box-shadow: 0 2px 6px rgba(20, 28, 36, 0.03), 0 1px 2px rgba(20, 28, 36, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-plato-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(20, 28, 36, 0.07);
+}
+
+.section-header-clean {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.15rem;
+  border-bottom: 1px solid #efede7;
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--plato-card);
+  border: 1px solid var(--plato-border);
+  border-radius: 0.85rem;
+  padding: 1.25rem;
+}
+
+.metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--plato-terracotta);
+}
+
+.metric-card.metric-sage::before {
+  background: var(--plato-sage);
+}
+
+.metric-card.metric-ocean::before {
+  background: var(--plato-ocean);
+}
+
+.metric-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: var(--plato-terracotta-soft);
+  color: var(--plato-terracotta-dark);
+  flex-shrink: 0;
+}
+
+.metric-icon-box.sage {
+  background: var(--plato-sage-soft);
+  color: var(--plato-sage);
+}
+
+.metric-icon-box.ocean {
+  background: var(--plato-ocean-soft);
+  color: var(--plato-ocean);
+}
+
+/* 觸控友善表單與按鈕系統 */
+.btn,
+.form-control,
+.form-select {
+  min-height: 44px;
+  font-size: 0.95rem;
+  border-radius: 0.55rem;
+}
+
+.form-control,
+.form-select {
+  border-color: #d0ccc2;
+  background-color: #fcfbf9;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--plato-terracotta);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(200, 125, 75, 0.18);
+}
+
+.btn-primary {
+  background-color: var(--plato-ink);
+  border-color: var(--plato-ink);
+}
+
+.btn-primary:hover {
+  background-color: #243240;
+  border-color: #243240;
+}
+
+.btn-accent {
+  background-color: var(--plato-terracotta);
+  border-color: var(--plato-terracotta);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-accent:hover {
+  background-color: var(--plato-terracotta-dark);
+  border-color: var(--plato-terracotta-dark);
+  color: #fff;
+}
+
+.btn-sm {
+  min-height: 38px;
+  border-radius: 0.45rem;
+}
+
+/* 標籤徽章系統 */
+.badge-paid {
+  background-color: var(--plato-ocean-soft);
+  color: var(--plato-ocean);
+  border: 1px solid #b9d6f2;
+  font-weight: 600;
+}
+
+.badge-bonus {
+  background-color: var(--plato-terracotta-soft);
+  color: var(--plato-terracotta-dark);
+  border: 1px solid #f2cba8;
+  font-weight: 600;
+}
+
+.badge-slot-small {
+  background-color: var(--plato-ocean-soft);
+  color: var(--plato-ocean);
+  border: 1px solid #c3ddf5;
+  font-weight: 600;
+}
+
+.badge-slot-group {
+  background-color: var(--plato-sage-soft);
+  color: var(--plato-sage);
+  border: 1px solid #b5e4d3;
+  font-weight: 600;
+}
+
+/* 學生切換卡 */
+.student-selector-card {
+  border: 1.5px solid var(--plato-border);
+  border-radius: 0.8rem;
+  background: #fff;
+  padding: 0.9rem 1.15rem;
+  text-decoration: none;
+  color: var(--plato-ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.16s ease;
+}
+
+.student-selector-card:hover {
+  border-color: var(--plato-terracotta);
+  background: #fffdfa;
+  color: var(--plato-ink);
+}
+
+.student-selector-card.active {
+  background: var(--plato-ink);
+  border-color: var(--plato-ink);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(20, 28, 36, 0.16);
+}
+
+/* 桌機與手機差異化預約版面 */
+.booking-split-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1100px) {
+  .booking-split-grid {
+    grid-template-columns: 330px 1fr;
+    align-items: start;
+  }
+}
+
+.calendar-day-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 62px;
+  border: 1px solid var(--plato-border);
+  border-radius: 0.65rem;
+  background: #faf9f6;
+  color: var(--plato-ink);
+  text-decoration: none;
+  padding: 0.45rem;
+  transition: all 0.15s ease;
+}
+
+.calendar-day-btn:hover {
+  border-color: var(--plato-terracotta);
+  background: var(--plato-terracotta-soft);
+  color: var(--plato-ink);
+}
+
+.calendar-day-btn.active {
+  background: var(--plato-terracotta);
+  color: #fff;
+  border-color: var(--plato-terracotta);
+  box-shadow: 0 4px 12px rgba(200, 125, 75, 0.3);
+}
+
+.slot-card {
+  border-left: 5px solid var(--plato-ocean);
+}
+
+.slot-card.slot-full {
+  border-left-color: var(--plato-danger);
+  background: #fffafa;
+}
+
+.slot-card.slot-group {
+  border-left-color: var(--plato-sage);
+}
+
+.seat-progress {
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+/* 表格質感強化 */
+.table-plato thead th {
+  background-color: #f8f7f3;
+  color: #495460;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--plato-border);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.table-plato tbody td {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom-color: #efede7;
+}
+
+@media (max-width: 575.98px) {
+  .container, .container-fluid {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .workspace-tabs-shell {
+    display: flex;
+    width: 100%;
+  }
+
+  .workspace-tabs-shell .nav-item {
+    flex: 1 1 auto;
+  }
+
+  .workspace-tabs-shell .nav-link {
+    width: 100%;
+    justify-content: center;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.86rem;
+  }
+
+  h1, .h1 {
+    font-size: 1.35rem;
+  }
+
+  h2, .h2 {
+    font-size: 1.15rem;
+  }
+
+  .table-responsive-cards thead {
+    display: none;
+  }
+
+  .table-responsive-cards tbody tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--plato-border);
+    border-radius: 0.65rem;
+    padding: 0.85rem;
+    background: #fff;
+  }
+
+  .table-responsive-cards tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: none;
+    padding: 0.3rem 0;
+    text-align: right;
+  }
+
+  .table-responsive-cards tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--plato-muted);
+    text-align: left;
+    margin-right: 0.75rem;
+  }
+}

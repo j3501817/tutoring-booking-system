@@ -1,0 +1,15 @@
+{
+  "id": "template-git-history-flow",
+  "title": "Prevent template adopters from inheriting original Git history",
+  "source": "pm-request",
+  "pmApproved": true,
+  "queueState": "in-progress",
+  "requiredArtifacts": [
+    "work-item.json",
+    "assumptions.md",
+    "PLAN.md",
+    "status.md",
+    "TEST_REPORT.md",
+    "DELIVERY_REPORT.md"
+  ]
+}
