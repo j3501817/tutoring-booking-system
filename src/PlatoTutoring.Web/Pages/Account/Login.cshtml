@@ -1,79 +1,230 @@
 @page
 @model PlatoTutoring.Web.Pages.Account.LoginModel
 @{
-    ViewData["Title"] = "帳號登入與 LINE 通知綁定";
+    Layout = null;
+    var successMsg = TempData["SuccessMessage"] as string;
+    var errorMsg = TempData["ErrorMessage"] as string;
 }
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>帳號登入 - 柏拉圖文理補習班 輔導預約系統</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
+</head>
+<body class="login-body">
+    <main class="login-stage">
+        <!-- 背景插畫：老師引導學生走向自己的路、輔導作業 -->
+        <svg class="login-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+            <defs>
+                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#050d18" />
+                    <stop offset="0.45" stop-color="#0b2233" />
+                    <stop offset="0.72" stop-color="#14465a" />
+                    <stop offset="0.88" stop-color="#e29a63" stop-opacity="0.85" />
+                    <stop offset="1" stop-color="#f7c58c" />
+                </linearGradient>
+                <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0" stop-color="#ffe3b3" stop-opacity="0.95" />
+                    <stop offset="0.35" stop-color="#ffb870" stop-opacity="0.45" />
+                    <stop offset="1" stop-color="#ffb870" stop-opacity="0" />
+                </radialGradient>
+                <linearGradient id="pathGrad" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0" stop-color="#f6d9ad" stop-opacity="0.15" />
+                    <stop offset="0.6" stop-color="#ffd9a1" stop-opacity="0.55" />
+                    <stop offset="1" stop-color="#fff0cf" stop-opacity="0.95" />
+                </linearGradient>
+                <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#1c5163" />
+                    <stop offset="1" stop-color="#0f3040" />
+                </linearGradient>
+                <linearGradient id="hillMid" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#0f3a4a" />
+                    <stop offset="1" stop-color="#08202c" />
+                </linearGradient>
+                <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#08202c" />
+                    <stop offset="1" stop-color="#040e16" />
+                </linearGradient>
+                <filter id="softBlur" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2" />
+                </filter>
+            </defs>
 
-<div class="row justify-content-center g-4 py-2">
-    <div class="col-12 col-lg-5">
-        <div class="card-plato p-4 p-md-5 h-100">
-            <div class="eyebrow-tag">
-                <i class="bi bi-shield-lock-fill"></i>
-                <span>Identity & Access</span>
+            <rect width="1600" height="900" fill="url(#skyGrad)" />
+
+            <!-- 星點 -->
+            <g fill="#ffffff" opacity="0.75">
+                <circle class="twinkle" cx="140" cy="90" r="1.6" />
+                <circle class="twinkle d2" cx="320" cy="150" r="1.2" />
+                <circle class="twinkle d3" cx="520" cy="70" r="1.8" />
+                <circle class="twinkle" cx="740" cy="130" r="1.3" />
+                <circle class="twinkle d2" cx="930" cy="60" r="1.6" />
+                <circle class="twinkle d3" cx="1100" cy="170" r="1.2" />
+                <circle class="twinkle" cx="1280" cy="90" r="1.7" />
+                <circle class="twinkle d2" cx="1460" cy="140" r="1.3" />
+                <circle class="twinkle d3" cx="240" cy="260" r="1.1" />
+                <circle class="twinkle" cx="620" cy="250" r="1.4" />
+                <circle class="twinkle d2" cx="1020" cy="290" r="1.1" />
+                <circle class="twinkle d3" cx="1380" cy="270" r="1.4" />
+            </g>
+
+            <!-- 地平線晨光 -->
+            <circle cx="470" cy="600" r="360" fill="url(#sunGlow)" />
+            <circle cx="470" cy="600" r="46" fill="#fff1d2" opacity="0.95" />
+
+            <!-- 山丘層次 -->
+            <path d="M0 620 L110 560 L220 610 L340 540 L470 600 L600 520 L760 610 L900 550 L1060 620 L1200 560 L1360 625 L1500 570 L1600 610 L1600 900 L0 900 Z" fill="url(#hillFar)" opacity="0.9" />
+            <path d="M0 680 Q180 600 360 660 T720 650 T1080 680 T1440 640 T1600 670 L1600 900 L0 900 Z" fill="url(#hillMid)" />
+
+            <!-- 蜿蜒向前的道路 -->
+            <path d="M360 900 C 330 820 520 790 480 730 C 450 690 520 665 470 625 L 478 625 C 540 668 480 695 520 735 C 575 800 470 830 560 900 Z" fill="url(#pathGrad)" />
+            <path d="M0 760 Q220 720 420 780 T 820 790 T 1250 770 T1600 790 L1600 900 L0 900 Z" fill="url(#hillNear)" />
+            <path d="M360 900 C 330 820 520 790 480 730 C 450 690 520 665 470 625 L 478 625 C 540 668 480 695 520 735 C 575 800 470 830 560 900 Z" fill="url(#pathGrad)" opacity="0.55" />
+
+            <!-- 老師與學生剪影 -->
+            <g class="figures" transform="translate(0,0)">
+                <!-- 老師：手指向前方，另一手持作業本 -->
+                <g transform="translate(445,792)" fill="#07141d" stroke="#ffd9a1" stroke-opacity="0.55" stroke-width="1.2">
+                    <circle cx="0" cy="-152" r="13" />
+                    <path d="M-19 -136 Q0 -145 19 -136 L24 -66 L-24 -66 Z" />
+                    <rect x="-16" y="-68" width="12" height="68" rx="4" />
+                    <rect x="4" y="-68" width="12" height="68" rx="4" />
+                    <path d="M15 -128 L64 -160" fill="none" stroke="#07141d" stroke-width="9" stroke-linecap="round" />
+                    <path d="M-15 -128 L-27 -98 L-6 -94" fill="none" stroke="#07141d" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+                    <rect x="-34" y="-104" width="22" height="30" rx="2" transform="rotate(-14 -23 -90)" fill="#e9f7f3" stroke="none" opacity="0.9" />
+                </g>
+                <!-- 學生：背著書包，朝晨光邁步 -->
+                <g transform="translate(528,748)" fill="#07141d" stroke="#ffd9a1" stroke-opacity="0.6" stroke-width="1.2">
+                    <rect x="-26" y="-108" width="18" height="48" rx="6" />
+                    <circle cx="0" cy="-122" r="11" />
+                    <path d="M-15 -110 Q0 -118 15 -110 L18 -52 L-18 -52 Z" />
+                    <path d="M-10 -52 L-16 0" fill="none" stroke="#07141d" stroke-width="10" stroke-linecap="round" />
+                    <path d="M8 -52 L18 -4" fill="none" stroke="#07141d" stroke-width="10" stroke-linecap="round" />
+                    <path d="M13 -104 L38 -132" fill="none" stroke="#07141d" stroke-width="8" stroke-linecap="round" />
+                </g>
+            </g>
+
+            <!-- 飄浮的作業、公式與鉛筆（暗示輔導作業） -->
+            <g class="float-a" transform="translate(150,330) rotate(-8)">
+                <rect width="120" height="150" rx="10" fill="#ffffff" opacity="0.1" stroke="#ffffff" stroke-opacity="0.35" />
+                <g stroke="#ffffff" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round">
+                    <line x1="16" y1="32" x2="92" y2="32" /><line x1="16" y1="54" x2="104" y2="54" />
+                    <line x1="16" y1="76" x2="80" y2="76" /><line x1="16" y1="98" x2="98" y2="98" />
+                </g>
+                <path d="M18 128 l12 12 l26 -28" fill="none" stroke="#8ff0c9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+            </g>
+            <g class="float-b" transform="translate(1180,250) rotate(7)">
+                <rect width="130" height="100" rx="10" fill="#ffffff" opacity="0.09" stroke="#ffffff" stroke-opacity="0.3" />
+                <text x="16" y="44" fill="#ffffff" fill-opacity="0.75" font-size="26" font-family="Plus Jakarta Sans, sans-serif" font-weight="700">y = x² + 1</text>
+                <text x="16" y="78" fill="#8ff0c9" fill-opacity="0.9" font-size="30" font-family="Plus Jakarta Sans, sans-serif" font-weight="800">A+</text>
+            </g>
+            <g class="float-c" transform="translate(870,360) rotate(-24)">
+                <rect width="120" height="12" rx="3" fill="#ffd36e" opacity="0.8" />
+                <path d="M120 0 L138 6 L120 12 Z" fill="#f3d3a6" opacity="0.9" />
+                <rect x="-10" y="0" width="12" height="12" rx="3" fill="#f58aa0" opacity="0.85" />
+            </g>
+            <g class="float-b" transform="translate(690,210)" fill="#8ff0c9" opacity="0.8">
+                <path d="M0 0 l5 -14 l5 14 l14 5 l-14 5 l-5 14 l-5 -14 l-14 -5 z" />
+            </g>
+            <g class="float-a" transform="translate(1010,480)" fill="#ffd9a1" opacity="0.75">
+                <path d="M0 0 l4 -11 l4 11 l11 4 l-11 4 l-4 11 l-4 -11 l-11 -4 z" />
+            </g>
+        </svg>
+        <div class="login-scene-overlay"></div>
+
+        <!-- 左側品牌文案 -->
+        <section class="login-hero">
+            <div class="login-brand">
+                <span class="login-brand-logo"><img src="~/images/plato-logo.png" alt="柏拉圖補習班校徽" /></span>
+                <span class="login-brand-text">
+                    <strong>柏拉圖文理補習班</strong>
+                    <small>PLATO ACADEMY</small>
+                </span>
             </div>
-            <h1 class="h4 fw-bold mb-2">登入柏拉圖輔導預約系統</h1>
-            <p class="text-secondary small mb-4">
-                支援家長、老師與管理員登入。依角色權限自動隔離授權資源。
-            </p>
+            <div class="login-hero-body">
+                <div class="login-eyebrow"><span class="dot"></span> TUTORING SPACE</div>
+                <h1>陪你看見方向，<br />走出屬於自己的路。</h1>
+                <p>每一份作業的批改、每一次耐心的輔導，都是為了讓孩子帶著把握，走向更遠的未來。</p>
+            </div>
+        </section>
 
-            <form method="post">
-                <div class="mb-3">
-                    <label for="Username" class="form-label fw-semibold">帳號</label>
-                    <input type="text" id="Username" name="Username" class="form-control"
-                           value="@Model.Username" placeholder="例如：parent.lin / teacher.wang / admin" required />
+        <!-- 右側登入卡片 -->
+        <section class="login-card" aria-label="登入表單">
+            <div class="login-card-logo"><img src="~/images/plato-logo.png" alt="柏拉圖補習班校徽" /></div>
+            <div class="login-card-eyebrow">輔導預約系統</div>
+            <h2>歡迎回來</h2>
+            <p class="login-card-sub">登入後，管理輔導預約、堂數與學習進度。</p>
+
+            @if (!string.IsNullOrEmpty(errorMsg))
+            {
+                <div class="login-alert login-alert-error" role="alert"><i class="bi bi-exclamation-circle-fill"></i> @errorMsg</div>
+            }
+            @if (!string.IsNullOrEmpty(successMsg))
+            {
+                <div class="login-alert login-alert-success" role="status"><i class="bi bi-check-circle-fill"></i> @successMsg</div>
+            }
+
+            <form method="post" autocomplete="on">
+                <label for="Username" class="login-label">帳號</label>
+                <input type="text" id="Username" name="Username" class="login-input"
+                       value="@Model.Username" placeholder="請輸入帳號" autocomplete="username" required />
+
+                <label for="Password" class="login-label">密碼</label>
+                <div class="login-input-wrap">
+                    <input type="password" id="Password" name="Password" class="login-input"
+                           value="demo123" placeholder="請輸入密碼" autocomplete="current-password" required />
+                    <button type="button" class="login-eye" id="togglePassword" aria-label="顯示或隱藏密碼">
+                        <i class="bi bi-eye"></i>
+                    </button>
                 </div>
-                <div class="mb-4">
-                    <label for="Password" class="form-label fw-semibold">密碼</label>
-                    <input type="password" id="Password" name="Password" class="form-control"
-                           value="demo123" required />
-                    <div class="form-text">預設展示密碼皆為 <code>demo123</code></div>
-                </div>
-                <button type="submit" class="btn btn-accent w-100">
-                    <i class="bi bi-box-arrow-in-right me-1"></i>登入系統
-                </button>
+
+                <button type="submit" class="login-submit">登入系統 <i class="bi bi-arrow-right"></i></button>
             </form>
 
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <hr class="my-4" />
-                <form method="post" asp-page-handler="Logout">
-                    <button type="submit" class="btn btn-outline-secondary w-100">登出目前帳號</button>
+                <form method="post" asp-page-handler="Logout" class="mt-3">
+                    <button type="submit" class="login-secondary">登出目前帳號</button>
                 </form>
             }
-        </div>
-    </div>
 
-    <div class="col-12 col-lg-6">
-        <div class="card-plato p-4 p-md-5 h-100">
-            <div class="eyebrow-tag">
-                <i class="bi bi-lightning-charge-fill"></i>
-                <span>Quick Role Preview</span>
-            </div>
-            <h2 class="h4 fw-bold mb-2">測試帳號一覽（一鍵體驗切換）</h2>
-            <p class="small text-secondary mb-4">
-                點擊下方任一角色卡片即可立即切換身分並進入對應工作台：
-            </p>
+            <details class="login-demo">
+                <summary><i class="bi bi-lightning-charge-fill"></i> PM 驗收角色一鍵切換</summary>
+                <div class="login-demo-list">
+                    @foreach (var u in Model.DemoUsers)
+                    {
+                        <form method="post" asp-page-handler="QuickSwitch">
+                            <input type="hidden" name="username" value="@u.Username" />
+                            <button type="submit" class="login-demo-item">
+                                <span class="login-demo-name">@u.DisplayName</span>
+                                <span class="login-demo-role">@u.Role</span>
+                            </button>
+                        </form>
+                    }
+                </div>
+            </details>
 
-            <div class="d-grid gap-3">
-                @foreach (var u in Model.DemoUsers)
-                {
-                    <form method="post" asp-page-handler="QuickSwitch">
-                        <input type="hidden" name="username" value="@u.Username" />
-                        <button type="submit" class="student-selector-card w-100 text-start">
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="metric-icon-box @(u.Role == UserRole.Parent ? "ocean" : u.Role == UserRole.Teacher ? "sage" : "")">
-                                    <i class="bi @(u.Role == UserRole.Parent ? "bi-people-fill" : u.Role == UserRole.Teacher ? "bi-easel2-fill" : "bi-shield-check")"></i>
-                                </span>
-                                <div>
-                                    <div class="fw-bold">@u.DisplayName</div>
-                                    <div class="small text-muted">帳號：<code>@u.Username</code> ｜ 電話：@u.Phone</div>
-                                </div>
-                            </div>
-                            <span class="badge bg-dark px-3 py-2">@u.Role</span>
-                        </button>
-                    </form>
-                }
-            </div>
-        </div>
-    </div>
-</div>
+            <p class="login-foot">專屬於你的輔導空間，從這裡開始。</p>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            var btn = document.getElementById('togglePassword');
+            var input = document.getElementById('Password');
+            if (!btn || !input) return;
+            btn.addEventListener('click', function () {
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+            });
+        })();
+    </script>
+</body>
+</html>
