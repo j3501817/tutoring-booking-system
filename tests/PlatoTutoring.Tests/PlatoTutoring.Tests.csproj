@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsPublishable>false</IsPublishable>
+    <GenerateRuntimeConfigurationFiles Condition="'$(Configuration)' == 'Release'">false</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,5 +18,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PlatoTutoring.Web\PlatoTutoring.Web.csproj" />
   </ItemGroup>
+
+  <Target Name="RemoveTestRuntimeConfigOnRelease" AfterTargets="Build;Publish" Condition="'$(Configuration)' == 'Release'">
+    <Delete Files="$(OutDir)PlatoTutoring.Tests.runtimeconfig.json;$(PublishDir)PlatoTutoring.Tests.runtimeconfig.json;$(OutDir)testhost.runtimeconfig.json;$(PublishDir)testhost.runtimeconfig.json" />
+  </Target>
 
 </Project>
