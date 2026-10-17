@@ -19,78 +19,81 @@
 </head>
 <body class="login-body">
     <main class="login-stage">
-        <!-- 背景插畫：極光星河、世界星軌、夢想羅盤與通往未來的光之航道 -->
+        <!-- 背景插畫：明亮現代感晴空、世界地球與夢想熱氣球、Q版老師與學生踏上陽光大道 -->
         <svg class="login-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
             <defs>
-                <linearGradient id="skyGrad" x1="0" y1="0" x2="0.2" y2="1">
-                    <stop offset="0" stop-color="#030914" />
-                    <stop offset="0.38" stop-color="#07192d" />
-                    <stop offset="0.68" stop-color="#0d3149" />
-                    <stop offset="0.86" stop-color="#194d5c" />
-                    <stop offset="1" stop-color="#28646a" />
+                <!-- 明亮現代感晴空漸層（告別黑夜） -->
+                <linearGradient id="daySkyGrad" x1="0" y1="0" x2="0.15" y2="1">
+                    <stop offset="0" stop-color="#2596ff" />
+                    <stop offset="0.38" stop-color="#5cc3ff" />
+                    <stop offset="0.7" stop-color="#a8e6ff" />
+                    <stop offset="0.9" stop-color="#fff0c4" />
+                    <stop offset="1" stop-color="#ffe299" />
                 </linearGradient>
 
-                <linearGradient id="auroraRibbon1" x1="0" y1="0" x2="1" y2="0.4">
-                    <stop offset="0" stop-color="#4de6b8" stop-opacity="0" />
-                    <stop offset="0.28" stop-color="#62f2c5" stop-opacity="0.38" />
-                    <stop offset="0.62" stop-color="#45c4e8" stop-opacity="0.28" />
-                    <stop offset="1" stop-color="#a18cff" stop-opacity="0" />
-                </linearGradient>
-
-                <linearGradient id="auroraRibbon2" x1="1" y1="0" x2="0" y2="0.6">
-                    <stop offset="0" stop-color="#7ef7d1" stop-opacity="0" />
-                    <stop offset="0.4" stop-color="#8ff0c9" stop-opacity="0.32" />
-                    <stop offset="0.75" stop-color="#ffd599" stop-opacity="0.22" />
-                    <stop offset="1" stop-color="#ffd599" stop-opacity="0" />
-                </linearGradient>
-
-                <radialGradient id="horizonGlow" cx="0.42" cy="0.64" r="0.48">
-                    <stop offset="0" stop-color="#ffebc2" stop-opacity="0.92" />
-                    <stop offset="0.28" stop-color="#ffbe78" stop-opacity="0.52" />
-                    <stop offset="0.62" stop-color="#5cd6b8" stop-opacity="0.22" />
-                    <stop offset="1" stop-color="#07192d" stop-opacity="0" />
+                <!-- 溫暖晨光太陽暈 -->
+                <radialGradient id="sunBurst" cx="0.46" cy="0.58" r="0.45">
+                    <stop offset="0" stop-color="#ffffff" stop-opacity="0.98" />
+                    <stop offset="0.22" stop-color="#fff3b0" stop-opacity="0.85" />
+                    <stop offset="0.55" stop-color="#ffd175" stop-opacity="0.38" />
+                    <stop offset="1" stop-color="#ffd175" stop-opacity="0" />
                 </radialGradient>
 
-                <radialGradient id="planetGlow" cx="0.35" cy="0.3" r="0.7">
-                    <stop offset="0" stop-color="#d6fff0" stop-opacity="0.45" />
-                    <stop offset="0.55" stop-color="#58d5c9" stop-opacity="0.2" />
-                    <stop offset="1" stop-color="#103752" stop-opacity="0.06" />
+                <!-- 世界地球儀漸層 -->
+                <radialGradient id="globeOcean" cx="0.35" cy="0.3" r="0.7">
+                    <stop offset="0" stop-color="#7ef2ff" />
+                    <stop offset="0.55" stop-color="#24b6e8" />
+                    <stop offset="1" stop-color="#0f7cb8" />
                 </radialGradient>
 
-                <linearGradient id="mountainFar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#174559" />
-                    <stop offset="1" stop-color="#0c2636" />
+                <!-- 熱氣球漸層 -->
+                <linearGradient id="balloonGrad1" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#ff8a7a" />
+                    <stop offset="0.5" stop-color="#ff647c" />
+                    <stop offset="1" stop-color="#ffb86c" />
                 </linearGradient>
 
-                <linearGradient id="mountainMid" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#0e2f41" />
-                    <stop offset="1" stop-color="#071824" />
+                <linearGradient id="balloonGrad2" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#4be8b8" />
+                    <stop offset="1" stop-color="#20a4f3" />
                 </linearGradient>
 
-                <linearGradient id="mountainNear" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#071a26" />
-                    <stop offset="1" stop-color="#030b12" />
+                <!-- 翠綠現代感山丘層次 -->
+                <linearGradient id="dayHillFar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#58d6b5" />
+                    <stop offset="1" stop-color="#289e8f" />
                 </linearGradient>
 
-                <linearGradient id="dreamPathGrad" x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0" stop-color="#8ff0c9" stop-opacity="0.12" />
-                    <stop offset="0.55" stop-color="#ffe1a8" stop-opacity="0.55" />
-                    <stop offset="1" stop-color="#fff7df" stop-opacity="0.95" />
+                <linearGradient id="dayHillMid" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#2ebd98" />
+                    <stop offset="1" stop-color="#147a6e" />
                 </linearGradient>
 
-                <linearGradient id="arcLineGrad" x1="0" y1="1" x2="1" y2="0">
-                    <stop offset="0" stop-color="#ffd89c" stop-opacity="0" />
-                    <stop offset="0.4" stop-color="#ffd89c" stop-opacity="0.65" />
-                    <stop offset="0.8" stop-color="#8ff0c9" stop-opacity="0.85" />
-                    <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+                <linearGradient id="dayHillNear" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#178573" />
+                    <stop offset="1" stop-color="#0b4846" />
                 </linearGradient>
 
-                <filter id="auroraBlur" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="24" />
+                <!-- 陽光夢想大道 -->
+                <linearGradient id="sunPathGrad" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0" stop-color="#ffe7a3" stop-opacity="0.92" />
+                    <stop offset="0.6" stop-color="#fff4ca" stop-opacity="0.96" />
+                    <stop offset="1" stop-color="#ffffff" stop-opacity="1" />
+                </linearGradient>
+
+                <!-- 飛行夢想光軌 -->
+                <linearGradient id="flightTrailGrad" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0" stop-color="#ffffff" stop-opacity="0.15" />
+                    <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.85" />
+                    <stop offset="1" stop-color="#fff6b3" stop-opacity="0.95" />
+                </linearGradient>
+
+                <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0b3b5b" flood-opacity="0.18" />
                 </filter>
 
-                <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
+                <filter id="glowLight" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="5" result="blur" />
                     <feMerge>
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
@@ -98,124 +101,254 @@
                 </filter>
             </defs>
 
-            <!-- 深邃夜空與地平線暖光 -->
-            <rect width="1600" height="900" fill="url(#skyGrad)" />
-            <circle cx="670" cy="580" r="640" fill="url(#horizonGlow)" />
+            <!-- 明亮晴朗天空與晨曦光芒 -->
+            <rect width="1600" height="900" fill="url(#daySkyGrad)" />
+            <circle cx="740" cy="525" r="560" fill="url(#sunBurst)" />
 
-            <!-- 極光流帶 -->
-            <g filter="url(#auroraBlur)">
-                <path d="M-80 260 C 240 110, 560 320, 920 170 C 1180 65, 1410 190, 1680 110 L 1680 340 C 1380 410, 1140 270, 880 370 C 520 490, 230 300, -80 420 Z" fill="url(#auroraRibbon1)" />
-                <path d="M-40 160 C 310 290, 660 80, 1040 230 C 1280 320, 1470 160, 1660 220 L 1660 390 C 1440 340, 1240 460, 990 360 C 640 210, 310 410, -40 280 Z" fill="url(#auroraRibbon2)" />
+            <!-- 現代感柔和幾何光弧（象徵廣闊視野） -->
+            <circle cx="740" cy="525" r="240" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="8 8" />
+            <circle cx="740" cy="525" r="360" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.5" />
+
+            <!-- 潔白雲朵層 -->
+            <g fill="#ffffff" opacity="0.88">
+                <!-- 左上雲朵 -->
+                <g class="float-c" transform="translate(110, 135)">
+                    <rect x="0" y="24" width="150" height="42" rx="21" />
+                    <circle cx="46" cy="26" r="28" />
+                    <circle cx="88" cy="18" r="34" />
+                    <circle cx="122" cy="30" r="22" />
+                </g>
+                <!-- 中右雲朵 -->
+                <g class="float-b" transform="translate(940, 110)" opacity="0.82">
+                    <rect x="0" y="22" width="135" height="36" rx="18" />
+                    <circle cx="42" cy="24" r="24" />
+                    <circle cx="78" cy="16" r="30" />
+                    <circle cx="110" cy="26" r="20" />
+                </g>
+                <!-- 遠方低空雲 -->
+                <g transform="translate(460, 340)" opacity="0.65">
+                    <rect x="0" y="18" width="110" height="28" rx="14" />
+                    <circle cx="36" cy="18" r="20" />
+                    <circle cx="72" cy="14" r="24" />
+                </g>
             </g>
 
-            <!-- 漫天星斗 -->
-            <g fill="#ffffff">
-                <circle class="twinkle" cx="110" cy="78" r="1.5" opacity="0.8" />
-                <circle class="twinkle d2" cx="235" cy="142" r="1.2" opacity="0.65" />
-                <circle class="twinkle d3" cx="380" cy="64" r="1.8" opacity="0.85" />
-                <circle class="twinkle" cx="540" cy="118" r="1.3" opacity="0.75" />
-                <circle class="twinkle d2" cx="720" cy="58" r="1.6" opacity="0.8" />
-                <circle class="twinkle d3" cx="890" cy="105" r="1.4" opacity="0.7" />
-                <circle class="twinkle" cx="1080" cy="68" r="1.9" opacity="0.85" />
-                <circle class="twinkle d2" cx="1290" cy="96" r="1.3" opacity="0.7" />
-                <circle class="twinkle d3" cx="1475" cy="74" r="1.6" opacity="0.8" />
-                <circle class="twinkle" cx="165" cy="248" r="1.2" opacity="0.6" />
-                <circle class="twinkle d2" cx="630" cy="220" r="1.4" opacity="0.75" />
-                <circle class="twinkle d3" cx="1165" cy="215" r="1.2" opacity="0.65" />
+            <!-- 空中元素 1：象徵「世界（World）」的現代立體地球儀與環球航線（無任何文具） -->
+            <g class="float-a" transform="translate(310, 215)" filter="url(#softShadow)">
+                <!-- 外圍夢想環球軌道 -->
+                <ellipse cx="0" cy="0" rx="128" ry="38" transform="rotate(-18)" fill="none" stroke="#ffffff" stroke-opacity="0.8" stroke-width="2.5" stroke-dasharray="8 6" />
+                <ellipse cx="0" cy="0" rx="105" ry="26" transform="rotate(15)" fill="none" stroke="#ffe57f" stroke-opacity="0.85" stroke-width="2" />
+                <!-- 地球本體 -->
+                <circle cx="0" cy="0" r="68" fill="url(#globeOcean)" stroke="#ffffff" stroke-width="3" />
+                <!-- 翠綠陸地洲塊（代表世界地圖） -->
+                <path d="M-38 -32 C-18 -42, 4 -30, 8 -14 C12 2, -6 14, -22 10 C-36 6, -48 -18, -38 -32 Z" fill="#68f0b5" opacity="0.9" />
+                <path d="M16 -24 C34 -28, 52 -12, 48 12 C44 32, 24 44, 12 32 C2 22, 18 4, 12 -8 C8 -16, 8 -22, 16 -24 Z" fill="#68f0b5" opacity="0.9" />
+                <path d="M-28 24 C-14 22, 0 34, -6 48 C-12 58, -32 52, -36 38 C-38 30, -34 25, -28 24 Z" fill="#80f5c4" opacity="0.85" />
+                <!-- 經緯度柔光線 -->
+                <ellipse cx="0" cy="0" rx="68" ry="24" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1.4" />
+                <ellipse cx="0" cy="0" rx="26" ry="68" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1.4" />
+                <!-- 軌道上的小星星與地標光點 -->
+                <circle cx="-112" cy="36" r="6" fill="#ffe57f" />
+                <circle cx="102" cy="-32" r="5" fill="#ffffff" />
             </g>
 
-            <!-- 流星（象徵願望與啟程） -->
-            <g opacity="0.85">
-                <line x1="820" y1="88" x2="710" y2="142" stroke="url(#arcLineGrad)" stroke-width="2.2" stroke-linecap="round" />
-                <circle cx="710" cy="142" r="2.6" fill="#ffffff" filter="url(#softGlow)" />
-                <line x1="360" y1="96" x2="275" y2="138" stroke="url(#arcLineGrad)" stroke-width="1.8" stroke-linecap="round" />
-                <circle cx="275" cy="138" r="2" fill="#8ff0c9" filter="url(#softGlow)" />
+            <!-- 空中元素 2：象徵「夢想升空（Dreams）」的繽紛熱氣球 -->
+            <g class="float-b" transform="translate(885, 210)" filter="url(#softShadow)">
+                <!-- 主熱氣球 -->
+                <path d="M0 -58 C36 -58, 56 -28, 46 8 C38 32, 20 46, 14 56 L-14 56 C-20 46, -38 32, -46 8 C-56 -28, -36 -58, 0 -58 Z" fill="url(#balloonGrad1)" stroke="#ffffff" stroke-width="2.5" />
+                <!-- 熱氣球白色條紋與裝飾 -->
+                <path d="M0 -58 C18 -58, 28 -28, 22 8 C18 32, 10 46, 7 56 L-7 56 C-10 46, -18 32, -22 8 C-28 -28, -18 -58, 0 -58 Z" fill="#ffffff" fill-opacity="0.32" />
+                <path d="M-47 -6 Q0 6 47 -6" fill="none" stroke="#ffe699" stroke-width="3" />
+                <!-- 吊籃 -->
+                <line x1="-10" y1="56" x2="-7" y2="68" stroke="#ffffff" stroke-width="2" />
+                <line x1="10" y1="56" x2="7" y2="68" stroke="#ffffff" stroke-width="2" />
+                <rect x="-12" y="68" width="24" height="16" rx="4" fill="#f4a261" stroke="#ffffff" stroke-width="2" />
             </g>
 
-            <!-- 象徵「世界與眼界」：發光星體地球儀與環繞星軌（左上方空中） -->
-            <g class="float-a" transform="translate(270, 235)">
-                <!-- 外層星軌環 -->
-                <ellipse cx="0" cy="0" rx="138" ry="42" transform="rotate(-22)" fill="none" stroke="#8ff0c9" stroke-opacity="0.38" stroke-width="1.4" stroke-dasharray="6 6" />
-                <ellipse cx="0" cy="0" rx="112" ry="30" transform="rotate(16)" fill="none" stroke="#ffd89c" stroke-opacity="0.32" stroke-width="1.1" />
-                <!-- 地球球體與經緯度線 -->
-                <circle cx="0" cy="0" r="70" fill="url(#planetGlow)" stroke="#9ef7d6" stroke-opacity="0.65" stroke-width="1.6" />
-                <ellipse cx="0" cy="0" rx="70" ry="26" fill="none" stroke="#9ef7d6" stroke-opacity="0.35" stroke-width="1.1" />
-                <ellipse cx="0" cy="0" rx="70" ry="52" fill="none" stroke="#9ef7d6" stroke-opacity="0.22" stroke-width="1" />
-                <ellipse cx="0" cy="0" rx="28" ry="70" fill="none" stroke="#9ef7d6" stroke-opacity="0.35" stroke-width="1.1" />
-                <ellipse cx="0" cy="0" rx="54" ry="70" fill="none" stroke="#9ef7d6" stroke-opacity="0.22" stroke-width="1" />
-                <line x1="-70" y1="0" x2="70" y2="0" stroke="#ffd89c" stroke-opacity="0.4" stroke-width="1.1" />
-                <line x1="0" y1="-70" x2="0" y2="70" stroke="#ffd89c" stroke-opacity="0.4" stroke-width="1.1" />
-                <!-- 軌道上的發光節點 -->
-                <circle cx="-118" cy="48" r="4.5" fill="#ffd89c" filter="url(#softGlow)" />
-                <circle cx="104" cy="-42" r="4" fill="#8ff0c9" filter="url(#softGlow)" />
-                <circle cx="38" cy="-24" r="3" fill="#ffffff" opacity="0.9" />
+            <!-- 遠方次熱氣球 -->
+            <g class="float-c" transform="translate(565, 165) scale(0.62)" filter="url(#softShadow)">
+                <path d="M0 -58 C36 -58, 56 -28, 46 8 C38 32, 20 46, 14 56 L-14 56 C-20 46, -38 32, -46 8 C-56 -28, -36 -58, 0 -58 Z" fill="url(#balloonGrad2)" stroke="#ffffff" stroke-width="2.5" />
+                <path d="M0 -58 C16 -58, 24 -28, 18 8 C14 32, 8 46, 6 56 L-6 56 C-8 46, -14 32, -18 8 C-24 -28, -16 -58, 0 -58 Z" fill="#ffffff" fill-opacity="0.35" />
+                <rect x="-11" y="64" width="22" height="15" rx="4" fill="#e76f51" stroke="#ffffff" stroke-width="2" />
             </g>
 
-            <!-- 象徵「方向與夢想」：星象羅盤與北極星（中上方空中） -->
-            <g class="float-b" transform="translate(880, 210)">
-                <circle cx="0" cy="0" r="64" fill="none" stroke="#ffd89c" stroke-opacity="0.28" stroke-width="1.2" stroke-dasharray="3 5" />
-                <circle cx="0" cy="0" r="46" fill="none" stroke="#8ff0c9" stroke-opacity="0.35" stroke-width="1.2" />
-                <!-- 羅盤十字星芒 -->
-                <path d="M0 -56 L7 -9 L56 0 L7 9 L0 56 L-7 9 L-56 0 L-7 -9 Z" fill="#fff3d1" fill-opacity="0.75" filter="url(#softGlow)" />
-                <path d="M0 -30 L12 -12 L30 0 L12 12 L0 30 L-12 12 L-30 0 L-12 -12 Z" fill="#8ff0c9" fill-opacity="0.45" />
-                <circle cx="0" cy="0" r="4.5" fill="#ffffff" />
+            <!-- 空中元素 3：象徵「方向與啟航」的夢想紙飛機與方向星芒 -->
+            <path d="M 730 535 C 680 430, 745 335, 860 270 C 945 220, 1020 185, 1095 140" fill="none" stroke="url(#flightTrailGrad)" stroke-width="3" stroke-dasharray="10 7" stroke-linecap="round" />
+            <g class="float-a" transform="translate(1095, 140) rotate(-22)" filter="url(#softShadow)">
+                <polygon points="0,0 -52,18 -22,27" fill="#ffffff" />
+                <polygon points="0,0 -22,27 -15,40" fill="#a8e6ff" />
+                <polygon points="0,0 -15,40 -6,29" fill="#ffe082" />
             </g>
 
-            <!-- 象徵「探索未知星座圖」：星群連線 -->
-            <g class="float-c" stroke="#9ef7d6" stroke-opacity="0.38" stroke-width="1.2" fill="#ffffff">
-                <polyline points="480,150 535,118 595,144 645,102 700,132" fill="none" stroke-dasharray="4 4" />
-                <circle cx="480" cy="150" r="2.8" />
-                <circle cx="535" cy="118" r="3.4" fill="#8ff0c9" />
-                <circle cx="595" cy="144" r="2.6" />
-                <circle cx="645" cy="102" r="3.8" fill="#ffd89c" />
-                <circle cx="700" cy="132" r="2.6" />
+            <!-- 指南星芒 -->
+            <g class="float-b" transform="translate(740, 195)">
+                <path d="M0 -28 L6 -6 L28 0 L6 6 L0 28 L-6 6 L-28 0 L-6 -6 Z" fill="#ffffff" opacity="0.92" filter="url(#glowLight)" />
+                <circle cx="0" cy="0" r="4" fill="#ffe082" />
             </g>
 
-            <!-- 象徵「夢想啟航」：由地平線升起的金色光軌與展翅紙飛機 -->
-            <path d="M 650 575 C 610 470, 680 370, 795 290 C 890 224, 995 190, 1085 150" fill="none" stroke="url(#arcLineGrad)" stroke-width="2.6" stroke-dasharray="8 6" />
-            <path d="M 650 575 C 520 490, 455 395, 365 305" fill="none" stroke="url(#arcLineGrad)" stroke-width="1.8" opacity="0.65" />
+            <!-- 地平線暖陽 -->
+            <circle cx="740" cy="540" r="68" fill="#fff9db" opacity="0.96" filter="url(#glowLight)" />
 
-            <!-- 主夢想紙飛機（右上翱翔） -->
-            <g class="float-a" transform="translate(1065, 152) rotate(-24)" filter="url(#softGlow)">
-                <polygon points="0,0 -48,18 -20,26" fill="#ffffff" fill-opacity="0.95" />
-                <polygon points="0,0 -20,26 -14,38" fill="#8ff0c9" fill-opacity="0.85" />
-                <polygon points="0,0 -14,38 -6,28" fill="#ffd89c" fill-opacity="0.9" />
+            <!-- 層疊清新山巒 -->
+            <path d="M0 575 Q160 495 340 545 T720 535 T1120 515 T1460 535 T1600 510 L1600 900 L0 900 Z" fill="url(#dayHillFar)" />
+            <path d="M0 640 Q220 565 460 615 T920 605 T1360 585 T1600 610 L1600 900 L0 900 Z" fill="url(#dayHillMid)" />
+
+            <!-- 蜿蜒向前的陽光大道 -->
+            <path d="M 555 900 C 565 805, 735 745, 695 668 C 668 615, 735 582, 728 540 L 752 540 C 765 584, 712 618, 755 672 C 815 748, 695 812, 775 900 Z" fill="url(#sunPathGrad)" />
+
+            <!-- 前景翠綠草坡 -->
+            <path d="M0 735 Q260 675 540 735 T1040 745 T1600 725 L1600 900 L0 900 Z" fill="url(#dayHillNear)" />
+            <!-- 道路前景延伸與溫暖光邊 -->
+            <path d="M 555 900 C 565 805, 735 745, 695 668 C 668 615, 735 582, 728 540 L 752 540 C 765 584, 712 618, 755 672 C 815 748, 695 812, 775 900 Z" fill="url(#sunPathGrad)" opacity="0.92" />
+
+            <!-- 草坡上的溫暖小花點綴 -->
+            <g fill="#fff3b0" opacity="0.85">
+                <circle cx="480" cy="765" r="4" />
+                <circle cx="515" cy="785" r="3" />
+                <circle cx="835" cy="775" r="4.5" />
+                <circle cx="875" cy="755" r="3.2" />
+                <circle cx="910" cy="795" r="4" />
             </g>
 
-            <!-- 次夢想紙飛機（中左升空） -->
-            <g class="float-b" transform="translate(765, 312) rotate(-32)" opacity="0.85">
-                <polygon points="0,0 -34,13 -14,19" fill="#fff5db" />
-                <polygon points="0,0 -14,19 -9,27" fill="#8ff0c9" />
-            </g>
+            <!-- ==========================================================
+                 Q版（Chibi 圓潤可愛二頭身風格）老師與學生角色
+                 ========================================================== -->
+            <g filter="url(#softShadow)">
+                <!-- 【Q版老師】（左側，溫柔微笑、戴圓框眼鏡、手指陽光大道與世界） -->
+                <g transform="translate(615, 735)">
+                    <!-- 腳下柔和陰影 -->
+                    <ellipse cx="0" cy="72" rx="34" ry="9" fill="#083a38" opacity="0.35" />
 
-            <!-- 地平線遠方晨曦與星門光環 -->
-            <circle cx="670" cy="575" r="54" fill="#fff2d4" opacity="0.92" filter="url(#softGlow)" />
-            <circle cx="670" cy="575" r="96" fill="none" stroke="#ffe5b4" stroke-opacity="0.35" stroke-width="1.5" />
-            <circle cx="670" cy="575" r="142" fill="none" stroke="#8ff0c9" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="6 8" />
+                    <!-- 可愛短腿與圓頭鞋 -->
+                    <path d="M-12 30 L-14 64" stroke="#2b3a55" stroke-width="11" stroke-linecap="round" />
+                    <path d="M12 30 L14 64" stroke="#2b3a55" stroke-width="11" stroke-linecap="round" />
+                    <ellipse cx="-16" cy="67" rx="10" ry="6" fill="#5c3d2e" />
+                    <ellipse cx="16" cy="67" rx="10" ry="6" fill="#5c3d2e" />
 
-            <!-- 層疊壯麗山巒 -->
-            <path d="M0 595 L95 535 L205 575 L345 485 L485 565 L595 515 L670 575 L765 505 L895 560 L1045 470 L1195 555 L1335 495 L1485 560 L1600 520 L1600 900 L0 900 Z" fill="url(#mountainFar)" opacity="0.92" />
-            <path d="M0 645 Q190 575 390 630 T750 618 T1130 640 T1460 595 T1600 625 L1600 900 L0 900 Z" fill="url(#mountainMid)" />
+                    <!-- Q版圓潤身體（薄荷綠休閒西裝外套 + 白襯衫 + 黃色領結） -->
+                    <path d="M-26 -14 C-30 8, -28 32, -22 38 L22 38 C28 32, 30 8, 26 -14 C18 -22, -18 -22, -26 -14 Z" fill="#2ec4b6" stroke="#ffffff" stroke-width="2" />
+                    <!-- 白色內搭襯衫 V 領 -->
+                    <polygon points="-10,-18 10,-18 0,14" fill="#ffffff" />
+                    <!-- 溫暖黃色小領結 -->
+                    <polygon points="-8,-12 0,-7 -8,-2" fill="#ffb703" />
+                    <polygon points="8,-12 0,-7 8,-2" fill="#ffb703" />
+                    <circle cx="0" cy="-7" r="3" fill="#fb8500" />
 
-            <!-- 通往世界與未來的光之道路（延伸向地平線光芒） -->
-            <path d="M 520 900 C 540 805, 695 755, 650 685 C 620 640, 685 612, 666 575 L 676 575 C 702 612, 648 642, 688 688 C 748 758, 635 812, 710 900 Z" fill="url(#dreamPathGrad)" filter="url(#softGlow)" />
+                    <!-- 左手（拿著夢想星盤書本） -->
+                    <path d="M-24 -8 C-38 2, -40 16, -28 22" fill="none" stroke="#2ec4b6" stroke-width="11" stroke-linecap="round" />
+                    <circle cx="-26" cy="22" r="7" fill="#ffe5d4" />
+                    <!-- 老師手中的發光夢想指南書 -->
+                    <g transform="translate(-44, 6) rotate(-12)">
+                        <rect x="0" y="0" width="26" height="32" rx="5" fill="#ffb703" stroke="#ffffff" stroke-width="2" />
+                        <path d="M13 8 L15 13 L20 15 L15 17 L13 22 L11 17 L6 15 L11 13 Z" fill="#ffffff" />
+                    </g>
 
-            <!-- 前景山脊與靜謐湖岸線條 -->
-            <path d="M0 735 Q240 695 495 755 T920 765 T1340 735 T1600 760 L1600 900 L0 900 Z" fill="url(#mountainNear)" />
-            <path d="M 520 900 C 540 805, 695 755, 650 685 C 620 640, 685 612, 666 575 L 676 575 C 702 612, 648 642, 688 688 C 748 758, 635 812, 710 900 Z" fill="url(#dreamPathGrad)" opacity="0.68" />
+                    <!-- 右手（親切指向前方的世界與夢想方向） -->
+                    <path d="M22 -8 C38 -18, 52 -28, 64 -38" fill="none" stroke="#2ec4b6" stroke-width="11" stroke-linecap="round" />
+                    <circle cx="66" cy="-40" r="7.5" fill="#ffe5d4" />
 
-            <!-- 光點漂浮（象徵夢想微光） -->
-            <g fill="#ffe9b8" opacity="0.8">
-                <circle class="twinkle" cx="620" cy="690" r="2.5" />
-                <circle class="twinkle d2" cx="695" cy="650" r="2" />
-                <circle class="twinkle d3" cx="645" cy="610" r="2.2" />
-                <circle class="twinkle" cx="585" cy="755" r="3" />
-                <circle class="twinkle d2" cx="725" cy="730" r="2.4" />
+                    <!-- Q版大頭（後髮） -->
+                    <circle cx="0" cy="-54" r="40" fill="#6b4435" />
+
+                    <!-- 可愛圓耳朵 -->
+                    <circle cx="-37" cy="-50" r="8" fill="#ffe5d4" />
+                    <circle cx="37" cy="-50" r="8" fill="#ffe5d4" />
+
+                    <!-- Q版圓潤臉龐 -->
+                    <ellipse cx="0" cy="-50" rx="36" ry="33" fill="#ffe5d4" />
+
+                    <!-- 溫柔栗子色劉海與呆毛 -->
+                    <path d="M-36 -56 C-34 -82, 34 -82, 36 -56 C26 -66, 12 -58, 4 -68 C-4 -56, -22 -64, -36 -56 Z" fill="#6b4435" />
+                    <path d="M0 -84 Q10 -98 20 -88" fill="none" stroke="#6b4435" stroke-width="4.5" stroke-linecap="round" />
+
+                    <!-- 紅潤腮紅 -->
+                    <ellipse cx="-21" cy="-42" rx="6.5" ry="3.8" fill="#ff8fa3" opacity="0.65" />
+                    <ellipse cx="21" cy="-42" rx="6.5" ry="3.8" fill="#ff8fa3" opacity="0.65" />
+
+                    <!-- Q版閃亮大眼睛 -->
+                    <ellipse cx="-14" cy="-50" rx="5" ry="6" fill="#2b2d42" />
+                    <ellipse cx="14" cy="-50" rx="5" ry="6" fill="#2b2d42" />
+                    <circle cx="-15.5" cy="-52.5" r="2.2" fill="#ffffff" />
+                    <circle cx="12.5" cy="-52.5" r="2.2" fill="#ffffff" />
+
+                    <!-- 可愛圓框眼鏡 -->
+                    <circle cx="-14" cy="-50" r="10" fill="none" stroke="#ffb703" stroke-width="2.4" />
+                    <circle cx="14" cy="-50" r="10" fill="none" stroke="#ffb703" stroke-width="2.4" />
+                    <line x1="-4" y1="-50" x2="4" y2="-50" stroke="#ffb703" stroke-width="2.4" />
+
+                    <!-- 溫暖微笑 -->
+                    <path d="M-6 -37 Q0 -31 6 -37" fill="none" stroke="#d65a5a" stroke-width="2.6" stroke-linecap="round" />
+                </g>
+
+                <!-- 【Q版學生】（右側，背著黃色小書包、充滿活力踏步向夢想揮手） -->
+                <g transform="translate(738, 748)">
+                    <!-- 腳下柔和陰影 -->
+                    <ellipse cx="0" cy="62" rx="30" ry="8" fill="#083a38" opacity="0.35" />
+
+                    <!-- 亮黃色Q版圓滾滾書包（在身體後方） -->
+                    <rect x="-28" y="-16" width="22" height="36" rx="10" fill="#ffb703" stroke="#ffffff" stroke-width="2" />
+                    <rect x="-25" y="-6" width="16" height="16" rx="5" fill="#fb8500" />
+
+                    <!-- 活力邁步的小短腿與運動鞋 -->
+                    <path d="M-10 24 L-16 52" stroke="#1d3557" stroke-width="10" stroke-linecap="round" />
+                    <path d="M10 24 L18 48" stroke="#1d3557" stroke-width="10" stroke-linecap="round" />
+                    <ellipse cx="-18" cy="55" rx="9.5" ry="5.5" fill="#ff6b6b" stroke="#ffffff" stroke-width="1.5" />
+                    <ellipse cx="20" cy="51" rx="9.5" ry="5.5" fill="#ff6b6b" stroke="#ffffff" stroke-width="1.5" />
+
+                    <!-- Q版學生服（天藍活力連帽學院衫） -->
+                    <path d="M-22 -12 C-25 6, -24 26, -18 32 L18 32 C24 26, 25 6, 22 -12 C14 -18, -14 -18, -22 -12 Z" fill="#ffffff" stroke="#e0f2fe" stroke-width="2" />
+                    <!-- 亮藍水手領與紅色領巾 -->
+                    <path d="M-18 -12 L0 2 L18 -12 Z" fill="#38bdf8" />
+                    <path d="M-4 -2 L0 12 L4 -2 Z" fill="#ff595e" />
+
+                    <!-- 書包肩帶 -->
+                    <path d="M-15 -12 L-13 18" stroke="#ffb703" stroke-width="4" stroke-linecap="round" />
+                    <path d="M15 -12 L13 18" stroke="#ffb703" stroke-width="4" stroke-linecap="round" />
+
+                    <!-- 左手自然擺動 -->
+                    <path d="M-20 -6 L-32 12" stroke="#ffffff" stroke-width="10" stroke-linecap="round" />
+                    <circle cx="-33" cy="14" r="6.5" fill="#ffe5d4" />
+
+                    <!-- 右手高舉歡呼（朝向天空的夢想與世界） -->
+                    <path d="M18 -8 C30 -20, 38 -34, 42 -48" stroke="#ffffff" stroke-width="10" stroke-linecap="round" />
+                    <circle cx="43" cy="-50" r="6.5" fill="#ffe5d4" />
+                    <!-- 手邊閃耀的小夢想星 -->
+                    <path d="M56 -64 L59 -56 L67 -53 L59 -50 L56 -42 L53 -50 L45 -53 L53 -56 Z" fill="#fff3b0" />
+
+                    <!-- Q版學生大頭（後髮） -->
+                    <circle cx="0" cy="-46" r="35" fill="#3d2c2e" />
+
+                    <!-- 圓耳朵 -->
+                    <circle cx="-32" cy="-42" r="7" fill="#ffe5d4" />
+                    <circle cx="32" cy="-42" r="7" fill="#ffe5d4" />
+
+                    <!-- Q版圓潤可愛臉蛋 -->
+                    <ellipse cx="0" cy="-42" rx="32" ry="29" fill="#ffe5d4" />
+
+                    <!-- 活潑短髮劉海与翹呆毛 -->
+                    <path d="M-32 -48 C-30 -74, 30 -74, 32 -48 C22 -58, 10 -48, 0 -58 C-10 -48, -22 -58, -32 -48 Z" fill="#3d2c2e" />
+                    <path d="M4 -72 Q16 -86 24 -74" fill="none" stroke="#3d2c2e" stroke-width="4" stroke-linecap="round" />
+
+                    <!-- 粉嫩腮紅 -->
+                    <ellipse cx="-18" cy="-35" rx="6" ry="3.5" fill="#ff8fa3" opacity="0.7" />
+                    <ellipse cx="18" cy="-35" rx="6" ry="3.5" fill="#ff8fa3" opacity="0.7" />
+
+                    <!-- Q版水汪汪大眼睛 -->
+                    <ellipse cx="-12" cy="-43" rx="4.8" ry="5.8" fill="#1d1e2c" />
+                    <ellipse cx="12" cy="-43" rx="4.8" ry="5.8" fill="#1d1e2c" />
+                    <circle cx="-13.5" cy="-45.5" r="2.2" fill="#ffffff" />
+                    <circle cx="10.5" cy="-45.5" r="2.2" fill="#ffffff" />
+                    <circle cx="-10.5" cy="-41" r="1" fill="#ffffff" />
+                    <circle cx="13.5" cy="-41" r="1" fill="#ffffff" />
+
+                    <!-- 開心露齒笑 -->
+                    <path d="M-6 -32 Q0 -23 6 -32 Z" fill="#ff6b8b" />
+                </g>
             </g>
         </svg>
         <div class="login-scene-overlay"></div>
 
-        <!-- 左下品牌宣言（不再放左上角重複校徽，並預留充足底部安全間距） -->
+        <!-- 左下品牌宣言（不放任何左側 Logo，並確保完整位於畫面內） -->
         <section class="login-hero">
             <div class="login-hero-body">
                 <div class="login-eyebrow"><span class="dot"></span> WORLD &amp; DREAMS</div>
@@ -224,7 +357,7 @@
             </div>
         </section>
 
-        <!-- 右側登入卡片 -->
+        <!-- 右側登入卡片：整合校徽、補習班名稱與放大版「輔導預約系統」 -->
         <section class="login-card" aria-label="登入表單">
             <div class="login-card-header">
                 <div class="login-card-logo">
