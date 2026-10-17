@@ -13,10 +13,17 @@ namespace PlatoTutoring.Web.Pages.Account;
 public class LoginModel : PageModel
 {
     private readonly AppDbContext _db;
+    private readonly CreditLedgerService _ledgerService;
+    private readonly BookingService _bookingService;
 
-    public LoginModel(AppDbContext db)
+    public LoginModel(
+        AppDbContext db,
+        CreditLedgerService ledgerService,
+        BookingService bookingService)
     {
         _db = db;
+        _ledgerService = ledgerService;
+        _bookingService = bookingService;
     }
 
     [BindProperty]
@@ -29,38 +36,64 @@ public class LoginModel : PageModel
 
     public async Task OnGetAsync()
     {
-        DemoUsers = await _db.Users.OrderBy(u => u.Id).ToListAsync();
+        try
+        {
+            await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
+            DemoUsers = await _db.Users.OrderBy(u => u.Id).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"資料庫連線或初始化提醒：{ex.Message}";
+        }
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        var trimmedUsername = Username.Trim();
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == trimmedUsername);
-
-        if (user == null || !PasswordHelper.VerifyPassword(Password, user.PasswordHash))
+        try
         {
-            TempData["ErrorMessage"] = "帳號或密碼不正確。";
-            DemoUsers = await _db.Users.OrderBy(u => u.Id).ToListAsync();
+            await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
+            var trimmedUsername = Username.Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == trimmedUsername);
+
+            if (user == null || !PasswordHelper.VerifyPassword(Password, user.PasswordHash))
+            {
+                TempData["ErrorMessage"] = "帳號或密碼不正確。";
+                DemoUsers = await _db.Users.OrderBy(u => u.Id).ToListAsync();
+                return Page();
+            }
+
+            await SignInAppUserAsync(user);
+            TempData["SuccessMessage"] = $"歡迎登入，{user.DisplayName}！";
+            return RedirectToRoleHome(user.Role);
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"資料庫連線異常：{ex.Message}";
             return Page();
         }
-
-        await SignInAppUserAsync(user);
-        TempData["SuccessMessage"] = $"歡迎登入，{user.DisplayName}！";
-        return RedirectToRoleHome(user.Role);
     }
 
     public async Task<IActionResult> OnPostQuickSwitchAsync(string username)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
-        if (user == null)
+        try
         {
-            TempData["ErrorMessage"] = "找不到指定的驗收切換帳號。";
+            await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "找不到指定的驗收切換帳號。";
+                return RedirectToPage("/Account/Login");
+            }
+
+            await SignInAppUserAsync(user);
+            TempData["SuccessMessage"] = $"已切換身分為：{user.DisplayName} ({user.Role})";
+            return RedirectToRoleHome(user.Role);
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"資料庫連線異常：{ex.Message}";
             return RedirectToPage("/Account/Login");
         }
-
-        await SignInAppUserAsync(user);
-        TempData["SuccessMessage"] = $"已切換身分為：{user.DisplayName} ({user.Role})";
-        return RedirectToRoleHome(user.Role);
     }
 
     public async Task<IActionResult> OnPostLogoutAsync()
