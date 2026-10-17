@@ -35,11 +35,17 @@ public static class DbInitializer
             new AttendancePurposeOption { Name = "錯題訂正", SortOrder = 5, IsActive = true }
         );
 
+        var defaultPasswordHash = PasswordHelper.HashPassword(
+            Environment.GetEnvironmentVariable("INITIAL_DEFAULT_PASSWORD") ?? "demo123");
+        var adminUsername = Environment.GetEnvironmentVariable("INITIAL_ADMIN_USERNAME") ?? "admin";
+        var adminPasswordHash = PasswordHelper.HashPassword(
+            Environment.GetEnvironmentVariable("INITIAL_ADMIN_PASSWORD") ?? "demo123");
+
         // 3. 三種角色使用者 (家長、老師、管理員)
         var parentLin = new AppUser
         {
             Username = "parent.lin",
-            PasswordHash = "demo123",
+            PasswordHash = defaultPasswordHash,
             DisplayName = "林媽媽（家長）",
             Role = UserRole.Parent,
             Phone = "0912-345-678",
@@ -48,7 +54,7 @@ public static class DbInitializer
         var parentChen = new AppUser
         {
             Username = "parent.chen",
-            PasswordHash = "demo123",
+            PasswordHash = defaultPasswordHash,
             DisplayName = "陳爸爸（家長）",
             Role = UserRole.Parent,
             Phone = "0922-888-999",
@@ -57,15 +63,15 @@ public static class DbInitializer
         var teacherWang = new AppUser
         {
             Username = "teacher.wang",
-            PasswordHash = "demo123",
+            PasswordHash = defaultPasswordHash,
             DisplayName = "王老師（數學／理化）",
             Role = UserRole.Teacher,
             Phone = "0933-111-222"
         };
         var adminBoss = new AppUser
         {
-            Username = "admin",
-            PasswordHash = "demo123",
+            Username = adminUsername,
+            PasswordHash = adminPasswordHash,
             DisplayName = "蘇主任（系統管理員）",
             Role = UserRole.Admin,
             Phone = "0900-000-001"

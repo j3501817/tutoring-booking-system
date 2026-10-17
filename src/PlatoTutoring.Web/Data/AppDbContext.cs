@@ -53,5 +53,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<LineNotificationLog>()
             .HasIndex(l => l.IdempotencyKey)
             .IsUnique();
+
+        // 防止 SQL Server / Azure SQL 因多重串聯刪除路徑 (Multiple Cascade Paths) 報錯
+        foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+        {
+            relationship.DeleteBehavior = DeleteBehavior.Restrict;
+        }
     }
 }

@@ -16,24 +16,32 @@ public class IndexModel : PageModel
     private readonly CreditLedgerService _ledgerService;
     private readonly AttachmentStorageService _attachmentService;
     private readonly LineNotificationService _lineService;
+    private readonly DeploymentRuntimeInfo _runtimeInfo;
 
     public IndexModel(
         AppDbContext db,
         CreditLedgerService ledgerService,
         AttachmentStorageService attachmentService,
-        LineNotificationService lineService)
+        LineNotificationService lineService,
+        DeploymentRuntimeInfo runtimeInfo)
     {
         _db = db;
         _ledgerService = ledgerService;
         _attachmentService = attachmentService;
         _lineService = lineService;
+        _runtimeInfo = runtimeInfo;
     }
 
     public AppUser CurrentUser { get; set; } = null!;
+    public string DatabaseStatusText => _runtimeInfo.DatabaseDescription;
+    public string BlobStorageStatusText => _attachmentService.StorageModeDescription;
+
     public Semester? CurrentSemester { get; set; }
     public List<CourseProgress> AllProgresses { get; set; } = new();
     public List<Student> AllStudents { get; set; } = new();
+    public List<AppUser> AllUsers { get; set; } = new();
     public List<AppUser> ParentUsers { get; set; } = new();
+    public List<ParentStudentLink> AllParentStudentLinks { get; set; } = new();
     public List<AttendancePurposeOption> PurposeOptions { get; set; } = new();
     public List<DropoutSettlementPreview> SettlementPreviews { get; set; } = new();
     public List<DropoutSettlement> PastSettlements { get; set; } = new();
@@ -62,7 +70,15 @@ public class IndexModel : PageModel
         CurrentSemester = await _db.Semesters.OrderByDescending(s => s.Id).FirstOrDefaultAsync();
         AllProgresses = await _db.CourseProgresses.OrderByDescending(p => p.Id).ToListAsync();
         AllStudents = await _db.Students.OrderBy(s => s.Id).ToListAsync();
-        ParentUsers = await _db.Users.Where(u => u.Role == UserRole.Parent).ToListAsync();
+        AllUsers = await _db.Users.OrderBy(u => u.Role).ThenBy(u => u.Id).ToListAsync();
+        ParentUsers = AllUsers.Where(u => u.Role == UserRole.Parent).ToList();
+        AllParentStudentLinks = await _db.ParentStudentLinks
+            .Include(l => l.ParentUser)
+            .Include(l => l.Student)
+            .OrderBy(l => l.ParentUserId)
+            .ThenBy(l => l.StudentId)
+            .ToListAsync();
+
         PurposeOptions = await _db.AttendancePurposeOptions.OrderBy(p => p.SortOrder).ToListAsync();
 
         foreach (var stu in AllStudents.Where(s => !s.IsDroppedOut))
@@ -127,6 +143,134 @@ public class IndexModel : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnPostCreateUserAsync(
+        string username,
+        string password,
+        string displayName,
+        UserRole role,
+        string? phone,
+        string? lineUserId,
+        int? linkStudentId,
+        string? relationship)
+    {
+        var admin = await GetCurrentAdminAsync();
+        if (admin == null) return RedirectToPage("/Account/Login");
+
+        var cleanUsername = username.Trim();
+        if (await _db.Users.AnyAsync(u => u.Username == cleanUsername))
+        {
+            TempData["ErrorMessage"] = $"登入帳號「{cleanUsername}」已存在，請使用其他帳號名稱。";
+            return Redirect("/Admin#tab-admin-accounts");
+        }
+
+        try
+        {
+            var newUser = new AppUser
+            {
+                Username = cleanUsername,
+                PasswordHash = PasswordHelper.HashPassword(password),
+                DisplayName = displayName.Trim(),
+                Role = role,
+                Phone = phone?.Trim() ?? string.Empty,
+                LineUserId = string.IsNullOrWhiteSpace(lineUserId) ? null : lineUserId.Trim(),
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            _db.Users.Add(newUser);
+            await _db.SaveChangesAsync();
+
+            if (role == UserRole.Parent && linkStudentId.HasValue && linkStudentId.Value > 0)
+            {
+                _db.ParentStudentLinks.Add(new ParentStudentLink
+                {
+                    ParentUserId = newUser.Id,
+                    StudentId = linkStudentId.Value,
+                    Relationship = string.IsNullOrWhiteSpace(relationship) ? "家長" : relationship.Trim()
+                });
+                await _db.SaveChangesAsync();
+            }
+
+            TempData["SuccessMessage"] = $"已建立 {role} 登入帳號：「{newUser.DisplayName} ({newUser.Username})」（密碼已使用 PBKDF2 雜湊加密儲存）。";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return Redirect("/Admin#tab-admin-accounts");
+    }
+
+    public async Task<IActionResult> OnPostResetPasswordAsync(
+        int targetUserId,
+        string newPassword,
+        string? phone,
+        string? lineUserId)
+    {
+        var user = await _db.Users.FindAsync(targetUserId);
+        if (user == null)
+        {
+            TempData["ErrorMessage"] = "找不到指定的帳號。";
+            return Redirect("/Admin#tab-admin-accounts");
+        }
+
+        if (!string.IsNullOrWhiteSpace(newPassword))
+        {
+            user.PasswordHash = PasswordHelper.HashPassword(newPassword.Trim());
+        }
+
+        if (phone != null)
+        {
+            user.Phone = phone.Trim();
+        }
+
+        if (lineUserId != null)
+        {
+            user.LineUserId = string.IsNullOrWhiteSpace(lineUserId) ? null : lineUserId.Trim();
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已更新帳號「{user.DisplayName} ({user.Username})」的密碼與聯絡設定。";
+        return Redirect("/Admin#tab-admin-accounts");
+    }
+
+    public async Task<IActionResult> OnPostLinkParentStudentAsync(
+        int parentUserId,
+        int studentId,
+        string? relationship)
+    {
+        var exists = await _db.ParentStudentLinks.AnyAsync(l =>
+            l.ParentUserId == parentUserId && l.StudentId == studentId);
+
+        if (exists)
+        {
+            TempData["ErrorMessage"] = "該家長帳號已經綁定此學生，無須重複綁定。";
+            return Redirect("/Admin#tab-admin-accounts");
+        }
+
+        _db.ParentStudentLinks.Add(new ParentStudentLink
+        {
+            ParentUserId = parentUserId,
+            StudentId = studentId,
+            Relationship = string.IsNullOrWhiteSpace(relationship) ? "家長" : relationship.Trim()
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = "已成功新增「家長 ↔ 學生」授權綁定關係！";
+        return Redirect("/Admin#tab-admin-accounts");
+    }
+
+    public async Task<IActionResult> OnPostUnlinkParentStudentAsync(int linkId)
+    {
+        var link = await _db.ParentStudentLinks.FindAsync(linkId);
+        if (link != null)
+        {
+            _db.ParentStudentLinks.Remove(link);
+            await _db.SaveChangesAsync();
+            TempData["SuccessMessage"] = "已解除該筆家長與學生的綁定關聯。";
+        }
+        return Redirect("/Admin#tab-admin-accounts");
+    }
+
     public async Task<IActionResult> OnPostCreateStudentAsync(
         string fullName,
         string gradeClass,
@@ -163,7 +307,7 @@ public class IndexModel : PageModel
                 {
                     var entry = await _ledgerService.GrantSemesterBonusAsync(student.Id, sem.Id, admin.Id);
                     TempData["SuccessMessage"] = $"已新增學生「{student.FullName}」，並依入班日比例自動核發學期贈送堂數 +{entry.BonusDelta} 堂！";
-                    return RedirectToPage();
+                    return Redirect("/Admin#tab-admin-students");
                 }
             }
 
@@ -174,7 +318,7 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = ex.Message;
         }
 
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-students");
     }
 
     public async Task<IActionResult> OnPostSwitchCurrentProgressAsync(int progressId)
@@ -188,7 +332,7 @@ public class IndexModel : PageModel
 
         var active = all.FirstOrDefault(p => p.Id == progressId);
         TempData["SuccessMessage"] = $"已切換目前開放預約進度為：{active?.Code} {active?.Title}";
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-semester");
     }
 
     public async Task<IActionResult> OnPostCreateProgressAsync(
@@ -203,7 +347,7 @@ public class IndexModel : PageModel
         if (sem == null)
         {
             TempData["ErrorMessage"] = "請先設定學期。";
-            return RedirectToPage();
+            return Redirect("/Admin#tab-admin-semester");
         }
 
         if (setAsCurrent)
@@ -225,7 +369,7 @@ public class IndexModel : PageModel
         await _db.SaveChangesAsync();
 
         TempData["SuccessMessage"] = $"已新增課程進度：{code} {title}";
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-semester");
     }
 
     public async Task<IActionResult> OnPostEndSemesterBonusExpiryAsync()
@@ -234,11 +378,11 @@ public class IndexModel : PageModel
         if (admin == null) return RedirectToPage("/Account/Login");
 
         var sem = await _db.Semesters.OrderByDescending(s => s.Id).FirstOrDefaultAsync();
-        if (sem == null) return RedirectToPage();
+        if (sem == null) return Redirect("/Admin#tab-admin-semester");
 
         var count = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(sem.Id, admin.Id);
         TempData["SuccessMessage"] = $"已執行學期結束贈送堂數歸零，共清除 {count} 位學生的未用贈送堂數並寫入稽核流水帳。";
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-semester");
     }
 
     public async Task<IActionResult> OnPostExecuteDropoutAsync(int studentId, string? note)
@@ -260,7 +404,7 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = ex.Message;
         }
 
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-dropout");
     }
 
     public async Task<IActionResult> OnPostToggleNoShowPenaltyAsync(bool enabled)
@@ -272,7 +416,7 @@ public class IndexModel : PageModel
             await _db.SaveChangesAsync();
         }
         TempData["SuccessMessage"] = $"團體課爽約記點停權規則已設為：{(enabled ? "啟用（30天內爽約3次暫停預約14天）" : "關閉（預設）")}。";
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-students");
     }
 
     public async Task<IActionResult> OnPostAddPurposeAsync(string purposeName)
@@ -289,7 +433,7 @@ public class IndexModel : PageModel
             await _db.SaveChangesAsync();
             TempData["SuccessMessage"] = $"已新增到班目的選項：{purposeName.Trim()}";
         }
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-students");
     }
 
     public async Task<IActionResult> OnPostPurgeExpiredAttachmentsAsync()
@@ -303,7 +447,7 @@ public class IndexModel : PageModel
     {
         var ok = await _lineService.RetryFailedNotificationAsync(logId);
         TempData["SuccessMessage"] = ok ? "LINE 通知重試發送成功！" : "重試失敗：家長尚未綁定有效的 LINE User ID。";
-        return RedirectToPage();
+        return Redirect("/Admin#tab-admin-audit");
     }
 
     private async Task<AppUser?> GetCurrentAdminAsync()

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using PlatoTutoring.Web.Data;
 using PlatoTutoring.Web.Models;
+using PlatoTutoring.Web.Services;
 
 namespace PlatoTutoring.Web.Pages.Account;
 
@@ -33,10 +34,10 @@ public class LoginModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u =>
-            u.Username == Username.Trim() && u.PasswordHash == Password);
+        var trimmedUsername = Username.Trim();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == trimmedUsername);
 
-        if (user == null)
+        if (user == null || !PasswordHelper.VerifyPassword(Password, user.PasswordHash))
         {
             TempData["ErrorMessage"] = "帳號或密碼不正確。";
             DemoUsers = await _db.Users.OrderBy(u => u.Id).ToListAsync();
@@ -53,7 +54,7 @@ public class LoginModel : PageModel
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
         if (user == null)
         {
-            TempData["ErrorMessage"] = "找不到指定的測試帳號。";
+            TempData["ErrorMessage"] = "找不到指定的驗收切換帳號。";
             return RedirectToPage("/Account/Login");
         }
 
