@@ -94,17 +94,25 @@ if (!string.IsNullOrWhiteSpace(azureSqlClientOrigin))
     app.UseCors();
 }
 
-using (var scope = app.Services.CreateScope())
+// 背景非阻塞初始化資料庫與種子資料，讓 Web App 啟動後立即監聽 Port 回應請求，不因等待 Azure SQL Serverless 喚醒而卡在啟動轉圈
+_ = Task.Run(async () =>
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var ledger = scope.ServiceProvider.GetRequiredService<CreditLedgerService>();
-    var booking = scope.ServiceProvider.GetRequiredService<BookingService>();
-    await DbInitializer.SeedAsync(db, ledger, booking);
-}
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ledger = scope.ServiceProvider.GetRequiredService<CreditLedgerService>();
+        var booking = scope.ServiceProvider.GetRequiredService<BookingService>();
+        await DbInitializer.EnsureInitializedSafeAsync(db, ledger, booking);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[Startup DB Init Warning] {ex.Message}");
+    }
+});
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Index");
     app.UseHsts();
 }
 

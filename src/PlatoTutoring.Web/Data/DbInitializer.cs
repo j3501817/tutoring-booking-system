@@ -8,6 +8,29 @@ namespace PlatoTutoring.Web.Data;
 
 public static class DbInitializer
 {
+    private static readonly SemaphoreSlim InitLock = new(1, 1);
+    private static bool _isInitialized;
+
+    public static async Task EnsureInitializedSafeAsync(
+        AppDbContext db,
+        CreditLedgerService ledgerService,
+        BookingService bookingService)
+    {
+        if (_isInitialized) return;
+
+        await InitLock.WaitAsync();
+        try
+        {
+            if (_isInitialized) return;
+            await SeedAsync(db, ledgerService, bookingService);
+            _isInitialized = true;
+        }
+        finally
+        {
+            InitLock.Release();
+        }
+    }
+
     public static async Task SeedAsync(
         AppDbContext db,
         CreditLedgerService ledgerService,
@@ -18,15 +41,29 @@ public static class DbInitializer
         try
         {
             if (await db.Users.AnyAsync())
+            {
+                _isInitialized = true;
                 return;
+            }
         }
         catch
         {
             // 若共用之 Azure SQL 資料庫已存在其他非 BK_ 資料表，EnsureCreatedAsync 不會建表，改呼叫 CreateTablesAsync 建立 BK_ 資料表
-            var creator = db.Database.GetService<IRelationalDatabaseCreator>();
-            await creator.CreateTablesAsync();
+            try
+            {
+                var creator = db.Database.GetService<IRelationalDatabaseCreator>();
+                await creator.CreateTablesAsync();
+            }
+            catch
+            {
+                // 若部分資料表已由手動 SQL 建立則忽略重複建表例外
+            }
+
             if (await db.Users.AnyAsync())
+            {
+                _isInitialized = true;
                 return;
+            }
         }
 
         // 1. 系統設定 (SystemSettings)
