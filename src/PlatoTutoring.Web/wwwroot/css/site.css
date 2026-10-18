@@ -349,6 +349,34 @@ html, body {
   color: var(--plato-ocean);
 }
 
+.metric-icon-box.sm {
+  width: 34px;
+  height: 34px;
+  border-radius: 0.55rem;
+  font-size: 1rem;
+}
+
+/* 家長預約頁：單一精簡堂數整合區塊 */
+.compact-credits-summary {
+  border-left: 4px solid var(--plato-terracotta);
+}
+
+.compact-credits-item {
+  padding: 0.45rem 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .compact-credits-item + .compact-credits-item {
+    border-left: 1px solid #ece9e1;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .compact-credits-item + .compact-credits-item {
+    border-top: 1px solid #ece9e1;
+  }
+}
+
 /* 觸控友善表單與按鈕系統 */
 .btn,
 .form-control,

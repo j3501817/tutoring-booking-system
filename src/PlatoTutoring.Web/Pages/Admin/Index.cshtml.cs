@@ -14,6 +14,7 @@ public class IndexModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly CreditLedgerService _ledgerService;
+    private readonly BookingService _bookingService;
     private readonly AttachmentStorageService _attachmentService;
     private readonly LineNotificationService _lineService;
     private readonly DeploymentRuntimeInfo _runtimeInfo;
@@ -21,12 +22,14 @@ public class IndexModel : PageModel
     public IndexModel(
         AppDbContext db,
         CreditLedgerService ledgerService,
+        BookingService bookingService,
         AttachmentStorageService attachmentService,
         LineNotificationService lineService,
         DeploymentRuntimeInfo runtimeInfo)
     {
         _db = db;
         _ledgerService = ledgerService;
+        _bookingService = bookingService;
         _attachmentService = attachmentService;
         _lineService = lineService;
         _runtimeInfo = runtimeInfo;
@@ -63,6 +66,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
         var admin = await GetCurrentAdminAsync();
         if (admin == null) return RedirectToPage("/Account/Login");
         CurrentUser = admin;

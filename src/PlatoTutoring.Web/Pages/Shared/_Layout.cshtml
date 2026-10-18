@@ -10,6 +10,22 @@
         "Admin" => "系統管理員",
         _ => "未登入"
     };
+
+    // 依照登入角色權限決定顯示的左側功能項目
+    var canAccessOverview = isAuthenticated && role == "Admin";
+    var canAccessParent = isAuthenticated && (role == "Parent" || role == "Admin");
+    var canAccessTeacher = isAuthenticated && (role == "Teacher" || role == "Admin");
+    var canAccessMembers = isAuthenticated && (role == "Teacher" || role == "Admin");
+    var canAccessAdmin = isAuthenticated && role == "Admin";
+
+    var roleHomePage = role switch
+    {
+        "Parent" => "/Parent/Index",
+        "Teacher" => "/Teacher/Index",
+        "Admin" => "/Index",
+        _ => "/Account/Login"
+    };
+
     var currentPath = Context.Request.Path.Value ?? "/";
     bool IsActive(string prefix) =>
         prefix == "/"
@@ -39,7 +55,7 @@
                         aria-controls="mobileSidebarDrawer" aria-label="開啟左側功能選單">
                     <i class="bi bi-list fs-5"></i>
                 </button>
-                <a class="text-white text-decoration-none fw-bold d-flex align-items-center gap-2" asp-page="/Index">
+                <a class="text-white text-decoration-none fw-bold d-flex align-items-center gap-2" asp-page="@roleHomePage">
                     <span class="sidebar-brand-mark" style="width: 30px; height: 30px; font-size: 0.95rem;">P</span>
                     <span>柏拉圖輔導預約</span>
                 </a>
@@ -51,7 +67,7 @@
     <div class="app-shell">
         <!-- 桌機固定左側功能列 (>= 992px) -->
         <aside class="app-sidebar d-none d-lg-flex" aria-label="主要功能選單">
-            <a class="sidebar-brand" asp-page="/Index">
+            <a class="sidebar-brand" asp-page="@roleHomePage">
                 <div class="d-flex align-items-center gap-3">
                     <span class="sidebar-brand-mark">P</span>
                     <div>
@@ -61,76 +77,115 @@
                 </div>
             </a>
 
-            <div class="sidebar-section-label">角色工作台與功能分頁</div>
+            <div class="sidebar-section-label">可用功能選單</div>
             <ul class="sidebar-nav">
-                <li class="sidebar-nav-item">
-                    <a class="sidebar-nav-link @(IsActive("/") ? "active" : "")" asp-page="/Index">
-                        <i class="bi bi-grid-1x2-fill"></i>
-                        <span>系統總覽儀表板</span>
-                    </a>
-                </li>
-                <li class="sidebar-nav-item">
-                    <a class="sidebar-nav-link @(IsActive("/Parent") ? "active" : "")" asp-page="/Parent/Index">
-                        <i class="bi bi-calendar2-check-fill"></i>
-                        <span>家長預約與堂數</span>
-                    </a>
-                    @if (IsActive("/Parent"))
-                    {
-                        <ul class="sidebar-subnav">
-                            <li><a class="sidebar-subnav-link" href="#tab-parent-book" onclick="activateWorkspaceTab('tab-parent-book')"><i class="bi bi-calendar-week"></i>線上預約時段</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-parent-records" onclick="activateWorkspaceTab('tab-parent-records')"><i class="bi bi-list-check"></i>我的預約與候補</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-parent-ledger" onclick="activateWorkspaceTab('tab-parent-ledger')"><i class="bi bi-journal-text"></i>堂數異動流水帳</a></li>
-                        </ul>
-                    }
-                </li>
-                <li class="sidebar-nav-item">
-                    <a class="sidebar-nav-link @(IsActive("/Teacher") ? "active" : "")" asp-page="/Teacher/Index">
-                        <i class="bi bi-journal-check"></i>
-                        <span>老師教務與儲值</span>
-                    </a>
-                    @if (IsActive("/Teacher"))
-                    {
-                        <ul class="sidebar-subnav">
-                            <li><a class="sidebar-subnav-link" href="#tab-teacher-rollcall" onclick="activateWorkspaceTab('tab-teacher-rollcall')"><i class="bi bi-person-check"></i>今日課堂點名</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-teacher-topup" onclick="activateWorkspaceTab('tab-teacher-topup')"><i class="bi bi-cash-coin"></i>儲值與堂數調整</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-teacher-slots" onclick="activateWorkspaceTab('tab-teacher-slots')"><i class="bi bi-calendar-plus"></i>時段排課與代約</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-teacher-homework" onclick="activateWorkspaceTab('tab-teacher-homework')"><i class="bi bi-bell"></i>作業追蹤與催促</a></li>
-                        </ul>
-                    }
-                </li>
-                <li class="sidebar-nav-item">
-                    <a class="sidebar-nav-link @(IsActive("/Admin") ? "active" : "")" asp-page="/Admin/Index">
-                        <i class="bi bi-bar-chart-line-fill"></i>
-                        <span>管理員營運與報表</span>
-                    </a>
-                    @if (IsActive("/Admin"))
-                    {
-                        <ul class="sidebar-subnav">
-                            <li><a class="sidebar-subnav-link" href="#tab-admin-accounts" onclick="activateWorkspaceTab('tab-admin-accounts')"><i class="bi bi-shield-lock"></i>帳號與學生綁定</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-admin-semester" onclick="activateWorkspaceTab('tab-admin-semester')"><i class="bi bi-calendar-range"></i>學期與每週進度</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-admin-students" onclick="activateWorkspaceTab('tab-admin-students')"><i class="bi bi-person-plus"></i>學生與爽約規則</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-admin-dropout" onclick="activateWorkspaceTab('tab-admin-dropout')"><i class="bi bi-calculator"></i>退班批次結算</a></li>
-                            <li><a class="sidebar-subnav-link" href="#tab-admin-audit" onclick="activateWorkspaceTab('tab-admin-audit')"><i class="bi bi-journal-code"></i>流水帳與 LINE 稽核</a></li>
-                        </ul>
-                    }
-                </li>
-                <li class="sidebar-nav-item">
-                    <a class="sidebar-nav-link @(IsActive("/Account") ? "active" : "")" asp-page="/Account/Login">
-                        <i class="bi bi-person-badge-fill"></i>
-                        <span>帳號登入與 LINE 綁定</span>
-                    </a>
-                </li>
+                @if (canAccessOverview)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/") ? "active" : "")" asp-page="/Index">
+                            <i class="bi bi-grid-1x2-fill"></i>
+                            <span>系統總覽儀表板</span>
+                        </a>
+                    </li>
+                }
+
+                @if (canAccessParent)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/Parent") ? "active" : "")" asp-page="/Parent/Index">
+                            <i class="bi bi-calendar2-check-fill"></i>
+                            <span>家長預約與堂數</span>
+                        </a>
+                        @if (IsActive("/Parent"))
+                        {
+                            <ul class="sidebar-subnav">
+                                <li><a class="sidebar-subnav-link" href="#tab-parent-book" onclick="activateWorkspaceTab('tab-parent-book')"><i class="bi bi-calendar-week"></i>線上預約時段</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-parent-records" onclick="activateWorkspaceTab('tab-parent-records')"><i class="bi bi-list-check"></i>我的預約與候補</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-parent-ledger" onclick="activateWorkspaceTab('tab-parent-ledger')"><i class="bi bi-journal-text"></i>堂數異動流水帳</a></li>
+                            </ul>
+                        }
+                    </li>
+                }
+
+                @if (canAccessTeacher)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/Teacher") ? "active" : "")" asp-page="/Teacher/Index">
+                            <i class="bi bi-journal-check"></i>
+                            <span>老師教務與儲值</span>
+                        </a>
+                        @if (IsActive("/Teacher"))
+                        {
+                            <ul class="sidebar-subnav">
+                                <li><a class="sidebar-subnav-link" href="#tab-teacher-rollcall" onclick="activateWorkspaceTab('tab-teacher-rollcall')"><i class="bi bi-person-check"></i>今日課堂點名</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-teacher-topup" onclick="activateWorkspaceTab('tab-teacher-topup')"><i class="bi bi-cash-coin"></i>儲值與堂數調整</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-teacher-slots" onclick="activateWorkspaceTab('tab-teacher-slots')"><i class="bi bi-calendar-plus"></i>時段排課與代約</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-teacher-homework" onclick="activateWorkspaceTab('tab-teacher-homework')"><i class="bi bi-bell"></i>作業追蹤與催促</a></li>
+                            </ul>
+                        }
+                    </li>
+                }
+
+                @if (canAccessMembers)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/Members") ? "active" : "")" asp-page="/Members/Index">
+                            <i class="bi bi-people-fill"></i>
+                            <span>學生 / 家長 / 老師管理</span>
+                        </a>
+                        @if (IsActive("/Members"))
+                        {
+                            <ul class="sidebar-subnav">
+                                <li><a class="sidebar-subnav-link" href="#section-student-parent"><i class="bi bi-mortarboard"></i>學生與家長管理</a></li>
+                                <li><a class="sidebar-subnav-link" href="#section-teachers"><i class="bi bi-easel2"></i>老師管理</a></li>
+                            </ul>
+                        }
+                    </li>
+                }
+
+                @if (canAccessAdmin)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/Admin") ? "active" : "")" asp-page="/Admin/Index">
+                            <i class="bi bi-bar-chart-line-fill"></i>
+                            <span>管理員營運與報表</span>
+                        </a>
+                        @if (IsActive("/Admin"))
+                        {
+                            <ul class="sidebar-subnav">
+                                <li><a class="sidebar-subnav-link" href="#tab-admin-accounts" onclick="activateWorkspaceTab('tab-admin-accounts')"><i class="bi bi-shield-lock"></i>帳號與學生綁定</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-admin-semester" onclick="activateWorkspaceTab('tab-admin-semester')"><i class="bi bi-calendar-range"></i>學期與每週進度</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-admin-students" onclick="activateWorkspaceTab('tab-admin-students')"><i class="bi bi-person-plus"></i>學生與爽約規則</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-admin-dropout" onclick="activateWorkspaceTab('tab-admin-dropout')"><i class="bi bi-calculator"></i>退班批次結算</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-admin-audit" onclick="activateWorkspaceTab('tab-admin-audit')"><i class="bi bi-journal-code"></i>流水帳與 LINE 稽核</a></li>
+                            </ul>
+                        }
+                    </li>
+                }
+
+                @if (!isAuthenticated)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/Account") ? "active" : "")" asp-page="/Account/Login">
+                            <i class="bi bi-person-badge-fill"></i>
+                            <span>帳號登入</span>
+                        </a>
+                    </li>
+                }
             </ul>
 
-            <div class="sidebar-section-label">快捷工具與匯出</div>
-            <ul class="sidebar-nav">
-                <li class="sidebar-nav-item">
-                    <a class="sidebar-nav-link" href="/admin/export/credits.csv">
-                        <i class="bi bi-filetype-csv"></i>
-                        <span>匯出學生堂數 CSV</span>
-                    </a>
-                </li>
-            </ul>
+            @if (canAccessAdmin)
+            {
+                <div class="sidebar-section-label">快捷工具與匯出</div>
+                <ul class="sidebar-nav">
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link" href="/admin/export/credits.csv">
+                            <i class="bi bi-filetype-csv"></i>
+                            <span>匯出學生堂數 CSV</span>
+                        </a>
+                    </li>
+                </ul>
+            }
 
             <div class="sidebar-footer">
                 <div class="user-pill-card mb-3">
@@ -142,9 +197,11 @@
                     <div class="mt-2 d-flex gap-2">
                         @if (isAuthenticated)
                         {
-                            <a class="btn btn-sm btn-outline-light w-100 py-1" style="min-height: 32px; font-size: 0.8rem;" asp-page="/Account/Login">
-                                <i class="bi bi-arrow-left-right me-1"></i>切換 / 登出
-                            </a>
+                            <form method="post" asp-page="/Account/Login" asp-page-handler="Logout" class="w-100">
+                                <button type="submit" class="btn btn-sm btn-outline-light w-100 py-1" style="min-height: 32px; font-size: 0.8rem;">
+                                    <i class="bi bi-box-arrow-right me-1"></i>登出帳號
+                                </button>
+                            </form>
                         }
                         else
                         {
@@ -198,41 +255,73 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="關閉選單"></button>
             </div>
             <div class="offcanvas-body d-flex flex-column p-0">
-                <div class="sidebar-section-label">角色工作台</div>
+                <div class="sidebar-section-label">可用功能選單</div>
                 <ul class="sidebar-nav">
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link @(IsActive("/") ? "active" : "")" asp-page="/Index">
-                            <i class="bi bi-grid-1x2-fill"></i>
-                            <span>系統總覽儀表板</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link @(IsActive("/Parent") ? "active" : "")" asp-page="/Parent/Index">
-                            <i class="bi bi-calendar2-check-fill"></i>
-                            <span>家長預約與堂數</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link @(IsActive("/Teacher") ? "active" : "")" asp-page="/Teacher/Index">
-                            <i class="bi bi-journal-check"></i>
-                            <span>老師教務與儲值</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link @(IsActive("/Admin") ? "active" : "")" asp-page="/Admin/Index">
-                            <i class="bi bi-bar-chart-line-fill"></i>
-                            <span>管理員營運與報表</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-nav-item">
-                        <a class="sidebar-nav-link @(IsActive("/Account") ? "active" : "")" asp-page="/Account/Login">
-                            <i class="bi bi-person-badge-fill"></i>
-                            <span>帳號登入與 LINE 綁定</span>
-                        </a>
-                    </li>
+                    @if (canAccessOverview)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/") ? "active" : "")" asp-page="/Index">
+                                <i class="bi bi-grid-1x2-fill"></i>
+                                <span>系統總覽儀表板</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canAccessParent)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/Parent") ? "active" : "")" asp-page="/Parent/Index">
+                                <i class="bi bi-calendar2-check-fill"></i>
+                                <span>家長預約與堂數</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canAccessTeacher)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/Teacher") ? "active" : "")" asp-page="/Teacher/Index">
+                                <i class="bi bi-journal-check"></i>
+                                <span>老師教務與儲值</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canAccessMembers)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/Members") ? "active" : "")" asp-page="/Members/Index">
+                                <i class="bi bi-people-fill"></i>
+                                <span>學生 / 家長 / 老師管理</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canAccessAdmin)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/Admin") ? "active" : "")" asp-page="/Admin/Index">
+                                <i class="bi bi-bar-chart-line-fill"></i>
+                                <span>管理員營運與報表</span>
+                            </a>
+                        </li>
+                    }
+                    @if (!isAuthenticated)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/Account") ? "active" : "")" asp-page="/Account/Login">
+                                <i class="bi bi-person-badge-fill"></i>
+                                <span>帳號登入</span>
+                            </a>
+                        </li>
+                    }
                 </ul>
 
                 <div class="sidebar-footer mt-auto">
+                    @if (isAuthenticated)
+                    {
+                        <form method="post" asp-page="/Account/Login" asp-page-handler="Logout" class="mb-3">
+                            <button type="submit" class="btn btn-sm btn-outline-light w-100">
+                                <i class="bi bi-box-arrow-right me-1"></i>登出 (@displayName)
+                            </button>
+                        </form>
+                    }
                     <div class="small text-white-50 fw-semibold mb-2">PM 驗收角色一鍵切換</div>
                     <div class="d-grid gap-2">
                         <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
