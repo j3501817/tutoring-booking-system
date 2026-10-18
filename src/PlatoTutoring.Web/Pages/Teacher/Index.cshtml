@@ -118,95 +118,208 @@
 <div class="tab-content" id="teacherWorkspaceTabContent">
     <!-- 分頁一：今日課堂點名與課後定案 -->
     <div class="tab-pane fade show active" id="tab-teacher-rollcall" role="tabpanel">
-        <div class="card-plato p-3 p-md-4">
-            <div class="section-header-clean">
-                <div class="section-header-title">
+        <div class="card-plato p-3 p-md-4 mb-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+                <div class="section-header-title mb-0">
                     <span class="metric-icon-box"><i class="bi bi-person-check-fill"></i></span>
                     <div>
-                        <h2 class="h5 fw-bold mb-0">每日輔導任務與課堂點名</h2>
-                        <div class="small text-muted">支援標記出席、缺席請假、爽約未到與課後點名定案</div>
+                        <h2 class="h5 fw-bold mb-0">課堂點名與定案</h2>
+                        <div class="small text-muted">優先顯示當日課堂時段，點擊時段切換上課學生名單；支援單筆儲存與全班批次一次儲存</div>
                     </div>
                 </div>
-                <span class="badge bg-light text-dark border px-3 py-2">
-                    共 @Model.AllConfirmedBookings.Count 筆有效預約
-                </span>
+
+                <!-- 選擇上課日期 -->
+                <form method="get" class="d-flex align-items-center gap-2">
+                    <span class="small fw-semibold text-secondary text-nowrap"><i class="bi bi-calendar3 me-1"></i>上課日期：</span>
+                    <input type="date" name="RollcallDate" class="form-control form-control-sm"
+                           value="@Model.RollcallDate" onchange="this.form.submit()" style="max-width: 160px;" />
+                    <a href="/Teacher?RollcallDate=@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd")#tab-teacher-rollcall"
+                       class="btn btn-sm btn-outline-secondary text-nowrap">今日</a>
+                </form>
             </div>
 
-            @if (!Model.AllConfirmedBookings.Any())
-            {
-                <div class="text-muted small py-4 text-center">目前尚無有效預約需點名。</div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
-                        <thead>
-                            <tr>
-                                <th>時段時間</th>
-                                <th>學生 / 班別</th>
-                                <th>類型 / 到班目的</th>
-                                <th>代約/建立人</th>
-                                <th>目前點名狀態</th>
-                                <th>執行點名與定案</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var b in Model.AllConfirmedBookings)
-                            {
-                                var startTpe = BookingService.ToTaipeiTime(b.TutoringSlot!.StartsAtUtc);
-                                <tr>
-                                    <td data-label="時段時間">
-                                        <div class="fw-bold">@startTpe.ToString("MM/dd (ddd) HH:mm")</div>
-                                        <div class="small text-muted">
-                                            @b.TutoringSlot.CourseProgress?.Code
-                                            @if (b.TutoringSlot.IsAttendanceFinalized)
-                                            {
-                                                <span class="badge bg-dark ms-1">已課後定案</span>
-                                            }
+            <!-- 當日課程時段清單（優先顯示當日課程） -->
+            <div class="mb-4">
+                <div class="small fw-bold text-secondary mb-2">
+                    <i class="bi bi-clock-history me-1"></i>@(Model.RollcallDate) 輔導時段（共 @Model.TodaySlots.Count 場）：
+                </div>
+                @if (!Model.TodaySlots.Any())
+                {
+                    <div class="alert alert-light border text-muted small py-3 mb-0">
+                        <i class="bi bi-info-circle me-1"></i>本日無排定輔導時段。您可切換上方日期，或至「時段排課與代約」新增時段。
+                    </div>
+                }
+                else
+                {
+                    <div class="row g-2">
+                        @foreach (var ts in Model.TodaySlots)
+                        {
+                            var sTpe = BookingService.ToTaipeiTime(ts.StartsAtUtc);
+                            var eTpe = BookingService.ToTaipeiTime(ts.EndsAtUtc);
+                            var dayZh = "日一二三四五六"[(int)sTpe.DayOfWeek];
+                            var isSelectedSlot = Model.ActiveRollcallSlot?.Id == ts.Id;
+                            var bookedCount = Model.TodayBookings.Count(b => b.TutoringSlotId == ts.Id);
+
+                            <div class="col-12 col-md-6 col-xl-4">
+                                <a href="/Teacher?RollcallDate=@Model.RollcallDate&SelectedSlotId=@ts.Id#tab-teacher-rollcall"
+                                   class="card-plato p-3 slot-card-selectable d-block text-decoration-none text-dark h-100 @(isSelectedSlot ? "active" : "")">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="fw-bold">
+                                            <i class="bi bi-clock me-1 text-secondary"></i>@sTpe.ToString("HH:mm") – @eTpe.ToString("HH:mm")
+                                            <span class="small text-muted ms-1">(@dayZh)</span>
                                         </div>
-                                    </td>
-                                    <td data-label="學生 / 班別">
-                                        <strong>@b.Student?.FullName</strong>
-                                        <span class="text-muted small">(@b.Student?.GradeClass)</span>
-                                    </td>
-                                    <td data-label="類型 / 目的">
-                                        <span class="badge @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
-                                            @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
+                                        <span class="badge @(ts.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
+                                            @(ts.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
                                         </span>
-                                        <span class="small ms-1">@b.PurposeName</span>
-                                    </td>
-                                    <td data-label="建立人" class="small">
-                                        @b.CreatedByName (@b.CreatedByRole)
-                                    </td>
-                                    <td data-label="點名狀態">
-                                        <span class="badge @(b.AttendanceStatus == AttendanceStatus.Present ? "bg-success" : b.AttendanceStatus == AttendanceStatus.NoShow ? "bg-danger" : "bg-secondary")">
-                                            @b.AttendanceStatus
+                                    </div>
+                                    <div class="small text-secondary mb-2">
+                                        <div><strong>@ts.CourseProgress?.Code</strong> @ts.CourseProgress?.Title</div>
+                                        <div class="text-muted">適用班別：@ts.GradeClass ｜ 授課：@ts.TeacherUser?.DisplayName</div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center pt-2 border-top small">
+                                        <span class="fw-semibold @(bookedCount > 0 ? "text-success" : "text-muted")">
+                                            <i class="bi bi-people-fill me-1"></i>已約 @bookedCount / @ts.MaxCapacity 名
                                         </span>
-                                    </td>
-                                    <td data-label="執行點名">
-                                        <form method="post" asp-page-handler="RecordAttendance" class="d-flex flex-wrap gap-1 align-items-center justify-content-end">
-                                            <input type="hidden" name="bookingId" value="@b.Id" />
-                                            <select name="attendanceStatus" class="form-select form-select-sm" style="width: auto;" aria-label="點名狀態">
-                                                <option value="Present" selected="@(b.AttendanceStatus == AttendanceStatus.Present)">出席 (Present)</option>
-                                                <option value="Absent" selected="@(b.AttendanceStatus == AttendanceStatus.Absent)">缺席請假 (Absent)</option>
-                                                <option value="NoShow" selected="@(b.AttendanceStatus == AttendanceStatus.NoShow)">爽約未到 (NoShow)</option>
-                                            </select>
-                                            <div class="form-check form-check-inline ms-1 mb-0 small">
-                                                <input class="form-check-input" type="checkbox" name="finalizeSlot" value="true" id="fin_@b.Id"
-                                                       checked="@b.TutoringSlot.IsAttendanceFinalized" />
-                                                <label class="form-check-label" for="fin_@b.Id">定案</label>
-                                            </div>
-                                            <button type="submit" class="btn btn-sm btn-dark">儲存點名</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                                        @if (ts.IsAttendanceFinalized)
+                                        {
+                                            <span class="badge bg-dark">已課後定案</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-dark border">點名待定案</span>
+                                        }
+                                    </div>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- 選中時段的上課學生點名名冊 -->
+            @if (Model.ActiveRollcallSlot != null)
+            {
+                var curSlot = Model.ActiveRollcallSlot;
+                var curStartTpe = BookingService.ToTaipeiTime(curSlot.StartsAtUtc);
+                var curEndTpe = BookingService.ToTaipeiTime(curSlot.EndsAtUtc);
+                var curDayZh = "日一二三四五六"[(int)curStartTpe.DayOfWeek];
+                var slotBookings = Model.TodayBookings.Where(b => b.TutoringSlotId == curSlot.Id).ToList();
+
+                <div class="border rounded-3 p-3 p-md-4 bg-light">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3 pb-2 border-bottom">
+                        <div>
+                            <h3 class="h6 fw-bold mb-1 text-dark">
+                                <i class="bi bi-card-checklist me-1 text-primary"></i>
+                                本課堂學生名冊：@curStartTpe.ToString("yyyy/MM/dd") (@curDayZh) @curStartTpe.ToString("HH:mm") – @curEndTpe.ToString("HH:mm")
+                            </h3>
+                            <div class="small text-secondary">
+                                進度：<strong>@curSlot.CourseProgress?.Code @curSlot.CourseProgress?.Title</strong> ｜ 班別：@curSlot.GradeClass ｜
+                                類型：@(curSlot.SlotType == SlotType.SmallGroup ? "小組指導（扣 1 堂）" : "團體輔導（免費 0 堂）")
+                            </div>
+                        </div>
+                        <span class="badge @(curSlot.IsAttendanceFinalized ? "bg-dark" : "bg-warning text-dark") px-3 py-2">
+                            @(curSlot.IsAttendanceFinalized ? "✓ 本時段已課後定案" : "點名未定案")
+                        </span>
+                    </div>
+
+                    @if (!slotBookings.Any())
+                    {
+                        <div class="text-muted small py-4 text-center bg-white rounded-3 border">
+                            <i class="bi bi-person-x fs-4 d-block mb-1 text-secondary"></i>
+                            此時段目前尚無學生預約。
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- 全部選擇後一次儲存表單 -->
+                        <form method="post" asp-page-handler="BatchRecordAttendance" id="formBatchRollcall" onsubmit="showSavingOverlay()">
+                            <input type="hidden" name="slotId" value="@curSlot.Id" />
+
+                            <div class="table-responsive bg-white rounded-3 border shadow-sm mb-3">
+                                <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>學生姓名</th>
+                                            <th>學校 / 年級班級</th>
+                                            <th>到班目的</th>
+                                            <th>扣堂紀錄</th>
+                                            <th style="min-width: 170px;">點名狀態（可批次切換）</th>
+                                            <th class="text-end">單筆操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (int i = 0; i < slotBookings.Count; i++)
+                                        {
+                                            var b = slotBookings[i];
+                                            <input type="hidden" name="bookingIds" value="@b.Id" />
+                                            <tr>
+                                                <td data-label="學生姓名">
+                                                    <span class="fw-bold fs-6">@b.Student?.FullName</span>
+                                                </td>
+                                                <td data-label="學校班別" class="small text-secondary">
+                                                    @b.Student?.DisplaySchoolGradeClass
+                                                </td>
+                                                <td data-label="到班目的">
+                                                    <span class="badge bg-light text-dark border">@b.PurposeName</span>
+                                                </td>
+                                                <td data-label="扣堂紀錄" class="small">
+                                                    @if (b.CreditsDeducted == 0)
+                                                    {
+                                                        <span class="text-muted">免費 0 堂</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>贈送 @b.BonusCreditsUsed + 付費 @b.PaidCreditsUsed 堂</span>
+                                                    }
+                                                </td>
+                                                <td data-label="點名狀態">
+                                                    <select name="statuses" class="form-select form-select-sm fw-semibold" id="status_select_@b.Id">
+                                                        <option value="Present" selected="@(b.AttendanceStatus == AttendanceStatus.Present)">出席 (Present)</option>
+                                                        <option value="Absent" selected="@(b.AttendanceStatus == AttendanceStatus.Absent)">請假 (Absent)</option>
+                                                        <option value="NoShow" selected="@(b.AttendanceStatus == AttendanceStatus.NoShow)">曠課爽約 (NoShow)</option>
+                                                        <option value="Pending" selected="@(b.AttendanceStatus == AttendanceStatus.Pending)">待點名 (Pending)</option>
+                                                    </select>
+
+                                                </td>
+                                                <td data-label="單筆操作" class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-dark"
+                                                            onclick="saveSingleAttendance(@b.Id, @(curSlot.IsAttendanceFinalized ? "true" : "false"))">
+                                                        <i class="bi bi-save me-1"></i>單筆儲存
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- 批次儲存操作列 -->
+                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 bg-white p-3 rounded-3 border shadow-sm">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" name="finalizeSlot" value="true" id="batchFinalizeSlot"
+                                           checked="@curSlot.IsAttendanceFinalized" />
+                                    <label class="form-check-label fw-semibold small" for="batchFinalizeSlot">
+                                        同時標記本時段為「課後定案」
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-accent fw-bold px-4">
+                                    <i class="bi bi-check2-all me-1"></i>全部選擇後一次儲存
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- 單筆儲存專用 hidden form -->
+                        <form method="post" asp-page-handler="RecordAttendance" id="singleRollcallForm" class="d-none" onsubmit="showSavingOverlay()">
+                            <input type="hidden" name="bookingId" id="singleBookingId" />
+                            <input type="hidden" name="attendanceStatus" id="singleAttendanceStatus" />
+                            <input type="hidden" name="finalizeSlot" id="singleFinalizeSlot" value="false" />
+                        </form>
+                    }
                 </div>
             }
         </div>
     </div>
+
 
     <!-- 分頁二：儲值登錄、匯款憑證上傳與堂數沖正調整 -->
     <div class="tab-pane fade" id="tab-teacher-topup" role="tabpanel">
@@ -374,127 +487,166 @@
         </div>
     </div>
 
-    <!-- 分頁三：時段排課與老師代學生預約 -->
+    <!-- 分頁三：時段排課與老師代學生預約（按鈕彈窗 + 篩選列表 + 10筆分頁 + 修改刪除） -->
     <div class="tab-pane fade" id="tab-teacher-slots" role="tabpanel">
-        <div class="row g-4">
-            <div class="col-12 col-xl-6">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box sage"><i class="bi bi-calendar-plus"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">建立常態／加開輔導時段</h2>
-                                <div class="small text-muted">支援常態排課與段考前臨時加開時段</div>
-                            </div>
-                        </div>
-                    </div>
-                    <form method="post" asp-page-handler="CreateSlot">
-                        <div class="mb-2">
-                            <label class="form-label fw-semibold" for="slotProgress">所屬課程進度</label>
-                            <select id="slotProgress" name="courseProgressId" class="form-select" required>
-                                @foreach (var p in Model.ProgressList)
-                                {
-                                    <option value="@p.Id">@p.Code @p.Title (@(p.IsCurrentProgress ? "目前進度" : "非目前進度"))</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="slotType">輔導類型</label>
-                                <select id="slotType" name="slotType" class="form-select">
-                                    <option value="SmallGroup">小組指導（扣 1 堂）</option>
-                                    <option value="GroupCounseling">團體輔導（免費 0 堂）</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="slotGradeClass">適用班別</label>
-                                <input type="text" id="slotGradeClass" name="gradeClass" class="form-control" value="國三A班" required />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="slotDate">上課日期</label>
-                                <input type="date" id="slotDate" name="slotDate" class="form-control"
-                                       value="@DateTime.UtcNow.AddDays(3).ToString("yyyy-MM-dd")" required />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="startTime">開始時間 (台北時間)</label>
-                                <input type="time" id="startTime" name="startTime" class="form-control" value="18:30" required />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="durationMinutes">時長 (分鐘)</label>
-                                <input type="number" id="durationMinutes" name="durationMinutes" class="form-control" value="90" min="30" max="240" required />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="maxCapacity">容納名額</label>
-                                <input type="number" id="maxCapacity" name="maxCapacity" class="form-control" value="4" min="1" max="50" required />
-                            </div>
-                        </div>
-                        <div class="mb-2 form-check">
-                            <input type="checkbox" class="form-check-input" id="isExtraSlot" name="isExtraSlot" value="true" />
-                            <label class="form-check-label" for="isExtraSlot">標記為「考前／臨時加開時段」</label>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="slotNotes">時段備註</label>
-                            <input type="text" id="slotNotes" name="notes" class="form-control" placeholder="例如：二次函數重點加強" />
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 fw-semibold">
-                            <i class="bi bi-plus-circle me-1"></i>新增輔導時段
-                        </button>
-                    </form>
+        <div class="card-plato p-3 p-md-4 mb-4">
+            <!-- 頂部功能列：按鈕彈窗開啟與標題 -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+                <div>
+                    <h2 class="h5 fw-bold mb-1"><i class="bi bi-calendar-week me-2 text-primary"></i>時段排課與名額管理</h2>
+                    <div class="small text-muted">點選按鈕以彈跳視窗建立時段或代約；下方列表支援日期區間與輔導類型篩選</div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#modalCreateSlot">
+                        <i class="bi bi-calendar-plus me-1"></i>建立輔導時段
+                    </button>
+                    <button type="button" class="btn btn-accent fw-semibold" data-bs-toggle="modal" data-bs-target="#modalProxyBook">
+                        <i class="bi bi-person-plus-fill me-1"></i>老師代學生預約
+                    </button>
                 </div>
             </div>
 
-            <div class="col-12 col-xl-6">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box ocean"><i class="bi bi-calendar-check"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">老師代學生預約（保存操作人與時間）</h2>
-                                <div class="small text-muted">嚴格遵守目前進度、名額與每進度堂數限制</div>
-                            </div>
-                        </div>
+            <!-- 篩選條件表單：上課日期區間與輔導類型 -->
+            <form method="get" class="card-plato p-3 bg-light border mb-4">
+                <input type="hidden" name="SlotsPage" value="1" />
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label small fw-bold text-secondary mb-1">上課開始日期</label>
+                        <input type="date" name="DateFrom" class="form-control form-control-sm" value="@Model.DateFrom" />
                     </div>
-                    <form method="post" asp-page-handler="ProxyBook">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="proxyStudent">選擇學生</label>
-                            <select id="proxyStudent" name="studentId" class="form-select" required>
-                                @foreach (var s in Model.ActiveStudents)
-                                {
-                                    <option value="@s.Id">@s.FullName (@s.GradeClass) － 可用:@s.TotalCredits 堂</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="proxySlot">可預約時段</label>
-                            <select id="proxySlot" name="slotId" class="form-select" required>
-                                @foreach (var sl in Model.Slots.Where(x => x.RemainingSeats > 0))
-                                {
-                                    var tpe = BookingService.ToTaipeiTime(sl.StartsAtUtc);
-                                    <option value="@sl.Id">
-                                        @tpe.ToString("MM/dd HH:mm") @sl.CourseProgress?.Code (@(sl.SlotType == SlotType.SmallGroup ? "小組扣1堂" : "團體免費")) 剩餘 @sl.RemainingSeats 名
-                                    </option>
-                                }
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="proxyPurpose">五種到班目的</label>
-                            <select id="proxyPurpose" name="purposeName" class="form-select" required>
-                                @foreach (var p in Model.PurposeOptions)
-                                {
-                                    <option value="@p.Name">@p.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-accent w-100 fw-semibold">
-                            <i class="bi bi-person-plus-fill me-1"></i>代學生建立預約
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label small fw-bold text-secondary mb-1">上課結束日期</label>
+                        <input type="date" name="DateTo" class="form-control form-control-sm" value="@Model.DateTo" />
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label small fw-bold text-secondary mb-1">輔導類型</label>
+                        <select name="SlotTypeFilter" class="form-select form-select-sm">
+                            <option value="">全部類型</option>
+                            <option value="SmallGroup" selected="@(Model.SlotTypeFilter == SlotType.SmallGroup)">小組指導（扣 1 堂）</option>
+                            <option value="GroupCounseling" selected="@(Model.SlotTypeFilter == SlotType.GroupCounseling)">團體輔導（免費 0 堂）</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-dark btn-sm fw-semibold w-100">
+                            <i class="bi bi-search me-1"></i>篩選時段
                         </button>
-                    </form>
+                        <a href="/Teacher#tab-teacher-slots" class="btn btn-outline-secondary btn-sm text-nowrap">
+                            清除重設
+                        </a>
+                    </div>
                 </div>
+            </form>
+
+            <!-- 輔導時段列表（10筆為一頁） -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-secondary">
+                    <i class="bi bi-list-ul me-1"></i>時段列表（共 @Model.SlotsTotalCount 場，第 @Model.SlotsPage / @Model.SlotsTotalPages 頁）
+                </span>
             </div>
+
+            @if (!Model.PagedSlots.Any())
+            {
+                <div class="text-muted small py-5 text-center bg-light rounded-3 border">
+                    <i class="bi bi-calendar-x fs-3 d-block mb-2 text-secondary"></i>
+                    尚無符合條件的輔導時段。您可點選上方「建立輔導時段」新增排課。
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive bg-white rounded-3 border shadow-sm mb-3">
+                    <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>上課時間 (台北時間)</th>
+                                <th>課程進度</th>
+                                <th>適用班別</th>
+                                <th>輔導類型</th>
+                                <th>預約名額</th>
+                                <th>考前加開 / 備註</th>
+                                <th class="text-end">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model.PagedSlots)
+                            {
+                                var stTpe = BookingService.ToTaipeiTime(s.StartsAtUtc);
+                                var edTpe = BookingService.ToTaipeiTime(s.EndsAtUtc);
+                                var dayZh = "日一二三四五六"[(int)stTpe.DayOfWeek];
+                                var durationMin = (int)(s.EndsAtUtc - s.StartsAtUtc).TotalMinutes;
+
+                                <tr>
+                                    <td data-label="上課時間">
+                                        <div class="fw-bold">@stTpe.ToString("yyyy/MM/dd") (@dayZh)</div>
+                                        <div class="small text-muted">@stTpe.ToString("HH:mm") – @edTpe.ToString("HH:mm") (@(durationMin)分鐘)</div>
+                                    </td>
+                                    <td data-label="課程進度">
+                                        <strong>@s.CourseProgress?.Code</strong>
+                                        <div class="small text-muted text-truncate" style="max-width: 180px;">@s.CourseProgress?.Title</div>
+                                    </td>
+                                    <td data-label="適用班別">
+                                        <span class="badge bg-light text-dark border">@s.GradeClass</span>
+                                    </td>
+                                    <td data-label="輔導類型">
+                                        <span class="badge @(s.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
+                                            @(s.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
+                                        </span>
+                                    </td>
+                                    <td data-label="預約名額">
+                                        <span class="fw-bold @(s.RemainingSeats > 0 ? "text-success" : "text-danger")">
+                                            @s.CurrentBookedCount / @s.MaxCapacity
+                                        </span>
+                                        <span class="small text-muted">（餘 @s.RemainingSeats 名）</span>
+                                    </td>
+                                    <td data-label="備註">
+                                        @if (s.IsExtraSlot)
+                                        {
+                                            <span class="badge bg-warning text-dark me-1">考前加開</span>
+                                        }
+                                        <span class="small text-secondary">@(!string.IsNullOrWhiteSpace(s.Notes) ? s.Notes : "無備註")</span>
+                                    </td>
+                                    <td data-label="操作" class="text-end text-nowrap">
+                                        <!-- 修改按鈕（打開 Modal） -->
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
+                                                onclick="openEditSlotModal(@s.Id, @s.CourseProgressId, '@s.GradeClass', '@s.SlotType', '@stTpe.ToString("yyyy-MM-dd")', '@stTpe.ToString("HH:mm")', @durationMin, @s.MaxCapacity, @(s.IsExtraSlot ? "true" : "false"), '@(s.Notes?.Replace("'", "\\'"))')">
+                                            <i class="bi bi-pencil-square me-1"></i>修改
+                                        </button>
+
+                                        <!-- 刪除按鈕 -->
+                                        <form method="post" asp-page-handler="DeleteSlot" class="d-inline"
+                                              onsubmit="return confirm('確定要刪除時段 #@s.Id (@stTpe.ToString("MM/dd HH:mm")) 嗎？若已有學生預約將會被防護阻擋。');">
+                                            <input type="hidden" name="slotId" value="@s.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2 ms-1">
+                                                <i class="bi bi-trash me-1"></i>刪除
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分頁按鈕列（10筆為一頁） -->
+                @if (Model.SlotsTotalPages > 1)
+                {
+                    <nav aria-label="時段列表分頁" class="d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.SlotsPage <= 1 ? "disabled" : "")">
+                                <a class="page-link" href="/Teacher?DateFrom=@Model.DateFrom&DateTo=@Model.DateTo&SlotTypeFilter=@Model.SlotTypeFilter&SlotsPage=@(Model.SlotsPage - 1)#tab-teacher-slots">上一頁</a>
+                            </li>
+                            @for (int p = 1; p <= Model.SlotsTotalPages; p++)
+                            {
+                                <li class="page-item @(Model.SlotsPage == p ? "active" : "")">
+                                    <a class="page-link" href="/Teacher?DateFrom=@Model.DateFrom&DateTo=@Model.DateTo&SlotTypeFilter=@Model.SlotTypeFilter&SlotsPage=@p#tab-teacher-slots">@p</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.SlotsPage >= Model.SlotsTotalPages ? "disabled" : "")">
+                                <a class="page-link" href="/Teacher?DateFrom=@Model.DateFrom&DateTo=@Model.DateTo&SlotTypeFilter=@Model.SlotTypeFilter&SlotsPage=@(Model.SlotsPage + 1)#tab-teacher-slots">下一頁</a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            }
         </div>
     </div>
 
@@ -577,6 +729,222 @@
     </div>
 </div>
 
+<!-- Modal 1: 建立輔導時段 -->
+<div class="modal fade" id="modalCreateSlot" tabindex="-1" aria-labelledby="modalCreateSlotLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="modalCreateSlotLabel">
+                    <i class="bi bi-calendar-plus me-1 text-primary"></i>建立輔導時段
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="CreateSlot">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="createSlotProgress">所屬課程進度</label>
+                        <select id="createSlotProgress" name="courseProgressId" class="form-select" required>
+                            @foreach (var p in Model.ProgressList)
+                            {
+                                <option value="@p.Id">@p.Code @p.Title (@(p.IsCurrentProgress ? "目前進度" : "非目前進度"))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="createSlotType">輔導類型</label>
+                            <select id="createSlotType" name="slotType" class="form-select">
+                                <option value="SmallGroup">小組指導（扣 1 堂）</option>
+                                <option value="GroupCounseling">團體輔導（免費 0 堂）</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="createSlotGradeClass">適用班別</label>
+                            <input type="text" id="createSlotGradeClass" name="gradeClass" class="form-control" value="國三A班" required />
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="createSlotDate">上課日期</label>
+                            <input type="date" id="createSlotDate" name="slotDate" class="form-control"
+                                   value="@DateTime.UtcNow.AddDays(3).ToString("yyyy-MM-dd")" required />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="createStartTime">開始時間 (台北時間)</label>
+                            <input type="time" id="createStartTime" name="startTime" class="form-control" value="18:30" required />
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="createDurationMinutes">時長 (分鐘)</label>
+                            <input type="number" id="createDurationMinutes" name="durationMinutes" class="form-control" value="90" min="30" max="240" required />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="createMaxCapacity">容納名額</label>
+                            <input type="number" id="createMaxCapacity" name="maxCapacity" class="form-control" value="4" min="1" max="50" required />
+                        </div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="createIsExtraSlot" name="isExtraSlot" value="true" />
+                        <label class="form-check-label" for="createIsExtraSlot">標記為「考前／臨時加開時段」</label>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="createSlotNotes">時段備註</label>
+                        <input type="text" id="createSlotNotes" name="notes" class="form-control" placeholder="例如：二次函數重點加強" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary fw-semibold">
+                        <i class="bi bi-plus-circle me-1"></i>確認建立時段
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: 老師代學生預約 -->
+<div class="modal fade" id="modalProxyBook" tabindex="-1" aria-labelledby="modalProxyBookLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="modalProxyBookLabel">
+                    <i class="bi bi-person-plus-fill me-1 text-accent"></i>老師代學生預約
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="ProxyBook">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="modalProxyStudent">選擇學生</label>
+                        <select id="modalProxyStudent" name="studentId" class="form-select" required>
+                            @foreach (var s in Model.ActiveStudents)
+                            {
+                                <option value="@s.Id">@s.FullName (@s.GradeClass) － 可用:@s.TotalCredits 堂 (付費:@s.PaidCredits / 贈送:@s.BonusCredits)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="modalProxySlot">可預約時段</label>
+                        <select id="modalProxySlot" name="slotId" class="form-select" required>
+                            @foreach (var sl in Model.Slots.Where(x => x.RemainingSeats > 0))
+                            {
+                                var tpe = BookingService.ToTaipeiTime(sl.StartsAtUtc);
+                                var dayZh = "日一二三四五六"[(int)tpe.DayOfWeek];
+                                <option value="@sl.Id">
+                                    @tpe.ToString("yyyy/MM/dd") (@dayZh) @tpe.ToString("HH:mm") @sl.CourseProgress?.Code (@(sl.SlotType == SlotType.SmallGroup ? "小組扣1堂" : "團體免費")) 剩餘 @sl.RemainingSeats 名
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="modalProxyPurpose">五種到班目的</label>
+                        <select id="modalProxyPurpose" name="purposeName" class="form-select" required>
+                            @foreach (var p in Model.PurposeOptions)
+                            {
+                                <option value="@p.Name">@p.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-accent fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i>確認代預約
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: 修改輔導時段 -->
+<div class="modal fade" id="modalEditSlot" tabindex="-1" aria-labelledby="modalEditSlotLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="modalEditSlotLabel">
+                    <i class="bi bi-pencil-square me-1 text-primary"></i>修改輔導時段
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="UpdateSlot">
+                <input type="hidden" name="slotId" id="editSlotId" />
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="editSlotProgress">所屬課程進度</label>
+                        <select id="editSlotProgress" name="courseProgressId" class="form-select" required>
+                            @foreach (var p in Model.ProgressList)
+                            {
+                                <option value="@p.Id">@p.Code @p.Title</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="editSlotType">輔導類型</label>
+                            <select id="editSlotType" name="slotType" class="form-select">
+                                <option value="SmallGroup">小組指導（扣 1 堂）</option>
+                                <option value="GroupCounseling">團體輔導（免費 0 堂）</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="editSlotGradeClass">適用班別</label>
+                            <input type="text" id="editSlotGradeClass" name="gradeClass" class="form-control" required />
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="editSlotDate">上課日期</label>
+                            <input type="date" id="editSlotDate" name="slotDate" class="form-control" required />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="editStartTime">開始時間 (台北時間)</label>
+                            <input type="time" id="editStartTime" name="startTime" class="form-control" required />
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="editDurationMinutes">時長 (分鐘)</label>
+                            <input type="number" id="editDurationMinutes" name="durationMinutes" class="form-control" min="30" max="240" required />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="editMaxCapacity">容納名額</label>
+                            <input type="number" id="editMaxCapacity" name="maxCapacity" class="form-control" min="1" max="50" required />
+                        </div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsExtraSlot" name="isExtraSlot" value="true" />
+                        <label class="form-check-label" for="editIsExtraSlot">標記為「考前／臨時加開時段」</label>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="editSlotNotes">時段備註</label>
+                        <input type="text" id="editSlotNotes" name="notes" class="form-control" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary fw-semibold">
+                        <i class="bi bi-save me-1"></i>儲存變更
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 全螢幕儲存等待中畫面（鎖定禁止任何操作） -->
+<div id="savingOverlay" class="saving-overlay d-none">
+    <div class="saving-overlay-content">
+        <div class="spinner-border text-light mb-3" style="width: 3.2rem; height: 3.2rem;" role="status">
+            <span class="visually-hidden">儲存中...</span>
+        </div>
+        <h4 class="text-white fw-bold mb-1">資料儲存處理中，請稍候...</h4>
+        <p class="text-white-50 small mb-0">系統正在寫入點名、計算扣堂與不可覆寫流水帳，請勿關閉視窗</p>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         function previewRemittanceImage(input) {
@@ -593,5 +961,68 @@
                 box.classList.add('d-none');
             }
         }
+
+        // 顯示全螢幕儲存等待畫面
+        function showSavingOverlay() {
+            const overlay = document.getElementById('savingOverlay');
+            if (overlay) {
+                overlay.classList.remove('d-none');
+            }
+        }
+
+        // 單筆點名儲存
+        function saveSingleAttendance(bookingId, defaultFinalize) {
+            const selectEl = document.getElementById('status_select_' + bookingId);
+            const status = selectEl ? selectEl.value : 'Present';
+            const finBatchCheckbox = document.getElementById('batchFinalizeSlot');
+            const isFin = finBatchCheckbox ? finBatchCheckbox.checked : defaultFinalize;
+
+            document.getElementById('singleBookingId').value = bookingId;
+            document.getElementById('singleAttendanceStatus').value = status;
+            document.getElementById('singleFinalizeSlot').value = isFin ? 'true' : 'false';
+
+            showSavingOverlay();
+            document.getElementById('singleRollcallForm').submit();
+        }
+
+        // 開啟修改時段 Modal 並填入資料
+        function openEditSlotModal(id, progressId, gradeClass, slotType, dateStr, timeStr, duration, capacity, isExtra, notes) {
+            document.getElementById('editSlotId').value = id;
+            document.getElementById('editSlotProgress').value = progressId;
+            document.getElementById('editSlotGradeClass').value = gradeClass;
+            document.getElementById('editSlotType').value = slotType;
+            document.getElementById('editSlotDate').value = dateStr;
+            document.getElementById('editStartTime').value = timeStr;
+            document.getElementById('editDurationMinutes').value = duration;
+            document.getElementById('editMaxCapacity').value = capacity;
+            document.getElementById('editIsExtraSlot').checked = isExtra;
+            document.getElementById('editSlotNotes').value = notes || '';
+
+            const modal = new bootstrap.Modal(document.getElementById('modalEditSlot'));
+            modal.show();
+        }
+
+        // 頁籤狀態保存
+        document.addEventListener('DOMContentLoaded', function () {
+            const hash = window.location.hash;
+            if (hash) {
+                const targetBtn = document.querySelector(`#teacherWorkspaceTabs button[data-bs-target="${hash}"]`);
+                if (targetBtn) {
+                    const tab = new bootstrap.Tab(targetBtn);
+                    tab.show();
+                }
+            }
+
+            const tabButtons = document.querySelectorAll('#teacherWorkspaceTabs button[data-bs-toggle="pill"]');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('shown.bs.tab', function (e) {
+                    const target = e.target.getAttribute('data-bs-target');
+                    if (target) {
+                        history.replaceState(null, null, target);
+                    }
+                });
+            });
+        });
     </script>
 }
+

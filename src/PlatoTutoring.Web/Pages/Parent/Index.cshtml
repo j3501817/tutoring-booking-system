@@ -45,7 +45,8 @@
             var isSelected = student?.Id == s.Id;
             <div class="col-12 col-md-6 col-xl-4">
                 <a asp-page="/Parent/Index" asp-route-studentId="@s.Id"
-                   class="student-selector-card @(isSelected ? "active" : "")">
+                   class="student-selector-card @(isSelected ? "active" : "")"
+                   onclick="this.href = '/Parent/Index?studentId=@s.Id' + (window.location.hash || '#tab-parent-book');">
                     <div class="d-flex align-items-center gap-3">
                         <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
                              style="width: 44px; height: 44px; background: @(isSelected ? "var(--plato-terracotta)" : "var(--plato-terracotta-soft)"); color: @(isSelected ? "#fff" : "var(--plato-terracotta-dark)");">
@@ -86,7 +87,7 @@
                         {
                             <li class="mb-1">
                                 <strong>@hw.CourseProgress?.Code @hw.CourseProgress?.Title：</strong>@hw.SubjectNote
-                                <span class="text-muted">（通知時間：@BookingService.ToTaipeiTime(hw.FirstNotifiedAtUtc).ToString("MM/dd HH:mm")）</span>
+                                <span class="text-muted">（通知時間：@BookingService.FormatTaipeiShortDateZh(hw.FirstNotifiedAtUtc)）</span>
                                 @if (hw.IsSecondReminderFlagged)
                                 {
                                     <span class="badge bg-danger ms-1">已逾 48 小時二次催促</span>
@@ -113,11 +114,11 @@
             </div>
             @foreach (var hold in activeHolds)
             {
-                var startTpe = BookingService.ToTaipeiTime(hold.TutoringSlot!.StartsAtUtc);
-                var expTpe = hold.HoldExpiresAtUtc.HasValue ? BookingService.ToTaipeiTime(hold.HoldExpiresAtUtc.Value) : startTpe;
+                var startZh = BookingService.FormatTaipeiShortDateZh(hold.TutoringSlot!.StartsAtUtc);
+                var expTpe = hold.HoldExpiresAtUtc.HasValue ? BookingService.ToTaipeiTime(hold.HoldExpiresAtUtc.Value) : BookingService.ToTaipeiTime(hold.TutoringSlot!.StartsAtUtc);
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 bg-white p-3 rounded-3 border mb-2">
                     <div>
-                        <strong>@hold.TutoringSlot.CourseProgress?.Code (@startTpe.ToString("MM/dd HH:mm"))</strong>
+                        <strong>@hold.TutoringSlot.CourseProgress?.Code (@startZh)</strong>
                         － 到班目的：@hold.PurposeName
                         <span class="badge bg-danger ms-1">保留至 @expTpe.ToString("HH:mm")</span>
                     </div>
@@ -133,58 +134,36 @@
         </div>
     }
 
-    <!-- 學生堂數整合精簡區塊（單一區塊集中呈現贈送、付費與可用總堂數） -->
-    <div class="card-plato compact-credits-summary p-2 px-md-3 py-md-2 mb-3">
-        <div class="row g-0 align-items-center">
-            <div class="col-12 col-md-4 compact-credits-item">
-                <div class="d-flex align-items-center justify-content-between gap-2">
-                    <div class="d-flex align-items-center gap-2 min-w-0">
-                        <span class="metric-icon-box sm"><i class="bi bi-gift-fill"></i></span>
-                        <div class="min-w-0">
-                            <div class="small fw-bold text-dark lh-sm">贈送堂數 <span class="text-secondary fw-normal">（優先扣抵）</span></div>
-                            <div class="text-muted" style="font-size: 0.74rem;">每學期按比例核發，期末歸零</div>
-                        </div>
+    <!-- 學生堂數整合精簡區塊（單一區塊清晰呈現總堂數與公式結構，消除誤以為有 16 堂之誤會） -->
+    <div class="card-plato p-3 mb-3" style="background: linear-gradient(135deg, #ffffff 0%, #fdfbf7 100%); border-left: 4px solid var(--plato-terracotta);">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center shadow-sm"
+                     style="width: 52px; height: 52px; background: var(--plato-terracotta-soft); color: var(--plato-terracotta-dark); font-size: 1.5rem; flex-shrink: 0;">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-baseline gap-2 flex-wrap">
+                        <span class="fs-6 fw-bold text-dark">目前可用總堂數：</span>
+                        <span class="fs-2 fw-bolder" style="color: var(--plato-terracotta-dark);">@student.TotalCredits</span>
+                        <span class="fw-bold text-dark">堂</span>
+                        <span class="badge bg-light text-dark border ms-1 fw-normal">
+                            ＝ 付費儲值 <strong class="text-primary">@student.PaidCredits</strong> 堂 ＋ 學期贈送 <strong class="text-success">@student.BonusCredits</strong> 堂
+                        </span>
                     </div>
-                    <div class="text-end text-nowrap ps-2">
-                        <span class="fs-4 fw-bold" style="color: var(--plato-terracotta-dark);">@student.BonusCredits</span>
-                        <span class="small text-muted">堂</span>
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-info-circle me-1 text-primary"></i>小組指導優先扣抵贈送堂數；團體輔導完全免費不扣堂。每學期贈送堂數期末歸零。
                     </div>
                 </div>
             </div>
-
-            <div class="col-12 col-md-4 compact-credits-item">
-                <div class="d-flex align-items-center justify-content-between gap-2">
-                    <div class="d-flex align-items-center gap-2 min-w-0">
-                        <span class="metric-icon-box sm ocean"><i class="bi bi-wallet2"></i></span>
-                        <div class="min-w-0">
-                            <div class="small fw-bold text-dark lh-sm">付費堂數 <span class="text-secondary fw-normal">（儲值餘額）</span></div>
-                            <div class="text-muted" style="font-size: 0.74rem;">由老師確認匯款後登錄入帳</div>
-                        </div>
-                    </div>
-                    <div class="text-end text-nowrap ps-2">
-                        <span class="fs-4 fw-bold" style="color: var(--plato-ocean);">@student.PaidCredits</span>
-                        <span class="small text-muted">堂</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-md-4 compact-credits-item">
-                <div class="d-flex align-items-center justify-content-between gap-2">
-                    <div class="d-flex align-items-center gap-2 min-w-0">
-                        <span class="metric-icon-box sm sage"><i class="bi bi-layers-fill"></i></span>
-                        <div class="min-w-0">
-                            <div class="small fw-bold text-dark lh-sm">目前可用總堂數</div>
-                            <div class="text-muted" style="font-size: 0.74rem;">團體輔導免費不扣堂</div>
-                        </div>
-                    </div>
-                    <div class="text-end text-nowrap ps-2">
-                        <span class="fs-4 fw-bold" style="color: var(--plato-sage);">@student.TotalCredits</span>
-                        <span class="small text-muted">堂</span>
-                    </div>
-                </div>
+            <div class="text-md-end text-nowrap">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
+                    <i class="bi bi-check-circle me-1"></i>帳戶狀態正常
+                </span>
             </div>
         </div>
     </div>
+
 
     <!-- 膠囊式分段工作區頁籤 (Segmented Workspace Tabs) -->
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -268,16 +247,23 @@
                     {
                         var startTpe = BookingService.ToTaipeiTime(slot.StartsAtUtc);
                         var endTpe = BookingService.ToTaipeiTime(slot.EndsAtUtc);
+                        var dayZh = "日一二三四五六"[(int)startTpe.DayOfWeek];
                         var isFull = slot.RemainingSeats <= 0;
                         var isGroup = slot.SlotType == SlotType.GroupCounseling;
                         var fillPct = slot.MaxCapacity > 0 ? Math.Min(100, (int)Math.Round(100.0 * slot.CurrentBookedCount / slot.MaxCapacity)) : 100;
 
-                        <div class="card-plato p-3 p-md-4 slot-card @(isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")">
+                        // 判斷當前學生是否已預約此時段或同進度其他時段
+                        var myBooking = Model.StudentBookings.FirstOrDefault(b => b.TutoringSlotId == slot.Id && b.Status == BookingStatus.Confirmed);
+                        var isMyBooked = myBooking != null;
+                        var sameProgressOtherBooked = slot.SlotType == SlotType.SmallGroup && Model.StudentBookings.Any(b => b.Status == BookingStatus.Confirmed && b.TutoringSlot?.CourseProgressId == slot.CourseProgressId && b.TutoringSlotId != slot.Id);
+
+                        <div class="card-plato p-3 p-md-4 slot-card @(isMyBooked ? "border-success shadow-sm" : isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")"
+                             style="@(isMyBooked ? "border: 2px solid var(--plato-sage) !important; background: #f8fbf9;" : "")">
                             <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                                 <div class="flex-grow-1">
                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                         <span class="fw-bold fs-5">
-                                            <i class="bi bi-clock me-1 text-secondary"></i>@startTpe.ToString("yyyy/MM/dd (ddd) HH:mm") – @endTpe.ToString("HH:mm")
+                                            <i class="bi bi-clock me-1 text-secondary"></i>@startTpe.ToString("yyyy/MM/dd") (@dayZh) @startTpe.ToString("HH:mm") – @endTpe.ToString("HH:mm")
                                         </span>
                                         @if (slot.SlotType == SlotType.SmallGroup)
                                         {
@@ -290,6 +276,12 @@
                                         @if (slot.IsExtraSlot)
                                         {
                                             <span class="badge bg-warning text-dark">考前加開</span>
+                                        }
+                                        @if (isMyBooked)
+                                        {
+                                            <span class="badge bg-success px-2 py-1 fs-6">
+                                                <i class="bi bi-check-circle-fill me-1"></i>您已預約此時段
+                                            </span>
                                         }
                                     </div>
                                     <div class="small text-secondary mb-2">
@@ -306,17 +298,42 @@
                                 <div class="d-flex flex-column justify-content-between align-items-md-end" style="min-width: 270px;">
                                     <div class="w-100 mb-2">
                                         <div class="d-flex justify-content-between align-items-center small mb-1">
-                                            <span class="fw-semibold @(isFull ? "text-danger" : "text-success")">
-                                                @(isFull ? "名額已滿（開放候補）" : $"尚餘 {slot.RemainingSeats} 名空位")
+                                            <span class="fw-semibold @(isMyBooked ? "text-success" : isFull ? "text-danger" : "text-success")">
+                                                @(isMyBooked ? "✓ 您已成功佔位" : isFull ? "名額已滿（開放候補）" : $"尚餘 {slot.RemainingSeats} 名空位")
                                             </span>
                                             <span class="text-muted">已約 @slot.CurrentBookedCount / @slot.MaxCapacity</span>
                                         </div>
                                         <div class="seat-progress">
-                                            <div class="h-100 @(isFull ? "bg-danger" : "bg-success")" style="width: @(fillPct)%;"></div>
+                                            <div class="h-100 @(isMyBooked ? "bg-success" : isFull ? "bg-danger" : "bg-success")" style="width: @(fillPct)%;"></div>
                                         </div>
                                     </div>
 
-                                    @if (!isFull)
+                                    @if (isMyBooked)
+                                    {
+                                        <div class="text-md-end w-100 bg-white p-2 rounded-2 border">
+                                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                                <span class="small text-muted">到班目的：<strong>@myBooking?.PurposeName</strong></span>
+                                                <button class="btn btn-sm btn-outline-success disabled fw-bold py-1">
+                                                    <i class="bi bi-calendar2-check-fill me-1"></i>已在預約名單
+                                                </button>
+                                            </div>
+                                            <div class="small text-secondary mt-1" style="font-size: 0.75rem;">
+                                                欲更換時段或取消，請至「我的預約與候補」頁籤操作
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (sameProgressOtherBooked)
+                                    {
+                                        <div class="text-md-end w-100 bg-light p-2 rounded-2 border">
+                                            <div class="small text-warning-emphasis fw-bold mb-1">
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>此進度已預約其他時段
+                                            </div>
+                                            <div class="small text-muted" style="font-size: 0.74rem;">
+                                                小組指導每進度限 1 堂；若想更換為此時段，請至「我的預約與候補」執行改期。
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (!isFull)
                                     {
                                         <form method="post" asp-page-handler="BookSlot" class="w-100">
                                             <input type="hidden" name="studentId" value="@student.Id" />
@@ -361,6 +378,7 @@
             </div>
         </div>
 
+
         <!-- 分頁二：我的預約與候補紀錄 -->
         <div class="tab-pane fade" id="tab-parent-records" role="tabpanel">
             <div class="row g-4">
@@ -393,6 +411,7 @@
                                         @foreach (var b in Model.StudentBookings)
                                         {
                                             var sTpe = BookingService.ToTaipeiTime(b.TutoringSlot!.StartsAtUtc);
+                                            var dayZh = "日一二三四五六"[(int)sTpe.DayOfWeek];
                                             var hoursLeft = (b.TutoringSlot.StartsAtUtc - DateTime.UtcNow).TotalHours;
                                             var sameProgressTargets = Model.AvailableSlots
                                                 .Where(s => s.CourseProgressId == b.TutoringSlot.CourseProgressId
@@ -400,11 +419,19 @@
                                                             && s.RemainingSeats > 0
                                                             && s.SlotType == b.TutoringSlot.SlotType)
                                                 .ToList();
+                                            var attendanceZh = b.AttendanceStatus switch {
+                                                AttendanceStatus.Pending => "待點名",
+                                                AttendanceStatus.Present => "出席",
+                                                AttendanceStatus.Absent => "請假",
+                                                AttendanceStatus.NoShow => "曠課",
+                                                _ => b.AttendanceStatus.ToString()
+                                            };
+
 
                                             <tr>
                                                 <td data-label="時段與進度">
                                                     <div>
-                                                        <div class="fw-bold">@sTpe.ToString("MM/dd (ddd) HH:mm")</div>
+                                                        <div class="fw-bold">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
                                                         <div class="small text-muted">@b.TutoringSlot.CourseProgress?.Code @b.TutoringSlot.GradeClass</div>
                                                     </div>
                                                 </td>
@@ -431,9 +458,9 @@
                                                 <td data-label="狀態 / 點名">
                                                     <div>
                                                         <span class="badge @(b.Status == BookingStatus.Confirmed ? "bg-success" : "bg-secondary")">
-                                                            @b.Status
+                                                            @(b.Status == BookingStatus.Confirmed ? "已預約" : "已取消")
                                                         </span>
-                                                        <span class="badge bg-light text-dark border ms-1">點名：@b.AttendanceStatus</span>
+                                                        <span class="badge bg-light text-dark border ms-1">點名：@attendanceZh</span>
                                                     </div>
                                                 </td>
                                                 <td data-label="操作">
@@ -449,7 +476,8 @@
                                                                         @foreach (var tgt in sameProgressTargets)
                                                                         {
                                                                             var tStart = BookingService.ToTaipeiTime(tgt.StartsAtUtc);
-                                                                            <option value="@tgt.Id">改至 @tStart.ToString("MM/dd HH:mm")</option>
+                                                                            var tDayZh = "日一二三四五六"[(int)tStart.DayOfWeek];
+                                                                            <option value="@tgt.Id">改至 @tStart.ToString("MM/dd") (@tDayZh) @tStart.ToString("HH:mm")</option>
                                                                         }
                                                                     </select>
                                                                     <button type="submit" class="btn btn-outline-dark btn-sm text-nowrap">改期</button>
@@ -498,10 +526,20 @@
                                 @foreach (var w in Model.StudentWaitlistEntries)
                                 {
                                     var wTpe = BookingService.ToTaipeiTime(w.TutoringSlot!.StartsAtUtc);
+                                    var wDayZh = "日一二三四五六"[(int)wTpe.DayOfWeek];
                                     <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
                                         <div>
-                                            <div class="fw-bold">@wTpe.ToString("MM/dd HH:mm") (@w.PurposeName)</div>
-                                            <div class="text-muted">順位：#@w.Position ｜ 狀態：@w.Status</div>
+                                            <div class="fw-bold">@wTpe.ToString("MM/dd") (@wDayZh) @wTpe.ToString("HH:mm") (@w.PurposeName)</div>
+                                            <div class="text-muted">
+                                                順位：#@w.Position ｜ 狀態：@(w.Status switch {
+                                                    WaitlistStatus.Waiting => "排隊候補中",
+                                                    WaitlistStatus.NotifiedHold => "已保留 30 分鐘",
+                                                    WaitlistStatus.ConfirmedToBooking => "已轉正確認",
+                                                    WaitlistStatus.Expired => "逾時失效",
+                                                    WaitlistStatus.Cancelled => "已取消",
+                                                    _ => w.Status.ToString()
+                                                })
+                                            </div>
                                         </div>
                                         @if (w.Status == WaitlistStatus.NotifiedHold)
                                         {
@@ -526,10 +564,11 @@
                             <div class="d-grid gap-2">
                                 @foreach (var log in Model.RecentLineLogs)
                                 {
+                                    var logDayZh = "日一二三四五六"[(int)BookingService.ToTaipeiTime(log.SentAtUtc).DayOfWeek];
                                     <div class="p-2 bg-light border rounded-3 small">
                                         <div class="d-flex justify-content-between text-muted mb-1">
                                             <span class="fw-semibold text-dark">@log.NotificationType</span>
-                                            <span>@BookingService.ToTaipeiTime(log.SentAtUtc).ToString("MM/dd HH:mm")</span>
+                                            <span>@BookingService.ToTaipeiTime(log.SentAtUtc).ToString("MM/dd") (@logDayZh) @BookingService.ToTaipeiTime(log.SentAtUtc).ToString("HH:mm")</span>
                                         </div>
                                         <div>@log.MessageText</div>
                                     </div>
@@ -554,8 +593,8 @@
                     <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
                         <thead>
                             <tr>
-                                <th>時間 (Asia/Taipei)</th>
-                                <th>交易類型</th>
+                                <th>時間 (台北時間)</th>
+                                <th>狀態</th>
                                 <th>贈送異動</th>
                                 <th>付費異動</th>
                                 <th>異動後餘額 (贈送 / 付費)</th>
@@ -565,9 +604,22 @@
                         <tbody>
                             @foreach (var e in Model.StudentLedgerEntries)
                             {
+                                var lgtTpe = BookingService.ToTaipeiTime(e.CreatedAtUtc);
+                                var lgDayZh = "日一二三四五六"[(int)lgtTpe.DayOfWeek];
+                                var txZh = e.TransactionType switch {
+                                    LedgerTransactionType.TopUpPaid => "儲值入帳",
+                                    LedgerTransactionType.SemesterBonusGrant => "學期贈送",
+                                    LedgerTransactionType.ManualBonusGrant => "手動贈送",
+                                    LedgerTransactionType.BookingDeduct => "預約扣堂",
+                                    LedgerTransactionType.CancelRefund => "取消退堂",
+                                    LedgerTransactionType.AdjustmentReversal => "沖正調整",
+                                    LedgerTransactionType.SemesterBonusExpiry => "學期到期歸零",
+                                    LedgerTransactionType.DropoutSettlementDeduct => "退班結算扣除",
+                                    _ => e.TransactionType.ToString()
+                                };
                                 <tr>
-                                    <td data-label="時間">@BookingService.ToTaipeiTime(e.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm")</td>
-                                    <td data-label="交易類型"><span class="badge bg-secondary">@e.TransactionType</span></td>
+                                    <td data-label="時間">@lgtTpe.ToString("yyyy-MM-dd") (@lgDayZh) @lgtTpe.ToString("HH:mm")</td>
+                                    <td data-label="狀態"><span class="badge bg-secondary">@txZh</span></td>
                                     <td data-label="贈送異動" class="fw-bold @(e.BonusDelta > 0 ? "text-success" : e.BonusDelta < 0 ? "text-danger" : "text-muted")">
                                         @(e.BonusDelta > 0 ? $"+{e.BonusDelta}" : e.BonusDelta.ToString())
                                     </td>
@@ -589,3 +641,30 @@
         </div>
     </div>
 }
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 保留切換孩子時的目前頁籤
+            const hash = window.location.hash;
+            if (hash) {
+                const targetBtn = document.querySelector(`#parentWorkspaceTabs button[data-bs-target="${hash}"]`);
+                if (targetBtn) {
+                    const tab = new bootstrap.Tab(targetBtn);
+                    tab.show();
+                }
+            }
+
+            const tabButtons = document.querySelectorAll('#parentWorkspaceTabs button[data-bs-toggle="pill"]');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('shown.bs.tab', function (e) {
+                    const target = e.target.getAttribute('data-bs-target');
+                    if (target) {
+                        history.replaceState(null, null, target);
+                    }
+                });
+            });
+        });
+    </script>
+}
+
