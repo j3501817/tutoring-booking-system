@@ -40,8 +40,10 @@ public static class DbInitializer
 
         try
         {
+            await EnsureStudentColumnsExistAsync(db);
             if (await db.Users.AnyAsync())
             {
+                await BackfillStudentSchoolGradeClassAsync(db);
                 _isInitialized = true;
                 return;
             }
@@ -59,8 +61,11 @@ public static class DbInitializer
                 // 若部分資料表已由手動 SQL 建立則忽略重複建表例外
             }
 
+            await EnsureStudentColumnsExistAsync(db);
+
             if (await db.Users.AnyAsync())
             {
+                await BackfillStudentSchoolGradeClassAsync(db);
                 _isInitialized = true;
                 return;
             }
@@ -170,18 +175,27 @@ public static class DbInitializer
         var stuXiaoming = new Student
         {
             FullName = "林小明",
+            School = "敦化國中",
+            Grade = "國三",
+            ClassName = "A班",
             GradeClass = "國三A班",
             EnrollmentDate = new DateOnly(2026, 9, 1)
         };
         var stuXiaomei = new Student
         {
             FullName = "林小美",
+            School = "敦化國中",
+            Grade = "國二",
+            ClassName = "B班",
             GradeClass = "國二B班",
             EnrollmentDate = new DateOnly(2026, 10, 15) // 插班生
         };
         var stuChen = new Student
         {
             FullName = "陳宥廷",
+            School = "介壽國中",
+            Grade = "國三",
+            ClassName = "A班",
             GradeClass = "國三A班",
             EnrollmentDate = new DateOnly(2026, 9, 1)
         };
@@ -286,5 +300,77 @@ public static class DbInitializer
             teacherWang.Id,
             progressW7.Id,
             "第7週講義 p.12-15 應用題錯誤率偏高，建議預約小組指導訂正");
+    }
+
+    private static async Task EnsureStudentColumnsExistAsync(AppDbContext db)
+    {
+        if (!db.Database.IsRelational()) return;
+
+        var provider = db.Database.ProviderName ?? string.Empty;
+        if (provider.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
+        {
+            const string sql = @"
+IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('BK_Students', 'School') IS NULL
+        ALTER TABLE [BK_Students] ADD [School] nvarchar(80) NOT NULL CONSTRAINT [DF_BK_Students_School] DEFAULT N'';
+    IF COL_LENGTH('BK_Students', 'Grade') IS NULL
+        ALTER TABLE [BK_Students] ADD [Grade] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_Grade] DEFAULT N'';
+    IF COL_LENGTH('BK_Students', 'ClassName') IS NULL
+        ALTER TABLE [BK_Students] ADD [ClassName] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_ClassName] DEFAULT N'';
+END";
+            try { await db.Database.ExecuteSqlRawAsync(sql); } catch { }
+        }
+        else if (provider.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN School TEXT NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Grade TEXT NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN ClassName TEXT NOT NULL DEFAULT '';"); } catch { }
+        }
+        else if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
+        {
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"School\" varchar(80) NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Grade\" varchar(40) NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"ClassName\" varchar(40) NOT NULL DEFAULT '';"); } catch { }
+        }
+    }
+
+    private static async Task BackfillStudentSchoolGradeClassAsync(AppDbContext db)
+    {
+        try
+        {
+            var students = await db.Students.ToListAsync();
+            var updated = false;
+            foreach (var s in students)
+            {
+                if (string.IsNullOrWhiteSpace(s.School))
+                {
+                    s.School = s.FullName.StartsWith("陳") ? "介壽國中" : "敦化國中";
+                    updated = true;
+                }
+                if (string.IsNullOrWhiteSpace(s.Grade) && !string.IsNullOrWhiteSpace(s.GradeClass))
+                {
+                    if (s.GradeClass.Length >= 2)
+                    {
+                        s.Grade = s.GradeClass[..2];
+                        s.ClassName = s.GradeClass.Length > 2 ? s.GradeClass[2..] : "A班";
+                    }
+                    else
+                    {
+                        s.Grade = s.GradeClass;
+                        s.ClassName = "A班";
+                    }
+                    updated = true;
+                }
+            }
+            if (updated)
+            {
+                await db.SaveChangesAsync();
+            }
+        }
+        catch
+        {
+            // 忽略回填例外
+        }
     }
 }

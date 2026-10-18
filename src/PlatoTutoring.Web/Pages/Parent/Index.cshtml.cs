@@ -13,11 +13,13 @@ namespace PlatoTutoring.Web.Pages.Parent;
 public class IndexModel : PageModel
 {
     private readonly AppDbContext _db;
+    private readonly CreditLedgerService _ledgerService;
     private readonly BookingService _bookingService;
 
-    public IndexModel(AppDbContext db, BookingService bookingService)
+    public IndexModel(AppDbContext db, CreditLedgerService ledgerService, BookingService bookingService)
     {
         _db = db;
+        _ledgerService = ledgerService;
         _bookingService = bookingService;
     }
 
@@ -37,6 +39,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int? studentId, string? date)
     {
+        await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
         await _bookingService.ProcessExpiredWaitlistHoldsAsync();
 
         var user = await GetCurrentParentOrAdminAsync();

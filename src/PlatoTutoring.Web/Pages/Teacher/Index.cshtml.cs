@@ -43,6 +43,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
         var user = await GetCurrentTeacherOrAdminAsync();
         if (user == null) return RedirectToPage("/Account/Login");
         CurrentUser = user;

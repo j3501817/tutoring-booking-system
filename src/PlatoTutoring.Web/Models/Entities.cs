@@ -74,6 +74,12 @@ public class Student
     public int Id { get; set; }
     [Required, MaxLength(80)]
     public string FullName { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string School { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string Grade { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string ClassName { get; set; } = string.Empty;
     [Required, MaxLength(50)]
     public string GradeClass { get; set; } = string.Empty;
     public DateOnly EnrollmentDate { get; set; }
@@ -84,6 +90,29 @@ public class Student
     public DateTime? GroupBookingSuspendedUntilUtc { get; set; }
 
     public int TotalCredits => PaidCredits + BonusCredits;
+
+    public string DisplaySchoolGradeClass
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(School)) parts.Add(School.Trim());
+            var gc = !string.IsNullOrWhiteSpace(Grade) || !string.IsNullOrWhiteSpace(ClassName)
+                ? $"{Grade.Trim()}{ClassName.Trim()}"
+                : GradeClass.Trim();
+            if (!string.IsNullOrWhiteSpace(gc)) parts.Add(gc);
+            return parts.Count > 0 ? string.Join(" · ", parts) : GradeClass;
+        }
+    }
+
+    public void SyncGradeClass()
+    {
+        var combined = $"{Grade?.Trim()}{ClassName?.Trim()}".Trim();
+        if (!string.IsNullOrWhiteSpace(combined))
+        {
+            GradeClass = combined.Length > 50 ? combined[..50] : combined;
+        }
+    }
 }
 
 public class ParentStudentLink

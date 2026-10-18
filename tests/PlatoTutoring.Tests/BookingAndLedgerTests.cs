@@ -277,4 +277,53 @@ public class BookingAndLedgerTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             booking.CreateBookingAsync(nextGroupSlot.Id, student.Id, parent.Id, "作業輔導", t0.AddDays(4)));
     }
+
+    [Fact]
+    public async Task StudentSchoolGradeClass_SyncsAndFormatsCorrectly()
+    {
+        var (db, _, _, _) = CreateTestServices();
+
+        var parent = new AppUser
+        {
+            Username = "parent.test",
+            PasswordHash = "pw",
+            DisplayName = "張媽媽（家長）",
+            Role = UserRole.Parent
+        };
+        db.Users.Add(parent);
+        await db.SaveChangesAsync();
+
+        var student = new Student
+        {
+            FullName = "張小華",
+            School = "敦化國中",
+            Grade = "國三",
+            ClassName = "A班",
+            EnrollmentDate = new DateOnly(2026, 9, 1)
+        };
+        student.SyncGradeClass();
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        db.ParentStudentLinks.Add(new ParentStudentLink
+        {
+            ParentUserId = parent.Id,
+            StudentId = student.Id,
+            Relationship = "母親"
+        });
+        await db.SaveChangesAsync();
+
+        Assert.Equal("國三A班", student.GradeClass);
+        Assert.Equal("敦化國中 · 國三A班", student.DisplaySchoolGradeClass);
+
+        // 修改學校、年級與班級
+        student.School = "介壽國中";
+        student.Grade = "國二";
+        student.ClassName = "805班";
+        student.SyncGradeClass();
+        await db.SaveChangesAsync();
+
+        Assert.Equal("國二805班", student.GradeClass);
+        Assert.Equal("介壽國中 · 國二805班", student.DisplaySchoolGradeClass);
+    }
 }

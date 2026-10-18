@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using PlatoTutoring.Web.Data;
@@ -30,8 +31,23 @@ public class IndexModel : PageModel
     public int ActiveWaitlistCount { get; set; }
     public int LineSentCount { get; set; }
 
-    public async Task OnGetAsync()
+    public async Task<IActionResult> OnGetAsync()
     {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            return RedirectToPage("/Account/Login");
+        }
+
+        if (User.IsInRole(nameof(UserRole.Parent)))
+        {
+            return RedirectToPage("/Parent/Index");
+        }
+
+        if (User.IsInRole(nameof(UserRole.Teacher)))
+        {
+            return RedirectToPage("/Teacher/Index");
+        }
+
         try
         {
             await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
@@ -57,5 +73,7 @@ public class IndexModel : PageModel
             CurrentProgressTitle = "請檢查 Azure SQL 防火牆或連線字串";
             TempData["ErrorMessage"] = $"資料庫連線或初始化提醒：{ex.Message}";
         }
+
+        return Page();
     }
 }

@@ -1,0 +1,544 @@
+@page
+@model PlatoTutoring.Web.Pages.Members.IndexModel
+@{
+    ViewData["Title"] = "學生 / 家長 / 老師管理";
+    var todayStr = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8)).ToString("yyyy-MM-dd");
+}
+
+<!-- 頂部標題與快速導覽 -->
+<div class="card-plato p-3 p-md-4 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+            <div class="eyebrow-tag">
+                <i class="bi bi-people-fill"></i>
+                <span>人員與學籍管理中心 · Member Management</span>
+            </div>
+            <h1 class="h3 fw-bold mb-1">學生 / 家長 / 老師 整合管理</h1>
+            <p class="text-secondary small mb-0">
+                於同一頁面集中管理學生（含學校、年級、班級、選擇綁定家長）、家長帳號與授課老師之新增、修改與刪除。
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="#section-student-parent" class="btn btn-accent btn-sm px-3 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-mortarboard-fill"></i>
+                <span>學生與家長管理 (@Model.Students.Count / @Model.Parents.Count)</span>
+            </a>
+            <a href="#section-teachers" class="btn btn-outline-dark btn-sm px-3 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-easel2-fill"></i>
+                <span>老師管理 (@Model.Teachers.Count)</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================
+     第一區：學生管理 ＆ 家長管理（同頁並排新增、修改、刪除）
+     ========================================================================= -->
+<div id="section-student-parent" class="row g-4 mb-4">
+    <!-- 左欄：學生管理（新增 / 修改 / 刪除） -->
+    <div class="col-12 col-xxl-7">
+        <div class="card-plato p-3 p-md-4 h-100">
+            <div class="section-header-clean">
+                <div>
+                    <h2 class="h5 fw-bold mb-0"><i class="bi bi-mortarboard-fill text-primary me-2"></i>學生管理（新增 / 修改 / 刪除）</h2>
+                    <div class="small text-muted">設定學生學校、年級、班級並選擇所屬家長</div>
+                </div>
+                <span class="badge bg-dark">共 @Model.Students.Count 位學生</span>
+            </div>
+
+            <!-- 新增學生表單 -->
+            <form method="post" asp-page-handler="CreateStudent" class="p-3 rounded-3 border bg-light bg-opacity-50 mb-4">
+                <div class="fw-bold small text-dark mb-2">
+                    <i class="bi bi-plus-circle-fill text-success me-1"></i>新增學生資料
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">學生姓名</label>
+                        <input type="text" name="fullName" class="form-control form-control-sm" placeholder="例如：張小華" required />
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">學校</label>
+                        <input type="text" name="school" class="form-control form-control-sm" placeholder="例如：敦化國中" required />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">年級</label>
+                        <input type="text" name="grade" class="form-control form-control-sm" list="gradeOptions" placeholder="例如：國三" required />
+                        <datalist id="gradeOptions">
+                            <option value="小五"></option>
+                            <option value="小六"></option>
+                            <option value="國一"></option>
+                            <option value="國二"></option>
+                            <option value="國三"></option>
+                            <option value="高一"></option>
+                            <option value="高二"></option>
+                            <option value="高三"></option>
+                        </datalist>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">班級</label>
+                        <input type="text" name="className" class="form-control form-control-sm" placeholder="例如：A班 / 802班" required />
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label small fw-semibold mb-1">選擇家長</label>
+                        <select name="parentUserId" class="form-select form-select-sm">
+                            <option value="">-- 選擇綁定家長 --</option>
+                            @foreach (var p in Model.Parents)
+                            {
+                                <option value="@p.Id">@p.DisplayName (@p.Username)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-sm-3 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">關係稱謂</label>
+                        <input type="text" name="relationship" class="form-control form-control-sm" value="家長" placeholder="母親 / 父親" />
+                    </div>
+                    <div class="col-6 col-sm-3 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">入班日期</label>
+                        <input type="date" name="enrollmentDate" class="form-control form-control-sm" value="@todayStr" required />
+                    </div>
+                    <div class="col-12 col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-accent btn-sm w-100 fw-semibold">
+                            <i class="bi bi-person-plus-fill me-1"></i>新增學生
+                        </button>
+                    </div>
+                    <div class="col-12 mt-1">
+                        <div class="form-check small">
+                            <input class="form-check-input" type="checkbox" name="grantProRataBonus" value="true" id="chkGrantBonus" checked />
+                            <label class="form-check-label text-secondary" for="chkGrantBonus">
+                                新增時依入班日剩餘學期天數比例自動核發贈送堂數
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- 學生列表（含行內修改與刪除） -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-plato mb-0">
+                    <thead>
+                        <tr>
+                            <th>學生姓名</th>
+                            <th>學校 / 年級 / 班級</th>
+                            <th>所屬家長</th>
+                            <th>堂數 (贈/付/總)</th>
+                            <th class="text-end">修改 / 刪除</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Students)
+                        {
+                            var stuLinks = Model.AllLinks.Where(l => l.StudentId == s.Id).ToList();
+                            var primaryLink = stuLinks.FirstOrDefault();
+                            var editCollapseId = $"editStudentCollapse_{s.Id}";
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">
+                                        @s.FullName
+                                        @if (s.IsDroppedOut)
+                                        {
+                                            <span class="badge bg-secondary ms-1">已退班</span>
+                                        }
+                                    </div>
+                                    <div class="small text-muted">入班：@s.EnrollmentDate.ToString("yyyy-MM-dd")</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @if (!string.IsNullOrWhiteSpace(s.School))
+                                        {
+                                            <span class="badge bg-light text-dark border">@s.School</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(s.Grade))
+                                        {
+                                            <span class="badge badge-slot-small">@s.Grade</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(s.ClassName))
+                                        {
+                                            <span class="badge badge-slot-group">@s.ClassName</span>
+                                        }
+                                        @if (string.IsNullOrWhiteSpace(s.School) && string.IsNullOrWhiteSpace(s.Grade) && string.IsNullOrWhiteSpace(s.ClassName))
+                                        {
+                                            <span class="badge bg-secondary">@s.GradeClass</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (stuLinks.Any())
+                                    {
+                                        @foreach (var lk in stuLinks)
+                                        {
+                                            <div class="small fw-semibold">
+                                                <i class="bi bi-person-heart text-danger me-1"></i>@lk.ParentUser?.DisplayName
+                                                <span class="text-muted">(@lk.Relationship)</span>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">尚未選擇家長</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge badge-bonus">@s.BonusCredits</span> +
+                                    <span class="badge badge-paid">@s.PaidCredits</span> =
+                                    <strong class="ms-1">@s.TotalCredits 堂</strong>
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <button class="btn btn-outline-dark btn-sm px-2 py-1" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#@editCollapseId"
+                                                aria-expanded="false" aria-controls="@editCollapseId">
+                                            <i class="bi bi-pencil-square"></i> 修改
+                                        </button>
+                                        <form method="post" asp-page-handler="DeleteStudent" class="d-inline"
+                                              onsubmit="return confirm('確定要刪除學生「@s.FullName」嗎？相關預約與堂數紀錄將一併移除。');">
+                                            <input type="hidden" name="studentId" value="@s.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-1">
+                                                <i class="bi bi-trash3"></i> 刪除
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="collapse bg-light" id="@editCollapseId">
+                                <td colspan="5" class="p-3">
+                                    <form method="post" asp-page-handler="UpdateStudent">
+                                        <input type="hidden" name="studentId" value="@s.Id" />
+                                        <div class="fw-bold small mb-2 text-primary">
+                                            <i class="bi bi-pencil-fill me-1"></i>編輯學生：@s.FullName
+                                        </div>
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-12 col-sm-6 col-md-3">
+                                                <label class="form-label small mb-1">學生姓名</label>
+                                                <input type="text" name="fullName" class="form-control form-control-sm" value="@s.FullName" required />
+                                            </div>
+                                            <div class="col-12 col-sm-6 col-md-3">
+                                                <label class="form-label small mb-1">學校</label>
+                                                <input type="text" name="school" class="form-control form-control-sm" value="@s.School" placeholder="學校名稱" required />
+                                            </div>
+                                            <div class="col-6 col-md-2">
+                                                <label class="form-label small mb-1">年級</label>
+                                                <input type="text" name="grade" class="form-control form-control-sm" value="@s.Grade" list="gradeOptions" placeholder="年級" required />
+                                            </div>
+                                            <div class="col-6 col-md-2">
+                                                <label class="form-label small mb-1">班級</label>
+                                                <input type="text" name="className" class="form-control form-control-sm" value="@s.ClassName" placeholder="班級" required />
+                                            </div>
+                                            <div class="col-12 col-sm-6 col-md-2">
+                                                <label class="form-label small mb-1">入班日期</label>
+                                                <input type="date" name="enrollmentDate" class="form-control form-control-sm" value="@s.EnrollmentDate.ToString("yyyy-MM-dd")" required />
+                                            </div>
+                                            <div class="col-12 col-sm-6 col-md-5">
+                                                <label class="form-label small mb-1">選擇家長</label>
+                                                <select name="parentUserId" class="form-select form-select-sm">
+                                                    <option value="">-- 未綁定家長 --</option>
+                                                    @foreach (var p in Model.Parents)
+                                                    {
+                                                        if (primaryLink?.ParentUserId == p.Id)
+                                                        {
+                                                            <option value="@p.Id" selected>@p.DisplayName (@p.Username)</option>
+                                                        }
+                                                        else
+                                                        {
+                                                            <option value="@p.Id">@p.DisplayName (@p.Username)</option>
+                                                        }
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-6 col-sm-4 col-md-3">
+                                                <label class="form-label small mb-1">關係稱謂</label>
+                                                <input type="text" name="relationship" class="form-control form-control-sm" value="@(primaryLink?.Relationship ?? "家長")" />
+                                            </div>
+                                            <div class="col-6 col-sm-8 col-md-4 d-flex gap-2">
+                                                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                                                    <i class="bi bi-check2-circle me-1"></i>儲存修改
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                        data-bs-toggle="collapse" data-bs-target="#@editCollapseId">
+                                                    取消
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右欄：家長管理（與學生在同一頁面新增 / 修改 / 刪除） -->
+    <div class="col-12 col-xxl-5">
+        <div class="card-plato p-3 p-md-4 h-100">
+            <div class="section-header-clean">
+                <div>
+                    <h2 class="h5 fw-bold mb-0"><i class="bi bi-person-hearts text-danger me-2"></i>家長管理（新增 / 修改 / 刪除）</h2>
+                    <div class="small text-muted">新增家長後即可於左側學生資料直接選取綁定</div>
+                </div>
+                <span class="badge bg-dark">共 @Model.Parents.Count 位家長</span>
+            </div>
+
+            <!-- 新增家長表單 -->
+            <form method="post" asp-page-handler="CreateParent" class="p-3 rounded-3 border bg-light bg-opacity-50 mb-4">
+                <div class="fw-bold small text-dark mb-2">
+                    <i class="bi bi-plus-circle-fill text-success me-1"></i>新增家長帳號
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small fw-semibold mb-1">家長姓名 / 稱謂</label>
+                        <input type="text" name="displayName" class="form-control form-control-sm" placeholder="例如：張媽媽（家長）" required />
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small fw-semibold mb-1">登入帳號</label>
+                        <input type="text" name="username" class="form-control form-control-sm" placeholder="例如：parent.chang" required />
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label small fw-semibold mb-1">初始密碼</label>
+                        <input type="text" name="password" class="form-control form-control-sm" value="demo123" required />
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label small fw-semibold mb-1">聯絡電話</label>
+                        <input type="text" name="phone" class="form-control form-control-sm" placeholder="09xx-xxx-xxx" />
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label small fw-semibold mb-1">LINE 通知 ID</label>
+                        <input type="text" name="lineUserId" class="form-control form-control-sm" placeholder="選填" />
+                    </div>
+                    <div class="col-12 mt-2">
+                        <button type="submit" class="btn btn-accent btn-sm w-100 fw-semibold">
+                            <i class="bi bi-person-plus-fill me-1"></i>新增家長帳號
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- 家長列表（含行內修改與刪除） -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-plato mb-0">
+                    <thead>
+                        <tr>
+                            <th>家長姓名 / 帳號</th>
+                            <th>聯絡與關聯學生</th>
+                            <th class="text-end">修改 / 刪除</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Parents)
+                        {
+                            var pLinks = Model.AllLinks.Where(l => l.ParentUserId == p.Id).ToList();
+                            var editParentId = $"editParentCollapse_{p.Id}";
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@p.DisplayName</div>
+                                    <div class="small text-muted">帳號：<code>@p.Username</code></div>
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        <i class="bi bi-telephone me-1 text-secondary"></i>@(string.IsNullOrWhiteSpace(p.Phone) ? "未填電話" : p.Phone)
+                                    </div>
+                                    @if (pLinks.Any())
+                                    {
+                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                            @foreach (var lk in pLinks)
+                                            {
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="bi bi-mortarboard me-1"></i>@lk.Student?.FullName
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="small text-muted">尚未綁定學生</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <button class="btn btn-outline-dark btn-sm px-2 py-1" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#@editParentId"
+                                                aria-expanded="false" aria-controls="@editParentId">
+                                            <i class="bi bi-pencil-square"></i> 修改
+                                        </button>
+                                        <form method="post" asp-page-handler="DeleteParent" class="d-inline"
+                                              onsubmit="return confirm('確定要刪除家長「@p.DisplayName」嗎？');">
+                                            <input type="hidden" name="userId" value="@p.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-1">
+                                                <i class="bi bi-trash3"></i> 刪除
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="collapse bg-light" id="@editParentId">
+                                <td colspan="3" class="p-3">
+                                    <form method="post" asp-page-handler="UpdateParent">
+                                        <input type="hidden" name="userId" value="@p.Id" />
+                                        <div class="fw-bold small mb-2 text-primary">
+                                            <i class="bi bi-pencil-fill me-1"></i>編輯家長：@p.DisplayName
+                                        </div>
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-12 col-sm-6">
+                                                <label class="form-label small mb-1">家長姓名</label>
+                                                <input type="text" name="displayName" class="form-control form-control-sm" value="@p.DisplayName" required />
+                                            </div>
+                                            <div class="col-12 col-sm-6">
+                                                <label class="form-label small mb-1">登入帳號</label>
+                                                <input type="text" name="username" class="form-control form-control-sm" value="@p.Username" required />
+                                            </div>
+                                            <div class="col-12 col-sm-4">
+                                                <label class="form-label small mb-1">聯絡電話</label>
+                                                <input type="text" name="phone" class="form-control form-control-sm" value="@p.Phone" />
+                                            </div>
+                                            <div class="col-12 col-sm-4">
+                                                <label class="form-label small mb-1">LINE ID</label>
+                                                <input type="text" name="lineUserId" class="form-control form-control-sm" value="@p.LineUserId" />
+                                            </div>
+                                            <div class="col-12 col-sm-4">
+                                                <label class="form-label small mb-1">重設密碼 (選填)</label>
+                                                <input type="password" name="newPassword" class="form-control form-control-sm" placeholder="不修改請留空" />
+                                            </div>
+                                            <div class="col-12 d-flex gap-2 mt-2">
+                                                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                                                    <i class="bi bi-check2-circle me-1"></i>儲存家長修改
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                        data-bs-toggle="collapse" data-bs-target="#@editParentId">
+                                                    取消
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================
+     第二區：老師管理（新增、修改、刪除）
+     ========================================================================= -->
+<div id="section-teachers" class="card-plato p-3 p-md-4">
+    <div class="section-header-clean">
+        <div>
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-easel2-fill text-success me-2"></i>老師管理（新增 / 修改 / 刪除）</h2>
+            <div class="small text-muted">管理補習班授課與輔導老師帳號資料</div>
+        </div>
+        <span class="badge bg-dark">共 @Model.Teachers.Count 位老師</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-4">
+            <form method="post" asp-page-handler="CreateTeacher" class="p-3 rounded-3 border bg-light bg-opacity-50 h-100">
+                <div class="fw-bold small text-dark mb-2">
+                    <i class="bi bi-plus-circle-fill text-success me-1"></i>新增授課老師帳號
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold mb-1">老師姓名 / 任教科目</label>
+                    <input type="text" name="displayName" class="form-control form-control-sm" placeholder="例如：李老師（英文／社會）" required />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold mb-1">登入帳號</label>
+                    <input type="text" name="username" class="form-control form-control-sm" placeholder="例如：teacher.lee" required />
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold mb-1">初始密碼</label>
+                        <input type="text" name="password" class="form-control form-control-sm" value="demo123" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold mb-1">聯絡電話</label>
+                        <input type="text" name="phone" class="form-control form-control-sm" placeholder="09xx-xxx-xxx" />
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-accent btn-sm w-100 fw-semibold">
+                    <i class="bi bi-person-plus-fill me-1"></i>新增老師帳號
+                </button>
+            </form>
+        </div>
+
+        <div class="col-12 col-lg-8">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-plato mb-0">
+                    <thead>
+                        <tr>
+                            <th>老師姓名 / 科目</th>
+                            <th>登入帳號</th>
+                            <th>聯絡電話</th>
+                            <th>開課時段數</th>
+                            <th class="text-end">修改 / 刪除</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Teachers)
+                        {
+                            var slotCnt = Model.TeacherSlotCounts.TryGetValue(t.Id, out var c) ? c : 0;
+                            var editTeacherId = $"editTeacherCollapse_{t.Id}";
+                            <tr>
+                                <td class="fw-bold">@t.DisplayName</td>
+                                <td><code>@t.Username</code></td>
+                                <td class="small">@(string.IsNullOrWhiteSpace(t.Phone) ? "未填電話" : t.Phone)</td>
+                                <td><span class="badge badge-slot-group">@slotCnt 個時段</span></td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <button class="btn btn-outline-dark btn-sm px-2 py-1" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#@editTeacherId"
+                                                aria-expanded="false" aria-controls="@editTeacherId">
+                                            <i class="bi bi-pencil-square"></i> 修改
+                                        </button>
+                                        <form method="post" asp-page-handler="DeleteTeacher" class="d-inline"
+                                              onsubmit="return confirm('確定要刪除老師「@t.DisplayName」嗎？');">
+                                            <input type="hidden" name="userId" value="@t.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-1">
+                                                <i class="bi bi-trash3"></i> 刪除
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="collapse bg-light" id="@editTeacherId">
+                                <td colspan="5" class="p-3">
+                                    <form method="post" asp-page-handler="UpdateTeacher">
+                                        <input type="hidden" name="userId" value="@t.Id" />
+                                        <div class="fw-bold small mb-2 text-primary">
+                                            <i class="bi bi-pencil-fill me-1"></i>編輯老師：@t.DisplayName
+                                        </div>
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-12 col-sm-3">
+                                                <label class="form-label small mb-1">老師姓名 / 科目</label>
+                                                <input type="text" name="displayName" class="form-control form-control-sm" value="@t.DisplayName" required />
+                                            </div>
+                                            <div class="col-12 col-sm-3">
+                                                <label class="form-label small mb-1">登入帳號</label>
+                                                <input type="text" name="username" class="form-control form-control-sm" value="@t.Username" required />
+                                            </div>
+                                            <div class="col-12 col-sm-2">
+                                                <label class="form-label small mb-1">聯絡電話</label>
+                                                <input type="text" name="phone" class="form-control form-control-sm" value="@t.Phone" />
+                                            </div>
+                                            <div class="col-12 col-sm-2">
+                                                <label class="form-label small mb-1">重設密碼 (選填)</label>
+                                                <input type="password" name="newPassword" class="form-control form-control-sm" placeholder="留空不修改" />
+                                            </div>
+                                            <div class="col-12 col-sm-2 d-flex gap-1">
+                                                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">儲存</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                        data-bs-toggle="collapse" data-bs-target="#@editTeacherId">
+                                                    取消
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
