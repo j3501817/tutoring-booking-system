@@ -50,6 +50,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<LineNotificationLog>().ToTable("BK_LineNotificationLogs");
         modelBuilder.Entity<FieldOption>().ToTable("BK_FieldOptions");
         modelBuilder.Entity<FieldOption>().HasIndex(o => o.Category);
+        modelBuilder.Entity<FieldOption>().Property(o => o.ParentValue).IsRequired(false);
 
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.Username)

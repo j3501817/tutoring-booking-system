@@ -326,4 +326,64 @@ public class BookingAndLedgerTests
         Assert.Equal("國二805班", student.GradeClass);
         Assert.Equal("介壽國中 · 國二805班", student.DisplaySchoolGradeClass);
     }
+
+    [Fact]
+    public async Task FieldOptions_SupportsNullParentValue_AndLoadsCleanly()
+    {
+        var (db, _, _, _) = CreateTestServices();
+
+        // 模擬資料庫中學校、年別等非連動項目 ParentValue 為 null 的情形
+        db.FieldOptions.AddRange(
+            new FieldOption { Category = FieldCategories.School, Value = "三民", ParentValue = null, SortOrder = 1, IsActive = true },
+            new FieldOption { Category = FieldCategories.Grade, Value = "國三", ParentValue = null, SortOrder = 1, IsActive = true },
+            new FieldOption { Category = FieldCategories.Class, Value = "A班", ParentValue = "三民", SortOrder = 1, IsActive = true },
+            new FieldOption { Category = FieldCategories.Subject, Value = "數學", ParentValue = null, SortOrder = 1, IsActive = true }
+        );
+
+        var teacher = new AppUser
+        {
+            Username = "teacher.test",
+            PasswordHash = "hash",
+            DisplayName = "陳老師",
+            Role = UserRole.Teacher,
+            Subjects = null, // 模擬既有資料欄位為 NULL
+            IsProxyAdmin = true
+        };
+        db.Users.Add(teacher);
+
+        var student = new Student
+        {
+            FullName = "測試生",
+            School = null,
+            Grade = null,
+            ClassName = null,
+            GradeClass = "國一A班"
+        };
+        db.Students.Add(student);
+
+        await db.SaveChangesAsync();
+
+        var options = await db.FieldOptions
+            .Where(o => o.IsActive)
+            .OrderBy(o => o.SortOrder)
+            .ThenBy(o => o.Id)
+            .ToListAsync();
+
+        Assert.Equal(4, options.Count);
+        var schoolOpt = options.First(o => o.Category == FieldCategories.School);
+        Assert.Null(schoolOpt.ParentValue);
+
+        var classOpt = options.First(o => o.Category == FieldCategories.Class);
+        Assert.Equal("三民", classOpt.ParentValue);
+
+        var fetchedTeacher = await db.Users.FindAsync(teacher.Id);
+        Assert.NotNull(fetchedTeacher);
+        Assert.Empty(fetchedTeacher.SubjectList);
+        Assert.True(fetchedTeacher.IsProxyAdmin);
+
+        var fetchedStudent = await db.Students.FindAsync(student.Id);
+        Assert.NotNull(fetchedStudent);
+        Assert.Equal("國一A班", fetchedStudent.DisplaySchoolGradeClass);
+    }
 }
+

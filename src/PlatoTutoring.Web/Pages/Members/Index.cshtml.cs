@@ -117,7 +117,7 @@ public class IndexModel : PageModel
                 .Select(l =>
                 {
                     boundStudentIds.Add(l.StudentId);
-                    return new ChildBindingItem(l.Student!, l.Relationship);
+                    return new ChildBindingItem(l.Student!, l.Relationship ?? "家長");
                 })
                 .ToList();
 
