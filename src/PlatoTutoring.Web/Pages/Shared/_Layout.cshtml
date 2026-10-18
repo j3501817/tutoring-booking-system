@@ -1,12 +1,33 @@
 @using System.Security.Claims
+@inject PlatoTutoring.Web.Data.AppDbContext DbContext
 @{
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var displayName = User.FindFirstValue("DisplayName") ?? User.Identity?.Name ?? "訪客體驗模式";
     var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+    var isProxyAdmin = User.FindFirstValue("IsProxyAdmin") == "true";
+
+    if (isAuthenticated && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
+    {
+        try
+        {
+            var dbUser = DbContext.Users.Find(currentUserId);
+            if (dbUser != null)
+            {
+                displayName = dbUser.DisplayName;
+                role = dbUser.Role.ToString();
+                isProxyAdmin = dbUser.IsProxyAdmin;
+            }
+        }
+        catch
+        {
+            // 若資料庫連線尚未初始化完成則沿用 Cookie Claim
+        }
+    }
+
     var roleLabel = role switch
     {
         "Parent" => "家長授權",
-        "Teacher" => "授課老師",
+        "Teacher" => isProxyAdmin ? "授課老師（代理管理）" : "授課老師",
         "Admin" => "系統管理員",
         _ => "未登入"
     };
@@ -16,7 +37,8 @@
     var canAccessParent = isAuthenticated && (role == "Parent" || role == "Admin");
     var canAccessTeacher = isAuthenticated && (role == "Teacher" || role == "Admin");
     var canAccessMembers = isAuthenticated && (role == "Teacher" || role == "Admin");
-    var canAccessAdmin = isAuthenticated && role == "Admin";
+    var canAccessAdmin = isAuthenticated && (role == "Admin" || (role == "Teacher" && isProxyAdmin));
+    var canAccessSystemAdmin = isAuthenticated && (role == "Admin" || (role == "Teacher" && isProxyAdmin));
 
     var roleHomePage = role switch
     {
@@ -56,7 +78,9 @@
                     <i class="bi bi-list fs-5"></i>
                 </button>
                 <a class="text-white text-decoration-none fw-bold d-flex align-items-center gap-2" asp-page="@roleHomePage">
-                    <span class="sidebar-brand-mark" style="width: 30px; height: 30px; font-size: 0.95rem;">P</span>
+                    <span class="sidebar-brand-mark" style="width: 30px; height: 30px;">
+                        <img src="~/images/plato-logo.png" alt="柏拉圖校徽" />
+                    </span>
                     <span>柏拉圖輔導預約</span>
                 </a>
             </div>
@@ -69,7 +93,9 @@
         <aside class="app-sidebar d-none d-lg-flex" aria-label="主要功能選單">
             <a class="sidebar-brand" asp-page="@roleHomePage">
                 <div class="d-flex align-items-center gap-3">
-                    <span class="sidebar-brand-mark">P</span>
+                    <span class="sidebar-brand-mark">
+                        <img src="~/images/plato-logo.png" alt="柏拉圖校徽" />
+                    </span>
                     <div>
                         <div class="fw-bold fs-6 lh-sm">柏拉圖文理補習班</div>
                         <div class="small text-white-50" style="font-size: 0.76rem;">輔導預約與堂數管理系統</div>
@@ -136,8 +162,8 @@
                         @if (IsActive("/Members"))
                         {
                             <ul class="sidebar-subnav">
-                                <li><a class="sidebar-subnav-link" href="#section-student-parent"><i class="bi bi-mortarboard"></i>學生與家長管理</a></li>
-                                <li><a class="sidebar-subnav-link" href="#section-teachers"><i class="bi bi-easel2"></i>老師管理</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-student-parent" onclick="activateWorkspaceTab('tab-student-parent')"><i class="bi bi-mortarboard"></i>學生與家長管理</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-teachers" onclick="activateWorkspaceTab('tab-teachers')"><i class="bi bi-easel2"></i>老師管理</a></li>
                             </ul>
                         }
                     </li>
@@ -160,6 +186,23 @@
                                 <li><a class="sidebar-subnav-link" href="#tab-admin-audit" onclick="activateWorkspaceTab('tab-admin-audit')"><i class="bi bi-journal-code"></i>流水帳與 LINE 稽核</a></li>
                             </ul>
                         }
+                    </li>
+                }
+
+                @if (canAccessSystemAdmin)
+                {
+                    <li class="sidebar-nav-item">
+                        <a class="sidebar-nav-link @(IsActive("/SystemAdmin") ? "active" : "")" asp-page="/SystemAdmin/Index">
+                            <i class="bi bi-sliders2"></i>
+                            <span>系統管理</span>
+                        </a>
+                        <ul class="sidebar-subnav">
+                            <li>
+                                <a class="sidebar-subnav-link @(IsActive("/SystemAdmin") ? "text-white fw-semibold" : "")" asp-page="/SystemAdmin/Index">
+                                    <i class="bi bi-list-Columns-reverse"></i>欄位管理
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 }
 
@@ -246,7 +289,9 @@
              aria-labelledby="mobileSidebarLabel" style="width: 280px; background: var(--plato-sidebar-bg) !important;">
             <div class="offcanvas-header border-bottom border-secondary border-opacity-25">
                 <div class="d-flex align-items-center gap-2" id="mobileSidebarLabel">
-                    <span class="sidebar-brand-mark" style="width: 32px; height: 32px; font-size: 0.95rem;">P</span>
+                    <span class="sidebar-brand-mark" style="width: 32px; height: 32px;">
+                        <img src="~/images/plato-logo.png" alt="柏拉圖校徽" />
+                    </span>
                     <div>
                         <div class="fw-bold">柏拉圖文理補習班</div>
                         <div class="small text-white-50" style="font-size: 0.75rem;">輔導預約與堂數管理</div>
@@ -299,6 +344,15 @@
                             <a class="sidebar-nav-link @(IsActive("/Admin") ? "active" : "")" asp-page="/Admin/Index">
                                 <i class="bi bi-bar-chart-line-fill"></i>
                                 <span>管理員營運與報表</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canAccessSystemAdmin)
+                    {
+                        <li class="sidebar-nav-item">
+                            <a class="sidebar-nav-link @(IsActive("/SystemAdmin") ? "active" : "")" asp-page="/SystemAdmin/Index">
+                                <i class="bi bi-sliders2"></i>
+                                <span>系統管理（欄位管理）</span>
                             </a>
                         </li>
                     }
