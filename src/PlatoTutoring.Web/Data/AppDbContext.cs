@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<DropoutSettlement> DropoutSettlements => Set<DropoutSettlement>();
     public DbSet<HomeworkWatchItem> HomeworkWatchItems => Set<HomeworkWatchItem>();
     public DbSet<LineNotificationLog> LineNotificationLogs => Set<LineNotificationLog>();
+    public DbSet<FieldOption> FieldOptions => Set<FieldOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +48,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<DropoutSettlement>().ToTable("BK_DropoutSettlements");
         modelBuilder.Entity<HomeworkWatchItem>().ToTable("BK_HomeworkWatchItems");
         modelBuilder.Entity<LineNotificationLog>().ToTable("BK_LineNotificationLogs");
+        modelBuilder.Entity<FieldOption>().ToTable("BK_FieldOptions");
+        modelBuilder.Entity<FieldOption>().HasIndex(o => o.Category);
 
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.Username)

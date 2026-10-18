@@ -41,6 +41,7 @@ public static class DbInitializer
         try
         {
             await EnsureStudentColumnsExistAsync(db);
+            await EnsureFieldOptionsSeededAsync(db);
             if (await db.Users.AnyAsync())
             {
                 await BackfillStudentSchoolGradeClassAsync(db);
@@ -62,6 +63,7 @@ public static class DbInitializer
             }
 
             await EnsureStudentColumnsExistAsync(db);
+            await EnsureFieldOptionsSeededAsync(db);
 
             if (await db.Users.AnyAsync())
             {
@@ -101,7 +103,7 @@ public static class DbInitializer
         {
             Username = "parent.lin",
             PasswordHash = defaultPasswordHash,
-            DisplayName = "林媽媽（家長）",
+            DisplayName = "林媽媽",
             Role = UserRole.Parent,
             Phone = "0912-345-678",
             LineUserId = "U_LINE_PARENT_LIN_001"
@@ -110,7 +112,7 @@ public static class DbInitializer
         {
             Username = "parent.chen",
             PasswordHash = defaultPasswordHash,
-            DisplayName = "陳爸爸（家長）",
+            DisplayName = "陳爸爸",
             Role = UserRole.Parent,
             Phone = "0922-888-999",
             LineUserId = "U_LINE_PARENT_CHEN_002"
@@ -119,9 +121,11 @@ public static class DbInitializer
         {
             Username = "teacher.wang",
             PasswordHash = defaultPasswordHash,
-            DisplayName = "王老師（數學／理化）",
+            DisplayName = "王老師",
             Role = UserRole.Teacher,
-            Phone = "0933-111-222"
+            Phone = "0933-111-222",
+            Subjects = "數學,理化",
+            IsProxyAdmin = false
         };
         var adminBoss = new AppUser
         {
@@ -175,7 +179,7 @@ public static class DbInitializer
         var stuXiaoming = new Student
         {
             FullName = "林小明",
-            School = "敦化國中",
+            School = "三民",
             Grade = "國三",
             ClassName = "A班",
             GradeClass = "國三A班",
@@ -184,7 +188,7 @@ public static class DbInitializer
         var stuXiaomei = new Student
         {
             FullName = "林小美",
-            School = "敦化國中",
+            School = "三民",
             Grade = "國二",
             ClassName = "B班",
             GradeClass = "國二B班",
@@ -193,7 +197,7 @@ public static class DbInitializer
         var stuChen = new Student
         {
             FullName = "陳宥廷",
-            School = "介壽國中",
+            School = "培英",
             Grade = "國三",
             ClassName = "A班",
             GradeClass = "國三A班",
@@ -204,9 +208,9 @@ public static class DbInitializer
         await db.SaveChangesAsync();
 
         db.ParentStudentLinks.AddRange(
-            new ParentStudentLink { ParentUserId = parentLin.Id, StudentId = stuXiaoming.Id, Relationship = "母親" },
-            new ParentStudentLink { ParentUserId = parentLin.Id, StudentId = stuXiaomei.Id, Relationship = "母親" },
-            new ParentStudentLink { ParentUserId = parentChen.Id, StudentId = stuChen.Id, Relationship = "父親" }
+            new ParentStudentLink { ParentUserId = parentLin.Id, StudentId = stuXiaoming.Id, Relationship = "媽媽" },
+            new ParentStudentLink { ParentUserId = parentLin.Id, StudentId = stuXiaomei.Id, Relationship = "媽媽" },
+            new ParentStudentLink { ParentUserId = parentChen.Id, StudentId = stuChen.Id, Relationship = "爸爸" }
         );
         await db.SaveChangesAsync();
 
@@ -318,6 +322,26 @@ BEGIN
         ALTER TABLE [BK_Students] ADD [Grade] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_Grade] DEFAULT N'';
     IF COL_LENGTH('BK_Students', 'ClassName') IS NULL
         ALTER TABLE [BK_Students] ADD [ClassName] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_ClassName] DEFAULT N'';
+END
+IF OBJECT_ID(N'[BK_Users]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('BK_Users', 'Subjects') IS NULL
+        ALTER TABLE [BK_Users] ADD [Subjects] nvarchar(200) NOT NULL CONSTRAINT [DF_BK_Users_Subjects] DEFAULT N'';
+    IF COL_LENGTH('BK_Users', 'IsProxyAdmin') IS NULL
+        ALTER TABLE [BK_Users] ADD [IsProxyAdmin] bit NOT NULL CONSTRAINT [DF_BK_Users_IsProxyAdmin] DEFAULT 0;
+END
+IF OBJECT_ID(N'[BK_FieldOptions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [BK_FieldOptions] (
+        [Id] int NOT NULL IDENTITY(1,1),
+        [Category] nvarchar(40) NOT NULL,
+        [Value] nvarchar(80) NOT NULL,
+        [ParentValue] nvarchar(80) NULL,
+        [SortOrder] int NOT NULL CONSTRAINT [DF_BK_FieldOptions_SortOrder] DEFAULT 1,
+        [IsActive] bit NOT NULL CONSTRAINT [DF_BK_FieldOptions_IsActive] DEFAULT 1,
+        CONSTRAINT [PK_BK_FieldOptions] PRIMARY KEY ([Id])
+    );
+    CREATE INDEX [IX_BK_FieldOptions_Category] ON [BK_FieldOptions] ([Category]);
 END";
             try { await db.Database.ExecuteSqlRawAsync(sql); } catch { }
         }
@@ -326,12 +350,100 @@ END";
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN School TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Grade TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN ClassName TEXT NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN Subjects TEXT NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN IsProxyAdmin INTEGER NOT NULL DEFAULT 0;"); } catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS BK_FieldOptions (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Category TEXT NOT NULL,
+    Value TEXT NOT NULL,
+    ParentValue TEXT NULL,
+    SortOrder INTEGER NOT NULL DEFAULT 1,
+    IsActive INTEGER NOT NULL DEFAULT 1
+);");
+            }
+            catch { }
         }
         else if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
         {
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"School\" varchar(80) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Grade\" varchar(40) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"ClassName\" varchar(40) NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"Subjects\" varchar(200) NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"IsProxyAdmin\" boolean NOT NULL DEFAULT false;"); } catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS ""BK_FieldOptions"" (
+    ""Id"" SERIAL PRIMARY KEY,
+    ""Category"" varchar(40) NOT NULL,
+    ""Value"" varchar(80) NOT NULL,
+    ""ParentValue"" varchar(80) NULL,
+    ""SortOrder"" int NOT NULL DEFAULT 1,
+    ""IsActive"" boolean NOT NULL DEFAULT true
+);");
+            }
+            catch { }
+        }
+    }
+
+    private static async Task EnsureFieldOptionsSeededAsync(AppDbContext db)
+    {
+        try
+        {
+            if (await db.FieldOptions.AnyAsync())
+            {
+                return;
+            }
+
+            var schools = new[] { "三民", "培英", "光華", "竹光", "育賢", "私校" };
+            var grades = new[] { "國一", "國二", "國三" };
+            var relationships = new[] { "爸爸", "媽媽" };
+            var classes = new[] { "A班", "B班", "C班" };
+            var subjects = new[] { "國文", "英文", "數學", "理化", "社會" };
+
+            var items = new List<FieldOption>();
+
+            for (var i = 0; i < schools.Length; i++)
+            {
+                var school = schools[i];
+                items.Add(new FieldOption { Category = FieldCategories.School, Value = school, SortOrder = i + 1, IsActive = true });
+                for (var c = 0; c < classes.Length; c++)
+                {
+                    items.Add(new FieldOption
+                    {
+                        Category = FieldCategories.Class,
+                        Value = classes[c],
+                        ParentValue = school,
+                        SortOrder = c + 1,
+                        IsActive = true
+                    });
+                }
+            }
+
+            for (var i = 0; i < grades.Length; i++)
+            {
+                items.Add(new FieldOption { Category = FieldCategories.Grade, Value = grades[i], SortOrder = i + 1, IsActive = true });
+            }
+
+            for (var i = 0; i < relationships.Length; i++)
+            {
+                items.Add(new FieldOption { Category = FieldCategories.Relationship, Value = relationships[i], SortOrder = i + 1, IsActive = true });
+            }
+
+            for (var i = 0; i < subjects.Length; i++)
+            {
+                items.Add(new FieldOption { Category = FieldCategories.Subject, Value = subjects[i], SortOrder = i + 1, IsActive = true });
+            }
+
+            db.FieldOptions.AddRange(items);
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // 忽略重複或連線異常
         }
     }
 
@@ -343,9 +455,9 @@ END";
             var updated = false;
             foreach (var s in students)
             {
-                if (string.IsNullOrWhiteSpace(s.School))
+                if (string.IsNullOrWhiteSpace(s.School) || s.School is "敦化國中" or "介壽國中")
                 {
-                    s.School = s.FullName.StartsWith("陳") ? "介壽國中" : "敦化國中";
+                    s.School = s.FullName.StartsWith("陳") ? "培英" : "三民";
                     updated = true;
                 }
                 if (string.IsNullOrWhiteSpace(s.Grade) && !string.IsNullOrWhiteSpace(s.GradeClass))
@@ -363,6 +475,32 @@ END";
                     updated = true;
                 }
             }
+
+            var links = await db.ParentStudentLinks.ToListAsync();
+            foreach (var link in links)
+            {
+                if (link.Relationship == "母親")
+                {
+                    link.Relationship = "媽媽";
+                    updated = true;
+                }
+                else if (link.Relationship == "父親")
+                {
+                    link.Relationship = "爸爸";
+                    updated = true;
+                }
+            }
+
+            var teachers = await db.Users.Where(u => u.Role == UserRole.Teacher).ToListAsync();
+            foreach (var t in teachers)
+            {
+                if (string.IsNullOrWhiteSpace(t.Subjects) && t.DisplayName.Contains("數學"))
+                {
+                    t.Subjects = "數學,理化";
+                    updated = true;
+                }
+            }
+
             if (updated)
             {
                 await db.SaveChangesAsync();
@@ -374,3 +512,4 @@ END";
         }
     }
 }
+

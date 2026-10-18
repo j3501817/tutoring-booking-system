@@ -66,7 +66,41 @@ public class AppUser
     public string Phone { get; set; } = string.Empty;
     [MaxLength(100)]
     public string? LineUserId { get; set; }
+    /// <summary>老師任教科目（多選，以逗號分隔儲存）</summary>
+    [MaxLength(200)]
+    public string Subjects { get; set; } = string.Empty;
+    /// <summary>老師是否勾選代理（可使用管理員營運報表與系統管理）</summary>
+    public bool IsProxyAdmin { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public List<string> SubjectList =>
+        (Subjects ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+}
+
+/// <summary>系統管理 &gt; 欄位管理：下拉選單選項（學校、年級、班級、關係稱謂、任教科目）</summary>
+public class FieldOption
+{
+    public int Id { get; set; }
+    [Required, MaxLength(40)]
+    public string Category { get; set; } = string.Empty;
+    [Required, MaxLength(80)]
+    public string Value { get; set; } = string.Empty;
+    /// <summary>連動上層值（班級連動學校時存放學校名稱）</summary>
+    [MaxLength(80)]
+    public string ParentValue { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public static class FieldCategories
+{
+    public const string School = "School";
+    public const string Grade = "Grade";
+    public const string Class = "Class";
+    public const string Relationship = "Relationship";
+    public const string Subject = "Subject";
 }
 
 public class Student

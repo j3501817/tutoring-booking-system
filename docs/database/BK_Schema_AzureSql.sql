@@ -11,13 +11,22 @@ BEGIN
         [Username] NVARCHAR(80) NOT NULL,
         [PasswordHash] NVARCHAR(120) NOT NULL,
         [DisplayName] NVARCHAR(80) NOT NULL,
-        [Role] INT NOT NULL, -- 0: Parent, 1: Teacher, 2: Admin
+        [Role] INT NOT NULL, -- 1: Parent, 2: Teacher, 3: Admin
         [Phone] NVARCHAR(40) NOT NULL,
         [LineUserId] NVARCHAR(100) NULL,
+        [Subjects] NVARCHAR(200) NOT NULL DEFAULT N'',
+        [IsProxyAdmin] BIT NOT NULL DEFAULT 0,
         [CreatedAtUtc] DATETIME2 NOT NULL,
         CONSTRAINT [PK_BK_Users] PRIMARY KEY ([Id])
     );
     CREATE UNIQUE INDEX [IX_BK_Users_Username] ON [dbo].[BK_Users] ([Username]);
+END
+ELSE
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.BK_Users') AND name = N'Subjects')
+        ALTER TABLE [dbo].[BK_Users] ADD [Subjects] NVARCHAR(200) NOT NULL CONSTRAINT [DF_BK_Users_Subjects] DEFAULT N'';
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.BK_Users') AND name = N'IsProxyAdmin')
+        ALTER TABLE [dbo].[BK_Users] ADD [IsProxyAdmin] BIT NOT NULL CONSTRAINT [DF_BK_Users_IsProxyAdmin] DEFAULT 0;
 END;
 GO
 
@@ -27,6 +36,9 @@ BEGIN
     CREATE TABLE [dbo].[BK_Students] (
         [Id] INT IDENTITY(1,1) NOT NULL,
         [FullName] NVARCHAR(80) NOT NULL,
+        [School] NVARCHAR(80) NOT NULL DEFAULT N'',
+        [Grade] NVARCHAR(40) NOT NULL DEFAULT N'',
+        [ClassName] NVARCHAR(40) NOT NULL DEFAULT N'',
         [GradeClass] NVARCHAR(50) NOT NULL,
         [EnrollmentDate] DATE NOT NULL,
         [PaidCredits] INT NOT NULL DEFAULT 0,
@@ -36,6 +48,15 @@ BEGIN
         [GroupBookingSuspendedUntilUtc] DATETIME2 NULL,
         CONSTRAINT [PK_BK_Students] PRIMARY KEY ([Id])
     );
+END
+ELSE
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.BK_Students') AND name = N'School')
+        ALTER TABLE [dbo].[BK_Students] ADD [School] NVARCHAR(80) NOT NULL CONSTRAINT [DF_BK_Students_School] DEFAULT N'';
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.BK_Students') AND name = N'Grade')
+        ALTER TABLE [dbo].[BK_Students] ADD [Grade] NVARCHAR(40) NOT NULL CONSTRAINT [DF_BK_Students_Grade] DEFAULT N'';
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.BK_Students') AND name = N'ClassName')
+        ALTER TABLE [dbo].[BK_Students] ADD [ClassName] NVARCHAR(40) NOT NULL CONSTRAINT [DF_BK_Students_ClassName] DEFAULT N'';
 END;
 GO
 
@@ -332,3 +353,20 @@ BEGIN
     CREATE INDEX [IX_BK_LineNotificationLogs_RecipientParentUserId] ON [dbo].[BK_LineNotificationLogs] ([RecipientParentUserId]);
 END;
 GO
+
+-- 17. BK_FieldOptions (系統管理 > 欄位管理：學校、年別、連動班級、關係稱謂、任教科目)
+IF OBJECT_ID(N'dbo.BK_FieldOptions', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BK_FieldOptions] (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Category] NVARCHAR(40) NOT NULL,
+        [Value] NVARCHAR(80) NOT NULL,
+        [ParentValue] NVARCHAR(80) NULL,
+        [SortOrder] INT NOT NULL DEFAULT 1,
+        [IsActive] BIT NOT NULL DEFAULT 1,
+        CONSTRAINT [PK_BK_FieldOptions] PRIMARY KEY ([Id])
+    );
+    CREATE INDEX [IX_BK_FieldOptions_Category] ON [dbo].[BK_FieldOptions] ([Category]);
+END;
+GO
+

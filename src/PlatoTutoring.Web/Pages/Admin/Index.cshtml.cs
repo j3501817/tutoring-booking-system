@@ -454,10 +454,32 @@ public class IndexModel : PageModel
         return Redirect("/Admin#tab-admin-audit");
     }
 
+    public override async Task OnPageHandlerExecutionAsync(
+        Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutingContext context,
+        Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutionDelegate next)
+    {
+        await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
+        var admin = await GetCurrentAdminAsync();
+        if (admin == null)
+        {
+            TempData["ErrorMessage"] = "僅限系統管理員或已勾選「代理管理權限」之老師可使用管理員營運與報表。";
+            context.Result = RedirectToPage("/Teacher/Index");
+            return;
+        }
+        CurrentUser = admin;
+        await next();
+    }
+
     private async Task<AppUser?> GetCurrentAdminAsync()
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!int.TryParse(idStr, out var userId)) return null;
-        return await _db.Users.FindAsync(userId);
+        var user = await _db.Users.FindAsync(userId);
+        if (user == null) return null;
+        if (user.Role == UserRole.Admin || (user.Role == UserRole.Teacher && user.IsProxyAdmin))
+        {
+            return user;
+        }
+        return null;
     }
 }

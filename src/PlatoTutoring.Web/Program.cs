@@ -79,7 +79,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ParentAccess", p => p.RequireRole(nameof(UserRole.Parent), nameof(UserRole.Admin)));
     options.AddPolicy("TeacherAccess", p => p.RequireRole(nameof(UserRole.Teacher), nameof(UserRole.Admin)));
-    options.AddPolicy("AdminAccess", p => p.RequireRole(nameof(UserRole.Admin)));
+    options.AddPolicy("AdminAccess", p => p.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Teacher)));
 });
 
 builder.Services.AddRazorPages();
@@ -148,16 +148,21 @@ app.MapGet("/attachments/{id:int}", async (
     return Results.File(stream, att.ContentType, att.OriginalFileName);
 });
 
-// 管理員匯出學生堂數 CSV 端點
+// 管理員與代理老師匯出學生堂數 CSV 端點
 app.MapGet("/admin/export/credits.csv", async (
     ClaimsPrincipal user,
+    AppDbContext db,
     CreditLedgerService ledgerService) =>
 {
     if (user.Identity?.IsAuthenticated != true)
         return Results.Challenge();
 
-    var role = user.FindFirstValue(ClaimTypes.Role);
-    if (role != nameof(UserRole.Admin))
+    var idStr = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (!int.TryParse(idStr, out var userId))
+        return Results.Forbid();
+
+    var appUser = await db.Users.FindAsync(userId);
+    if (appUser == null || (appUser.Role != UserRole.Admin && !(appUser.Role == UserRole.Teacher && appUser.IsProxyAdmin)))
         return Results.Forbid();
 
     var csv = await ledgerService.ExportStudentsCreditsCsvAsync();
