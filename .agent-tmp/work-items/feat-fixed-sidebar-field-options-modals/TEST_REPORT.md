@@ -3,5 +3,5 @@
 - **偵測到的技術棧**：.NET 10.0 (`ASP.NET Core Razor Pages`, `EF Core`, `xUnit`)
 - **選擇驗證指令的理由**：依據專案結構 `PlatoTutoring.sln` 與 `AGENTS.md` 第 7.3 節 .NET 驗證規範。
 - **實際執行的指令**：`dotnet test PlatoTutoring.sln --no-restore`
-- **執行結果**：✅ 通過（失敗: 0，通過: 6，略過: 0，總計: 6）
+- **執行結果**：✅ 通過（失敗: 0，通過: 7，略過: 0，總計: 7，包含 FieldOptions Nullable 欄位存取驗證）
 - **是否需要 PM Review**：否
