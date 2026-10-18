@@ -639,3 +639,47 @@ html, body {
     margin-right: 0.75rem;
   }
 }
+
+/* 全螢幕儲存中等待遮罩（鎖定所有功能操作） */
+.saving-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(17, 24, 32, 0.82);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  pointer-events: all;
+  user-select: none;
+}
+
+.saving-overlay-content {
+  text-align: center;
+  padding: 2.5rem 3rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.slot-card-selectable {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.slot-card-selectable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.slot-card-selectable.active {
+  border: 2px solid var(--plato-terracotta) !important;
+  background: #fdfaf7 !important;
+}
+

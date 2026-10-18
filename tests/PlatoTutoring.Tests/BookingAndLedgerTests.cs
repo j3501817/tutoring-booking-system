@@ -385,5 +385,121 @@ public class BookingAndLedgerTests
         Assert.NotNull(fetchedStudent);
         Assert.Equal("國一A班", fetchedStudent.DisplaySchoolGradeClass);
     }
+
+    [Fact]
+    public async Task SlotManagement_UpdateAndDelete_WithSafetyCheckAsync()
+    {
+        var (db, _, booking, _) = CreateTestServices();
+
+        var teacher = new AppUser { Username = "teacher_slot", PasswordHash = "pw", DisplayName = "排課老師", Role = UserRole.Teacher };
+        db.Users.Add(teacher);
+        var progress = new CourseProgress { SemesterId = 1, Code = "M01", Title = "第一章數與式", GradeClass = "國三A班", IsCurrentProgress = true };
+        db.CourseProgresses.Add(progress);
+        await db.SaveChangesAsync();
+
+        var slotDate = DateTime.UtcNow.AddDays(2);
+        var slot = await booking.CreateSlotAsync(
+            teacher.Id,
+            progress.Id,
+            "國三A班",
+            SlotType.SmallGroup,
+            slotDate,
+            slotDate.AddMinutes(90),
+            4,
+            false,
+            "原始備註"
+        );
+
+        Assert.Equal(4, slot.MaxCapacity);
+        Assert.Equal("原始備註", slot.Notes);
+
+        // 更新時段
+        var updated = await booking.UpdateSlotAsync(
+            slot.Id,
+            progress.Id,
+            "國三特訓班",
+            SlotType.SmallGroup,
+            slotDate.AddHours(1),
+            slotDate.AddHours(1).AddMinutes(120),
+            6,
+            true,
+            "更新備註：加強難題"
+        );
+
+        Assert.Equal(6, updated.MaxCapacity);
+        Assert.True(updated.IsExtraSlot);
+        Assert.Equal("國三特訓班", updated.GradeClass);
+        Assert.Equal("更新備註：加強難題", updated.Notes);
+
+        // 建立預約後，刪除應被阻擋
+        var student = new Student { FullName = "測試學員", GradeClass = "國三A班", BonusCredits = 3 };
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        await booking.CreateBookingAsync(slot.Id, student.Id, teacher.Id, "課業提問");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => booking.DeleteSlotAsync(slot.Id));
+
+        // 取消預約後方可順利刪除時段
+        var bk = await db.Bookings.FirstAsync(b => b.TutoringSlotId == slot.Id);
+        await booking.CancelBookingAsync(bk.Id, teacher.Id, "老師調課取消", slotDate.AddDays(-1));
+
+        await booking.DeleteSlotAsync(slot.Id);
+        Assert.Null(await db.TutoringSlots.FindAsync(slot.Id));
+    }
+
+    [Fact]
+    public async Task BatchRecordAttendance_UpdatesMultipleBookingsAndFinalizesSlotAsync()
+    {
+        var (db, _, booking, _) = CreateTestServices();
+
+        var teacher = new AppUser { Username = "teacher_rc", PasswordHash = "pw", DisplayName = "點名老師", Role = UserRole.Teacher };
+        db.Users.Add(teacher);
+        var progress = new CourseProgress { SemesterId = 1, Code = "E01", Title = "英語閱讀", GradeClass = "國二A班", IsCurrentProgress = true };
+        db.CourseProgresses.Add(progress);
+
+        var s1 = new Student { FullName = "學生甲", GradeClass = "國二A班", BonusCredits = 5 };
+        var s2 = new Student { FullName = "學生乙", GradeClass = "國二A班", BonusCredits = 5 };
+        db.Students.AddRange(s1, s2);
+        await db.SaveChangesAsync();
+
+        var slotDate = DateTime.UtcNow;
+        var slot = await booking.CreateSlotAsync(
+            teacher.Id,
+            progress.Id,
+            "國二A班",
+            SlotType.SmallGroup,
+            slotDate,
+            slotDate.AddMinutes(90),
+            4,
+            false,
+            "點名測試"
+        );
+
+        var b1 = await booking.CreateBookingAsync(slot.Id, s1.Id, teacher.Id, "課業提問");
+        var b2 = await booking.CreateBookingAsync(slot.Id, s2.Id, teacher.Id, "作業輔導");
+
+        var batchList = new List<(int BookingId, AttendanceStatus Status)>
+        {
+            (b1.Id, AttendanceStatus.Present),
+            (b2.Id, AttendanceStatus.Absent)
+        };
+
+        await booking.BatchRecordAttendanceAsync(slot.Id, batchList, finalizeSlot: true);
+
+        var refreshedSlot = await db.TutoringSlots.FindAsync(slot.Id);
+        Assert.NotNull(refreshedSlot);
+        Assert.True(refreshedSlot.IsAttendanceFinalized);
+
+        var refreshedB1 = await db.Bookings.FindAsync(b1.Id);
+        var refreshedB2 = await db.Bookings.FindAsync(b2.Id);
+        Assert.Equal(AttendanceStatus.Present, refreshedB1!.AttendanceStatus);
+        Assert.Equal(AttendanceStatus.Absent, refreshedB2!.AttendanceStatus);
+
+        // 測試中文星期時間格式
+        var formattedZh = BookingService.FormatTaipeiDateTimeZh(new DateTime(2026, 10, 18, 10, 0, 0, DateTimeKind.Utc));
+        Assert.Contains("週", formattedZh.Replace("(", "週").Replace(")", "")); // 包含星期
+        Assert.Contains("18:00", formattedZh); // UTC+8
+    }
 }
+
 

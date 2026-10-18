@@ -25,6 +25,20 @@ public class BookingService
         return utcTime.AddHours(8);
     }
 
+    public static string FormatTaipeiDateTimeZh(DateTime utcTime)
+    {
+        var tpe = ToTaipeiTime(utcTime);
+        var day = "日一二三四五六"[(int)tpe.DayOfWeek];
+        return $"{tpe:yyyy/MM/dd} ({day}) {tpe:HH:mm}";
+    }
+
+    public static string FormatTaipeiShortDateZh(DateTime utcTime)
+    {
+        var tpe = ToTaipeiTime(utcTime);
+        var day = "日一二三四五六"[(int)tpe.DayOfWeek];
+        return $"{tpe:MM/dd} ({day}) {tpe:HH:mm}";
+    }
+
     public async Task<TutoringSlot> CreateSlotAsync(
         int teacherUserId,
         int courseProgressId,
@@ -67,6 +81,72 @@ public class BookingService
         await _db.SaveChangesAsync();
         return slot;
     }
+
+    public async Task<TutoringSlot> UpdateSlotAsync(
+        int slotId,
+        int courseProgressId,
+        string gradeClass,
+        SlotType slotType,
+        DateTime startsAtUtc,
+        DateTime endsAtUtc,
+        int maxCapacity,
+        bool isExtraSlot,
+        string notes)
+    {
+        if (maxCapacity <= 0)
+            throw new InvalidOperationException("時段容納名額必須大於 0。");
+        if (endsAtUtc <= startsAtUtc)
+            throw new InvalidOperationException("結束時間必須晚於開始時間。");
+
+        var slot = await _db.TutoringSlots.FindAsync(slotId)
+            ?? throw new InvalidOperationException("找不到指定的輔導時段。");
+
+        if (maxCapacity < slot.CurrentBookedCount)
+            throw new InvalidOperationException($"容納名額不可小於已預約人數 ({slot.CurrentBookedCount} 人)。");
+
+        var progress = await _db.CourseProgresses.FindAsync(courseProgressId)
+            ?? throw new InvalidOperationException("找不到指定的課程進度。");
+
+        slot.CourseProgressId = courseProgressId;
+        slot.GradeClass = string.IsNullOrWhiteSpace(gradeClass) ? progress.GradeClass : gradeClass.Trim();
+        slot.SlotType = slotType;
+        slot.StartsAtUtc = startsAtUtc;
+        slot.EndsAtUtc = endsAtUtc;
+        slot.MaxCapacity = maxCapacity;
+        slot.IsExtraSlot = isExtraSlot;
+        slot.Notes = notes?.Trim() ?? string.Empty;
+
+        await _db.SaveChangesAsync();
+        return slot;
+    }
+
+    public async Task DeleteSlotAsync(int slotId)
+    {
+        var slot = await _db.TutoringSlots.FindAsync(slotId)
+            ?? throw new InvalidOperationException("找不到指定的輔導時段。");
+
+        var hasActiveBookings = await _db.Bookings.AnyAsync(b => b.TutoringSlotId == slotId && b.Status == BookingStatus.Confirmed);
+        if (hasActiveBookings)
+        {
+            throw new InvalidOperationException("此時段已有學生預約，無法直接刪除；請先取消該時段預約或進行改期。");
+        }
+
+        var waitlist = await _db.WaitlistEntries.Where(w => w.TutoringSlotId == slotId).ToListAsync();
+        if (waitlist.Any())
+        {
+            _db.WaitlistEntries.RemoveRange(waitlist);
+        }
+        var inactiveBookings = await _db.Bookings.Where(b => b.TutoringSlotId == slotId).ToListAsync();
+        if (inactiveBookings.Any())
+        {
+            _db.Bookings.RemoveRange(inactiveBookings);
+        }
+
+        _db.TutoringSlots.Remove(slot);
+        await _db.SaveChangesAsync();
+    }
+
+
 
     public async Task<Booking> CreateBookingAsync(
         int slotId,
@@ -557,4 +637,27 @@ public class BookingService
             }
         }
     }
+
+    public async Task BatchRecordAttendanceAsync(
+        int slotId,
+        List<(int BookingId, AttendanceStatus Status)> items,
+        bool finalizeSlot,
+        DateTime? nowUtc = null)
+    {
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var slot = await _db.TutoringSlots.FindAsync(slotId)
+            ?? throw new InvalidOperationException("找不到指定的輔導時段。");
+
+        foreach (var item in items)
+        {
+            await RecordAttendanceAsync(item.BookingId, item.Status, false, timestamp);
+        }
+
+        if (finalizeSlot)
+        {
+            slot.IsAttendanceFinalized = true;
+            await _db.SaveChangesAsync();
+        }
+    }
 }
+

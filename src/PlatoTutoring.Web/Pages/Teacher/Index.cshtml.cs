@@ -41,6 +41,35 @@ public class IndexModel : PageModel
     public List<TopUpBatch> RecentTopUps { get; set; } = new();
     public List<HomeworkWatchItem> HomeworkItems { get; set; } = new();
 
+    // 時段列表篩選與分頁
+    [BindProperty(SupportsGet = true)]
+    public string? DateFrom { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? DateTo { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public SlotType? SlotTypeFilter { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int SlotsPage { get; set; } = 1;
+
+    public int SlotsTotalPages { get; set; } = 1;
+    public int SlotsTotalCount { get; set; } = 0;
+    public List<TutoringSlot> PagedSlots { get; set; } = new();
+
+    // 今日點名
+    [BindProperty(SupportsGet = true)]
+    public string? RollcallDate { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? SelectedSlotId { get; set; }
+
+    public List<TutoringSlot> TodaySlots { get; set; } = new();
+    public List<Booking> TodayBookings { get; set; } = new();
+    public TutoringSlot? ActiveRollcallSlot { get; set; }
+
+
     public async Task<IActionResult> OnGetAsync()
     {
         await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
@@ -90,6 +119,77 @@ public class IndexModel : PageModel
             .Include(h => h.Student)
             .Include(h => h.CourseProgress)
             .OrderByDescending(h => h.FirstNotifiedAtUtc)
+            .Take(10)
+            .ToListAsync();
+
+        // 處理今日課堂點名時段
+        var nowTpe = BookingService.ToTaipeiTime(DateTime.UtcNow);
+        if (string.IsNullOrWhiteSpace(RollcallDate))
+        {
+            RollcallDate = nowTpe.ToString("yyyy-MM-dd");
+        }
+
+        if (DateOnly.TryParse(RollcallDate, out var parsedRollcallDate))
+        {
+            var rStartUtc = DateTime.SpecifyKind(parsedRollcallDate.ToDateTime(TimeOnly.MinValue).AddHours(-8), DateTimeKind.Utc);
+            var rEndUtc = DateTime.SpecifyKind(parsedRollcallDate.ToDateTime(TimeOnly.MaxValue).AddHours(-8), DateTimeKind.Utc);
+
+            TodaySlots = await _db.TutoringSlots
+                .Include(s => s.CourseProgress)
+                .Include(s => s.TeacherUser)
+                .Where(s => s.StartsAtUtc >= rStartUtc && s.StartsAtUtc <= rEndUtc)
+                .OrderBy(s => s.StartsAtUtc)
+                .ToListAsync();
+
+            var todaySlotIds = TodaySlots.Select(s => s.Id).ToList();
+            TodayBookings = await _db.Bookings
+                .Include(b => b.Student)
+                .Where(b => todaySlotIds.Contains(b.TutoringSlotId) && b.Status == BookingStatus.Confirmed)
+                .ToListAsync();
+
+            if (SelectedSlotId.HasValue)
+            {
+                ActiveRollcallSlot = TodaySlots.FirstOrDefault(s => s.Id == SelectedSlotId.Value);
+            }
+            if (ActiveRollcallSlot == null && TodaySlots.Any())
+            {
+                ActiveRollcallSlot = TodaySlots.First();
+                SelectedSlotId = ActiveRollcallSlot.Id;
+            }
+        }
+
+        // 處理時段列表分頁與篩選
+        var slotsQuery = _db.TutoringSlots
+            .Include(s => s.CourseProgress)
+            .Include(s => s.TeacherUser)
+            .AsQueryable();
+
+
+        if (!string.IsNullOrWhiteSpace(DateFrom) && DateOnly.TryParse(DateFrom, out var dFrom))
+        {
+            var utcFrom = DateTime.SpecifyKind(dFrom.ToDateTime(TimeOnly.MinValue).AddHours(-8), DateTimeKind.Utc);
+            slotsQuery = slotsQuery.Where(s => s.StartsAtUtc >= utcFrom);
+        }
+
+        if (!string.IsNullOrWhiteSpace(DateTo) && DateOnly.TryParse(DateTo, out var dTo))
+        {
+            var utcTo = DateTime.SpecifyKind(dTo.ToDateTime(TimeOnly.MaxValue).AddHours(-8), DateTimeKind.Utc);
+            slotsQuery = slotsQuery.Where(s => s.StartsAtUtc <= utcTo);
+        }
+
+        if (SlotTypeFilter.HasValue)
+        {
+            slotsQuery = slotsQuery.Where(s => s.SlotType == SlotTypeFilter.Value);
+        }
+
+        SlotsTotalCount = await slotsQuery.CountAsync();
+        SlotsTotalPages = Math.Max(1, (int)Math.Ceiling(SlotsTotalCount / 10.0));
+        if (SlotsPage < 1) SlotsPage = 1;
+        if (SlotsPage > SlotsTotalPages) SlotsPage = SlotsTotalPages;
+
+        PagedSlots = await slotsQuery
+            .OrderByDescending(s => s.StartsAtUtc)
+            .Skip((SlotsPage - 1) * 10)
             .Take(10)
             .ToListAsync();
 
@@ -185,7 +285,6 @@ public class IndexModel : PageModel
 
         try
         {
-            // 輸入時間為 Asia/Taipei (UTC+8)，轉換為 UTC 儲存
             var localStart = slotDate.ToDateTime(startTime);
             var startsAtUtc = DateTime.SpecifyKind(localStart.AddHours(-8), DateTimeKind.Utc);
             var endsAtUtc = startsAtUtc.AddMinutes(Math.Max(30, durationMinutes));
@@ -202,6 +301,66 @@ public class IndexModel : PageModel
                 notes ?? string.Empty);
 
             TempData["SuccessMessage"] = $"已建立輔導時段：{slotDate:yyyy/MM/dd} {startTime:HH:mm}（名額 {maxCapacity} 名）。";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostUpdateSlotAsync(
+        int slotId,
+        int courseProgressId,
+        string gradeClass,
+        SlotType slotType,
+        DateOnly slotDate,
+        TimeOnly startTime,
+        int durationMinutes,
+        int maxCapacity,
+        bool isExtraSlot,
+        string? notes)
+    {
+        var user = await GetCurrentTeacherOrAdminAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        try
+        {
+            var localStart = slotDate.ToDateTime(startTime);
+            var startsAtUtc = DateTime.SpecifyKind(localStart.AddHours(-8), DateTimeKind.Utc);
+            var endsAtUtc = startsAtUtc.AddMinutes(Math.Max(30, durationMinutes));
+
+            await _bookingService.UpdateSlotAsync(
+                slotId,
+                courseProgressId,
+                gradeClass,
+                slotType,
+                startsAtUtc,
+                endsAtUtc,
+                maxCapacity,
+                isExtraSlot,
+                notes ?? string.Empty);
+
+            TempData["SuccessMessage"] = $"輔導時段 #{slotId} 已成功更新。";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteSlotAsync(int slotId)
+    {
+        var user = await GetCurrentTeacherOrAdminAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        try
+        {
+            await _bookingService.DeleteSlotAsync(slotId);
+            TempData["SuccessMessage"] = $"輔導時段 #{slotId} 已成功刪除。";
         }
         catch (Exception ex)
         {
@@ -250,6 +409,36 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostBatchRecordAttendanceAsync(
+        int slotId,
+        List<int> bookingIds,
+        List<AttendanceStatus> statuses,
+        bool finalizeSlot)
+    {
+        try
+        {
+            if (bookingIds == null || statuses == null || bookingIds.Count != statuses.Count)
+            {
+                throw new InvalidOperationException("點名資料不完整。");
+            }
+
+            var items = new List<(int BookingId, AttendanceStatus Status)>();
+            for (int i = 0; i < bookingIds.Count; i++)
+            {
+                items.Add((bookingIds[i], statuses[i]));
+            }
+
+            await _bookingService.BatchRecordAttendanceAsync(slotId, items, finalizeSlot);
+            TempData["SuccessMessage"] = $"全班 {items.Count} 位學生點名已成功儲存！" + (finalizeSlot ? "（已設定為課後定案）" : "");
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostFlagHomeworkAsync(
         int studentId,
         int courseProgressId,
@@ -285,3 +474,4 @@ public class IndexModel : PageModel
         return await _db.Users.FindAsync(userId);
     }
 }
+
