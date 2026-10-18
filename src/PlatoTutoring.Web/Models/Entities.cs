@@ -68,7 +68,7 @@ public class AppUser
     public string? LineUserId { get; set; }
     /// <summary>老師任教科目（多選，以逗號分隔儲存）</summary>
     [MaxLength(200)]
-    public string Subjects { get; set; } = string.Empty;
+    public string? Subjects { get; set; } = string.Empty;
     /// <summary>老師是否勾選代理（可使用管理員營運報表與系統管理）</summary>
     public bool IsProxyAdmin { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -87,9 +87,9 @@ public class FieldOption
     public string Category { get; set; } = string.Empty;
     [Required, MaxLength(80)]
     public string Value { get; set; } = string.Empty;
-    /// <summary>連動上層值（班級連動學校時存放學校名稱）</summary>
+    /// <summary>連動上層值（班級連動學校時存放學校名稱，非連動欄位可為 null）</summary>
     [MaxLength(80)]
-    public string ParentValue { get; set; } = string.Empty;
+    public string? ParentValue { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 }
@@ -109,11 +109,11 @@ public class Student
     [Required, MaxLength(80)]
     public string FullName { get; set; } = string.Empty;
     [MaxLength(80)]
-    public string School { get; set; } = string.Empty;
+    public string? School { get; set; } = string.Empty;
     [MaxLength(40)]
-    public string Grade { get; set; } = string.Empty;
+    public string? Grade { get; set; } = string.Empty;
     [MaxLength(40)]
-    public string ClassName { get; set; } = string.Empty;
+    public string? ClassName { get; set; } = string.Empty;
     [Required, MaxLength(50)]
     public string GradeClass { get; set; } = string.Empty;
     public DateOnly EnrollmentDate { get; set; }
@@ -132,7 +132,7 @@ public class Student
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(School)) parts.Add(School.Trim());
             var gc = !string.IsNullOrWhiteSpace(Grade) || !string.IsNullOrWhiteSpace(ClassName)
-                ? $"{Grade.Trim()}{ClassName.Trim()}"
+                ? $"{(Grade ?? "").Trim()}{(ClassName ?? "").Trim()}"
                 : GradeClass.Trim();
             if (!string.IsNullOrWhiteSpace(gc)) parts.Add(gc);
             return parts.Count > 0 ? string.Join(" · ", parts) : GradeClass;
@@ -141,7 +141,7 @@ public class Student
 
     public void SyncGradeClass()
     {
-        var combined = $"{Grade?.Trim()}{ClassName?.Trim()}".Trim();
+        var combined = $"{(Grade ?? "").Trim()}{(ClassName ?? "").Trim()}".Trim();
         if (!string.IsNullOrWhiteSpace(combined))
         {
             GradeClass = combined.Length > 50 ? combined[..50] : combined;
@@ -157,7 +157,7 @@ public class ParentStudentLink
     public int StudentId { get; set; }
     public Student? Student { get; set; }
     [MaxLength(40)]
-    public string Relationship { get; set; } = "家長";
+    public string? Relationship { get; set; } = "家長";
 }
 
 public class Semester
