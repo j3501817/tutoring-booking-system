@@ -665,15 +665,64 @@
                         </div>
                     </div>
                     <form method="post" asp-page-handler="FlagHomework">
+                        <!-- 學生條件篩選：學校、年別、班級 -->
+                        <div class="p-3 bg-light rounded-3 border mb-3">
+                            <div class="small fw-bold text-dark mb-2">
+                                <i class="bi bi-funnel-fill text-primary me-1"></i>依條件篩選學生名單
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-secondary mb-1">學校</label>
+                                    <select id="filterHwSchool" class="form-select form-select-sm" onchange="onHwSchoolChange()">
+                                        <option value="">全部學校</option>
+                                        @foreach (var sch in Model.SchoolOptions)
+                                        {
+                                            <option value="@sch.Value">@sch.Value</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-secondary mb-1">年別</label>
+                                    <select id="filterHwGrade" class="form-select form-select-sm" onchange="filterHwStudents()">
+                                        <option value="">全部年別</option>
+                                        @foreach (var grd in Model.GradeOptions)
+                                        {
+                                            <option value="@grd.Value">@grd.Value</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <label class="form-label small text-secondary mb-1">班級</label>
+                                    <select id="filterHwClass" class="form-select form-select-sm" onchange="filterHwStudents()">
+                                        <option value="">全部班級</option>
+                                        @foreach (var cls in Model.ClassOptions)
+                                        {
+                                            <option value="@cls.Value" data-parent="@(cls.ParentValue ?? "")">@cls.Value</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label class="form-label fw-semibold" for="hwStudent">學生</label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0" for="hwStudent">選擇學生</label>
+                                <span class="small text-muted" id="hwStudentCountBadge">共 @Model.ActiveStudents.Count 位</span>
+                            </div>
                             <select id="hwStudent" name="studentId" class="form-select" required>
                                 @foreach (var s in Model.ActiveStudents)
                                 {
-                                    <option value="@s.Id">@s.FullName (@s.GradeClass)</option>
+                                    <option value="@s.Id"
+                                            data-school="@(s.School ?? "")"
+                                            data-grade="@(s.Grade ?? "")"
+                                            data-classname="@(s.ClassName ?? "")"
+                                            data-gradeclass="@s.GradeClass">
+                                        @s.FullName (@s.DisplaySchoolGradeClass)
+                                    </option>
                                 }
                             </select>
                         </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="hwProgress">課程進度</label>
                             <select id="hwProgress" name="courseProgressId" class="form-select" required>
@@ -838,7 +887,7 @@
                             }
                         </select>
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-3">
                         <label class="form-label fw-semibold" for="modalProxyPurpose">五種到班目的</label>
                         <select id="modalProxyPurpose" name="purposeName" class="form-select" required>
                             @foreach (var p in Model.PurposeOptions)
@@ -847,12 +896,27 @@
                             }
                         </select>
                     </div>
+                    <div class="mb-2 p-3 bg-light rounded-3 border">
+                        <input type="hidden" id="waiveCreditDeductionInput" name="waiveCreditDeduction" value="false" />
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" id="proxyWaiveSwitch" onchange="document.getElementById('waiveCreditDeductionInput').value = this.checked ? 'true' : 'false';">
+                            <label class="form-check-label fw-semibold" for="proxyWaiveSwitch">
+                                <i class="bi bi-gift text-success me-1"></i>選擇不扣堂數（特殊獎勵／專案代約）
+                            </label>
+                        </div>
+                        <div class="small text-muted">若選擇「不扣堂數」，此筆代約將不扣除任何付費與贈送堂數，額度不足亦可完成預約（僅限老師代約適用）。</div>
+                    </div>
                 </div>
-                <div class="modal-footer bg-light">
+                <div class="modal-footer bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-accent fw-semibold">
-                        <i class="bi bi-check2-circle me-1"></i>確認代預約
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-accent fw-semibold" onclick="if(!document.getElementById('proxyWaiveSwitch').checked){document.getElementById('waiveCreditDeductionInput').value='false';}">
+                            <i class="bi bi-check2-circle me-1"></i>確認代預約
+                        </button>
+                        <button type="submit" class="btn btn-success fw-semibold" onclick="document.getElementById('waiveCreditDeductionInput').value='true'; document.getElementById('proxyWaiveSwitch').checked=true;">
+                            <i class="bi bi-gift-fill me-1"></i>不扣堂數代預約
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -1002,8 +1066,88 @@
             modal.show();
         }
 
+        // 學校連動班級下拉選單
+        function onHwSchoolChange() {
+            const school = (document.getElementById('filterHwSchool') ? document.getElementById('filterHwSchool').value : '').trim();
+            const classSelect = document.getElementById('filterHwClass');
+            if (classSelect) {
+                const options = classSelect.querySelectorAll('option');
+                let currentValStillValid = false;
+                options.forEach(opt => {
+                    if (!opt.value) {
+                        opt.hidden = false;
+                        return;
+                    }
+                    const parent = (opt.getAttribute('data-parent') || '').trim();
+                    if (!school || !parent || parent === school) {
+                        opt.hidden = false;
+                        if (opt.value === classSelect.value) {
+                            currentValStillValid = true;
+                        }
+                    } else {
+                        opt.hidden = true;
+                    }
+                });
+                if (!currentValStillValid && classSelect.value !== '') {
+                    classSelect.value = '';
+                }
+            }
+            filterHwStudents();
+        }
+
+        // 作業不佳學生清單篩選
+        function filterHwStudents() {
+            const school = (document.getElementById('filterHwSchool') ? document.getElementById('filterHwSchool').value : '').trim();
+            const grade = (document.getElementById('filterHwGrade') ? document.getElementById('filterHwGrade').value : '').trim();
+            const cls = (document.getElementById('filterHwClass') ? document.getElementById('filterHwClass').value : '').trim();
+            const studentSelect = document.getElementById('hwStudent');
+            const badge = document.getElementById('hwStudentCountBadge');
+
+            if (!studentSelect) return;
+
+            let visibleCount = 0;
+            let firstVisibleOpt = null;
+            let selectedOptIsVisible = false;
+
+            for (let i = 0; i < studentSelect.options.length; i++) {
+                const opt = studentSelect.options[i];
+                if (!opt.value) continue;
+
+                const optSchool = (opt.getAttribute('data-school') || '').trim();
+                const optGrade = (opt.getAttribute('data-grade') || '').trim();
+                const optClass = (opt.getAttribute('data-classname') || '').trim();
+                const optGradeClass = (opt.getAttribute('data-gradeclass') || '').trim();
+
+                const matchSchool = !school || optSchool === school || optGradeClass.includes(school);
+                const matchGrade = !grade || optGrade === grade || optGradeClass.includes(grade);
+                const matchClass = !cls || optClass === cls || optGradeClass.includes(cls);
+
+                if (matchSchool && matchGrade && matchClass) {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    visibleCount++;
+                    if (!firstVisibleOpt) firstVisibleOpt = opt;
+                    if (opt.selected) selectedOptIsVisible = true;
+                } else {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                    if (opt.selected) opt.selected = false;
+                }
+            }
+
+            if (!selectedOptIsVisible && firstVisibleOpt) {
+                firstVisibleOpt.selected = true;
+            }
+
+            if (badge) {
+                badge.textContent = `符合條件：${visibleCount} 位`;
+            }
+        }
+
         // 頁籤狀態保存
         document.addEventListener('DOMContentLoaded', function () {
+            onHwSchoolChange();
+
             const hash = window.location.hash;
             if (hash) {
                 const targetBtn = document.querySelector(`#teacherWorkspaceTabs button[data-bs-target="${hash}"]`);

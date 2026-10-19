@@ -153,7 +153,8 @@ public class BookingService
         int studentId,
         int operatorUserId,
         string purposeName,
-        DateTime? nowUtc = null)
+        DateTime? nowUtc = null,
+        bool waiveCreditDeduction = false)
     {
         var timestamp = nowUtc ?? DateTime.UtcNow;
 
@@ -224,11 +225,16 @@ public class BookingService
             }
         }
 
-        var creditsNeeded = slot.SlotType == SlotType.SmallGroup ? 1 : 0;
+        // 僅老師與管理員具備免扣堂權限，若非老師/管理員則不允許免扣堂
+        var isTeacherOrAdmin = op.Role == UserRole.Teacher || op.Role == UserRole.Admin;
+        var isFreeWaived = waiveCreditDeduction && isTeacherOrAdmin;
+
+        var creditsNeeded = (slot.SlotType == SlotType.SmallGroup && !isFreeWaived) ? 1 : 0;
         if (creditsNeeded > 0 && student.TotalCredits < creditsNeeded)
         {
             throw new InvalidOperationException($"學生堂數餘額不足（目前付費 {student.PaidCredits} 堂 + 贈送 {student.BonusCredits} 堂，小組指導需 1 堂）。");
         }
+
 
         var booking = new Booking
         {

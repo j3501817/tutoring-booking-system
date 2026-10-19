@@ -462,7 +462,8 @@ public class BookingAndLedgerTests
         db.Students.AddRange(s1, s2);
         await db.SaveChangesAsync();
 
-        var slotDate = DateTime.UtcNow;
+        var baseTime = new DateTime(2026, 10, 19, 10, 0, 0, DateTimeKind.Utc);
+        var slotDate = baseTime.AddHours(2);
         var slot = await booking.CreateSlotAsync(
             teacher.Id,
             progress.Id,
@@ -475,8 +476,8 @@ public class BookingAndLedgerTests
             "點名測試"
         );
 
-        var b1 = await booking.CreateBookingAsync(slot.Id, s1.Id, teacher.Id, "課業提問");
-        var b2 = await booking.CreateBookingAsync(slot.Id, s2.Id, teacher.Id, "作業輔導");
+        var b1 = await booking.CreateBookingAsync(slot.Id, s1.Id, teacher.Id, "課業提問", baseTime);
+        var b2 = await booking.CreateBookingAsync(slot.Id, s2.Id, teacher.Id, "作業輔導", baseTime);
 
         var batchList = new List<(int BookingId, AttendanceStatus Status)>
         {
@@ -499,6 +500,73 @@ public class BookingAndLedgerTests
         var formattedZh = BookingService.FormatTaipeiDateTimeZh(new DateTime(2026, 10, 18, 10, 0, 0, DateTimeKind.Utc));
         Assert.Contains("週", formattedZh.Replace("(", "週").Replace(")", "")); // 包含星期
         Assert.Contains("18:00", formattedZh); // UTC+8
+    }
+
+    [Fact]
+    public async Task ProxyBook_WithWaiveCreditDeduction_DoesNotDeductCredits_AndResolvesHomework()
+    {
+        var (db, _, booking, line) = CreateTestServices();
+
+        var teacher = new AppUser { Username = "teacher_proxy", PasswordHash = "pw", DisplayName = "陳老師", Role = UserRole.Teacher };
+        var parent = new AppUser { Username = "parent_proxy", PasswordHash = "pw", DisplayName = "家長", Role = UserRole.Parent };
+        var student = new Student
+        {
+            FullName = "王小美",
+            School = "光華",
+            Grade = "國二",
+            ClassName = "B班",
+            GradeClass = "國二B班",
+            PaidCredits = 0,
+            BonusCredits = 0,
+            EnrollmentDate = new DateOnly(2026, 9, 1)
+        };
+        var prog = new CourseProgress { SemesterId = 1, Code = "W09", Title = "進度9", GradeClass = "國二B班", IsCurrentProgress = true };
+
+        db.Users.AddRange(teacher, parent);
+        db.Students.Add(student);
+        db.CourseProgresses.Add(prog);
+        await db.SaveChangesAsync();
+
+        var t0 = new DateTime(2026, 10, 20, 10, 0, 0, DateTimeKind.Utc);
+
+        // 1. 建立作業不佳追蹤紀錄
+        var hw = await line.FlagHomeworkPoorAsync(student.Id, teacher.Id, prog.Id, "段考訂正未完成", t0);
+        Assert.False(hw.IsResolvedByBooking);
+
+        // 2. 建立小組指導時段 (原需扣 1 堂)
+        var slot = await booking.CreateSlotAsync(teacher.Id, prog.Id, "國二B班", SlotType.SmallGroup, t0.AddDays(1), t0.AddDays(1).AddHours(1), 3, false, "");
+
+        // 3. 測試家長嘗試 waiveCreditDeduction 應拋出例外
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            booking.CreateBookingAsync(slot.Id, student.Id, parent.Id, "課業提問", t0, waiveCreditDeduction: true));
+
+        // 4. 老師使用免扣堂數代預約 (即使學生堂數為 0 亦可成功)
+        var b = await booking.CreateBookingAsync(slot.Id, student.Id, teacher.Id, "課業提問", t0, waiveCreditDeduction: true);
+        Assert.NotNull(b);
+
+        // 堂數不變
+        var refreshedStudent = await db.Students.FindAsync(student.Id);
+        Assert.Equal(0, refreshedStudent!.PaidCredits);
+        Assert.Equal(0, refreshedStudent.BonusCredits);
+
+        // 無扣款交易流水
+        var deductTx = await db.CreditLedgerEntries.FirstOrDefaultAsync(x => x.RelatedBookingId == b.Id && x.TransactionType == LedgerTransactionType.BookingDeduct);
+        Assert.Null(deductTx);
+
+        // 時段剩餘名額正常扣減
+        var refreshedSlot = await db.TutoringSlots.FindAsync(slot.Id);
+        Assert.Equal(2, refreshedSlot!.RemainingSeats);
+
+        // 作業不佳追蹤自動被解決
+        var refreshedHw = await db.HomeworkWatchItems.FindAsync(hw.Id);
+        Assert.True(refreshedHw!.IsResolvedByBooking);
+        Assert.Equal(b.Id, refreshedHw.ResolvedBookingId);
+
+        // 5. 取消免扣堂預約時不退任何堂數
+        await booking.CancelBookingAsync(b.Id, teacher.Id, "行程變更", t0.AddMinutes(5));
+        var afterCancelStudent = await db.Students.FindAsync(student.Id);
+        Assert.Equal(0, afterCancelStudent!.PaidCredits);
+        Assert.Equal(0, afterCancelStudent.BonusCredits);
     }
 }
 
