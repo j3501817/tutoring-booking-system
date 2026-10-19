@@ -69,6 +69,10 @@ public class IndexModel : PageModel
     public List<Booking> TodayBookings { get; set; } = new();
     public TutoringSlot? ActiveRollcallSlot { get; set; }
 
+    // 學生篩選選項（學校、年級、班級）
+    public List<FieldOption> SchoolOptions { get; set; } = new();
+    public List<FieldOption> GradeOptions { get; set; } = new();
+    public List<FieldOption> ClassOptions { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -83,10 +87,23 @@ public class IndexModel : PageModel
             .ThenBy(s => s.Id)
             .ToListAsync();
 
+        SchoolOptions = await _db.FieldOptions
+            .Where(f => f.Category == FieldCategories.School && f.IsActive)
+            .OrderBy(f => f.SortOrder).ThenBy(f => f.Id).ToListAsync();
+
+        GradeOptions = await _db.FieldOptions
+            .Where(f => f.Category == FieldCategories.Grade && f.IsActive)
+            .OrderBy(f => f.SortOrder).ThenBy(f => f.Id).ToListAsync();
+
+        ClassOptions = await _db.FieldOptions
+            .Where(f => f.Category == FieldCategories.Class && f.IsActive)
+            .OrderBy(f => f.SortOrder).ThenBy(f => f.Id).ToListAsync();
+
         ProgressList = await _db.CourseProgresses
             .OrderByDescending(p => p.IsCurrentProgress)
             .ThenByDescending(p => p.Id)
             .ToListAsync();
+
 
         PurposeOptions = await _db.AttendancePurposeOptions
             .Where(p => p.IsActive)
@@ -373,15 +390,23 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostProxyBookAsync(
         int studentId,
         int slotId,
-        string purposeName)
+        string purposeName,
+        bool waiveCreditDeduction = false)
     {
         var user = await GetCurrentTeacherOrAdminAsync();
         if (user == null) return RedirectToPage("/Account/Login");
 
         try
         {
-            await _bookingService.CreateBookingAsync(slotId, studentId, user.Id, purposeName);
-            TempData["SuccessMessage"] = $"老師代學生預約成功（已保存操作人：{user.DisplayName}）。";
+            await _bookingService.CreateBookingAsync(
+                slotId,
+                studentId,
+                user.Id,
+                purposeName,
+                waiveCreditDeduction: waiveCreditDeduction);
+
+            var waiveMsg = waiveCreditDeduction ? "（此筆為免扣堂數預約）" : "";
+            TempData["SuccessMessage"] = $"老師代學生預約成功{waiveMsg}（已保存操作人：{user.DisplayName}）。";
         }
         catch (Exception ex)
         {
@@ -390,6 +415,7 @@ public class IndexModel : PageModel
 
         return RedirectToPage();
     }
+
 
     public async Task<IActionResult> OnPostRecordAttendanceAsync(
         int bookingId,
