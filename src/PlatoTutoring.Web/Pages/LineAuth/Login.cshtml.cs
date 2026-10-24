@@ -53,25 +53,33 @@ public class LoginModel : PageModel
         // 若已完整配置 LINE Login ClientId 與 Secret，直接跳轉 LINE 官方授權
         if (IsLoginConfigured)
         {
-            var state = Guid.NewGuid().ToString("N");
-            var statePayload = $"{state}|{ReturnUrl}";
-
-            Response.Cookies.Append("Plato_LineState", statePayload, new CookieOptions
+            try
             {
-                HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Lax,
-                Expires = DateTimeOffset.UtcNow.AddMinutes(15)
-            });
+                var state = Guid.NewGuid().ToString("N");
+                var statePayload = $"{state}|{ReturnUrl}";
 
-            var redirectUri = Url.Page("/LineAuth/Callback", null, null, Request.Scheme)
-                              ?? $"{Request.Scheme}://{Request.Host}/LineAuth/Callback";
+                Response.Cookies.Append("Plato_LineState", statePayload, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = Request.IsHttps,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(15)
+                });
 
-            var authorizeUrl = _lineAuth.BuildAuthorizeUrl(redirectUri, state);
-            return Redirect(authorizeUrl);
+                var redirectUri = Url.Page("/LineAuth/Callback", null, null, Request.Scheme)
+                                  ?? $"{Request.Scheme}://{Request.Host}/LineAuth/Callback";
+
+                var authorizeUrl = _lineAuth.BuildAuthorizeUrl(redirectUri, state, _db);
+                return Redirect(authorizeUrl);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                IsLoginConfigured = false;
+            }
         }
 
-        // 若尚未設定 LINE Login ClientId，渲染引導說明頁面與提供直接/模擬綁定
+        // 若尚未設定 LINE Login ClientId 或授權建置失敗，渲染引導說明頁面與提供直接/手動綁定
         return Page();
     }
 

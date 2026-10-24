@@ -323,109 +323,81 @@
 
     <!-- 分頁二：儲值登錄、匯款憑證上傳與堂數沖正調整 -->
     <div class="tab-pane fade" id="tab-teacher-topup" role="tabpanel">
-        <div class="row g-4 mb-4">
-            <!-- 學生儲值登錄與匯款憑證上傳 -->
-            <div class="col-12 col-xl-7">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box ocean"><i class="bi bi-cash-coin"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">學生儲值登錄與匯款憑證上傳</h2>
-                                <div class="small text-muted">預設小組指導每堂 NT$500、6 堂一組（NT$3,000）</div>
-                            </div>
-                        </div>
-                    </div>
-                    <form method="post" asp-page-handler="RecordTopUp" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="topupStudent">選擇儲值學生</label>
-                            <select id="topupStudent" name="studentId" class="form-select" required>
-                                @foreach (var s in Model.ActiveStudents)
-                                {
-                                    <option value="@s.Id">@s.FullName (@s.GradeClass) － 目前付費:@s.PaidCredits 堂 / 贈送:@s.BonusCredits 堂</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label fw-semibold" for="amountNtd">儲值金額 (NT$)</label>
-                                <input type="number" id="amountNtd" name="amountNtd" class="form-control" value="3000" min="100" step="100" required />
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label fw-semibold" for="creditsAdded">增加付費堂數</label>
-                                <input type="number" id="creditsAdded" name="creditsAdded" class="form-control" value="6" min="1" max="100" required />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label fw-semibold" for="remittanceDate">匯款日期</label>
-                                <input type="date" id="remittanceDate" name="remittanceDate" class="form-control"
-                                       value="@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd")" required />
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label fw-semibold" for="accountLastFiveDigits">匯款帳號末五碼</label>
-                                <input type="text" id="accountLastFiveDigits" name="accountLastFiveDigits" class="form-control"
-                                       maxlength="5" minlength="5" placeholder="例如：12345" required />
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="attachmentFile">匯款截圖／憑證附件（支援手機拍照或相簿選取，保留 90 天）</label>
-                            <input type="file" id="attachmentFile" name="attachmentFile" class="form-control"
-                                   accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment"
-                                   onchange="previewRemittanceImage(this)" />
-                            <div id="attachmentPreviewBox" class="mt-2 d-none">
-                                <div class="small text-success fw-semibold mb-1">附件即時預覽：</div>
-                                <img id="attachmentPreviewImg" src="" alt="匯款憑證預覽" class="img-thumbnail" style="max-height: 160px;" />
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="topupNote">備註說明</label>
-                            <input type="text" id="topupNote" name="note" class="form-control" placeholder="例如：家長轉帳 6 堂小組指導" />
-                        </div>
-                        <button type="submit" class="btn btn-accent w-100">
-                            <i class="bi bi-check2-circle me-1"></i>確認登錄儲值並寫入流水帳
-                        </button>
-                    </form>
+        <!-- 頂部功能按鈕工具列 -->
+        <div class="card-plato p-3 p-md-4 mb-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1"><i class="bi bi-wallet2 me-2 text-primary"></i>學生儲值與堂數管理</h2>
+                    <div class="small text-muted">所有更正均以新交易沖正調整，不修改原始流水帳；憑證僅授課老師與管理員具備權限檢視</div>
                 </div>
-            </div>
-
-            <!-- 發放贈送堂數與沖正更正（改為按鈕與彈跳視窗） -->
-            <div class="col-12 col-xl-5">
-                <div class="card-plato p-3 p-md-4 h-100 d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="section-header-clean mb-3">
-                            <div class="section-header-title">
-                                <span class="metric-icon-box"><i class="bi bi-arrow-left-right"></i></span>
-                                <div>
-                                    <h2 class="h5 fw-bold mb-0">堂數手動調整與發放</h2>
-                                    <div class="small text-muted">所有更正均以新交易沖正調整，不修改原始流水帳</div>
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-secondary small mb-3">
-                            如需對學生發放學期獎勵贈送堂數、或進行誤扣沖正，請點擊下方按鈕以彈跳視窗進行操作。支援依學校、年別、班別條件快速篩選學生名單。
-                        </p>
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-outline-dark w-100 py-3 fw-bold shadow-sm" onclick="openAdjustCreditsModal()">
-                            <i class="bi bi-pencil-square me-2 text-primary"></i>發放贈送堂數／沖正更正堂數
-                        </button>
-                    </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTopUp" onclick="openTopUpModal()">
+                        <i class="bi bi-cash-coin me-1"></i>+ 學生儲值登錄與憑證上傳
+                    </button>
+                    <button type="button" class="btn btn-outline-dark fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAdjustCredits" onclick="openAdjustCreditsModal()">
+                        <i class="bi bi-arrow-left-right me-1 text-primary"></i>+ 發放贈送堂數／沖正更正堂數
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- 近期匯款儲值批次與憑證檢視 -->
+        <!-- 主要畫面：近期儲值批次與匯款憑證紀錄（含學生學校、年別、班別與匯款日篩選） -->
         <div class="card-plato p-3 p-md-4">
-            <div class="section-header-clean">
+            <div class="section-header-clean mb-3">
                 <div class="section-header-title">
                     <span class="metric-icon-box ocean"><i class="bi bi-receipt-cutoff"></i></span>
                     <div>
                         <h2 class="h5 fw-bold mb-0">近期儲值批次與匯款憑證紀錄</h2>
-                        <div class="small text-muted">私有儲存，僅授課老師與管理員具備權限檢視憑證附件</div>
+                        <div class="small text-muted">支援學生多維度條件與匯款日精確篩選</div>
                     </div>
                 </div>
             </div>
+
+            <!-- 篩選表單 -->
+            <form method="get" action="/Teacher#tab-teacher-topup" class="p-3 mb-4 bg-light rounded-3 border">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">學校篩選</label>
+                        <select name="FilterSchool" class="form-select form-select-sm">
+                            <option value="">全部學校</option>
+                            @foreach (var s in Model.SchoolOptions)
+                            {
+                                <option value="@s.Value" selected="@(Model.FilterSchool == s.Value)">@s.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold text-secondary mb-1">年別篩選</label>
+                        <select name="FilterGrade" class="form-select form-select-sm">
+                            <option value="">全部年別</option>
+                            @foreach (var g in Model.GradeOptions)
+                            {
+                                <option value="@g.Value" selected="@(Model.FilterGrade == g.Value)">@g.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold text-secondary mb-1">班別篩選</label>
+                        <select name="FilterClass" class="form-select form-select-sm">
+                            <option value="">全部班別</option>
+                            @foreach (var c in Model.ClassOptions)
+                            {
+                                <option value="@c.Value" selected="@(Model.FilterClass == c.Value)">@c.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">匯款日篩選</label>
+                        <input type="date" name="FilterRemittanceDate" class="form-control form-control-sm" value="@Model.FilterRemittanceDate" />
+                    </div>
+                    <div class="col-12 col-md-2 d-flex gap-1">
+                        <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                            <i class="bi bi-funnel me-1"></i>篩選
+                        </button>
+                        <a href="/Teacher#tab-teacher-topup" class="btn btn-sm btn-outline-secondary">清除</a>
+                    </div>
+                </div>
+            </form>
             <div class="table-responsive">
                 <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
                     <thead>
@@ -905,7 +877,7 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="modalProxyPurpose">到班目的（下拉選擇）</label>
+                        <label class="form-label fw-semibold" for="modalProxyPurpose">到班目的</label>
                         <select id="modalProxyPurpose" name="purposeName" class="form-select" required>
                             @foreach (var p in Model.PurposeOptions)
                             {
@@ -928,6 +900,118 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="submit" class="btn btn-accent fw-semibold">
                         <i class="bi bi-check2-circle me-1"></i>確認代預約
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal: 學生儲值登錄與匯款憑證上傳（含學校、年別、班別獨立篩選） -->
+<div class="modal fade" id="modalTopUp" tabindex="-1" aria-labelledby="modalTopUpLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="modalTopUpLabel">
+                    <i class="bi bi-cash-coin me-1 text-primary"></i>學生儲值登錄與匯款憑證上傳
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="RecordTopUp" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <!-- 學生篩選器 -->
+                    <div class="p-3 mb-3 bg-light rounded-3 border">
+                        <div class="fw-bold small text-dark mb-2">
+                            <i class="bi bi-funnel me-1 text-primary"></i>先篩選學生範圍（學校、年別、班別獨立不連動）：
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">學校篩選</label>
+                                <select id="filterTopUpSchool" class="form-select form-select-sm" onchange="filterTopUpModalStudents()">
+                                    <option value="">全部學校</option>
+                                    @foreach (var s in Model.SchoolOptions)
+                                    {
+                                        <option value="@s.Value">@s.Value</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">年別篩選</label>
+                                <select id="filterTopUpGrade" class="form-select form-select-sm" onchange="filterTopUpModalStudents()">
+                                    <option value="">全部年別</option>
+                                    @foreach (var g in Model.GradeOptions)
+                                    {
+                                        <option value="@g.Value">@g.Value</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">班別篩選</label>
+                                <select id="filterTopUpClass" class="form-select form-select-sm" onchange="filterTopUpModalStudents()">
+                                    <option value="">全部班別</option>
+                                    @foreach (var c in Model.ClassOptions)
+                                    {
+                                        <option value="@c.Value">@c.Value</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="topupStudent">選擇儲值學生</label>
+                        <select id="topupStudent" name="studentId" class="form-select" required>
+                            @foreach (var s in Model.ActiveStudents)
+                            {
+                                <option value="@s.Id" data-school="@s.School" data-grade="@s.Grade" data-class="@s.ClassName">
+                                    @s.FullName (@s.GradeClass) － 目前付費:@s.PaidCredits 堂 / 贈送:@s.BonusCredits 堂
+                                </option>
+                            }
+                        </select>
+                        <div id="topupStudentEmptyHint" class="text-danger small mt-1 d-none">
+                            <i class="bi bi-exclamation-triangle me-1"></i>無符合所選條件的學生。
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="amountNtd">儲值金額 (NT$)</label>
+                            <input type="number" id="amountNtd" name="amountNtd" class="form-control" value="3000" min="100" step="100" required />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="creditsAdded">增加付費堂數</label>
+                            <input type="number" id="creditsAdded" name="creditsAdded" class="form-control" value="6" min="1" max="100" required />
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="remittanceDate">匯款日期</label>
+                            <input type="date" id="remittanceDate" name="remittanceDate" class="form-control"
+                                   value="@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd")" required />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="accountLastFiveDigits">匯款帳號末五碼</label>
+                            <input type="text" id="accountLastFiveDigits" name="accountLastFiveDigits" class="form-control"
+                                   maxlength="5" minlength="5" placeholder="例如：12345" required />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="attachmentFile">匯款截圖／憑證附件（支援手機拍照或相簿選取，保留 90 天）</label>
+                        <input type="file" id="attachmentFile" name="attachmentFile" class="form-control"
+                               accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment"
+                               onchange="previewRemittanceImage(this)" />
+                        <div id="attachmentPreviewBox" class="mt-2 d-none">
+                            <div class="small text-success fw-semibold mb-1">附件即時預覽：</div>
+                            <img id="attachmentPreviewImg" src="" alt="匯款憑證預覽" class="img-thumbnail" style="max-height: 160px;" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="topupNote">備註說明</label>
+                        <input type="text" id="topupNote" name="note" class="form-control" placeholder="例如：家長轉帳 6 堂小組指導" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-accent px-4">
+                        <i class="bi bi-check2-circle me-1"></i>確認登錄儲值並寫入流水帳
                     </button>
                 </div>
             </form>
@@ -1152,10 +1236,76 @@
 
             showSavingOverlay();
             document.getElementById('singleRollcallForm').submit();
+        }
+
+        // 開啟學生儲值登錄彈跳視窗
+        function openTopUpModal() {
+            filterTopUpModalStudents();
+            const modalEl = document.getElementById('modalTopUp');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+        }
+
+        // 儲值彈窗學生依學校、年別、班別獨立篩選
+        function filterTopUpModalStudents() {
+            const school = (document.getElementById('filterTopUpSchool')?.value || '').trim();
+            const grade = (document.getElementById('filterTopUpGrade')?.value || '').trim();
+            const cls = (document.getElementById('filterTopUpClass')?.value || '').trim();
+            const studentSelect = document.getElementById('topupStudent');
+            const emptyHint = document.getElementById('topupStudentEmptyHint');
+            if (!studentSelect) return;
+
+            let visibleCount = 0;
+            let firstVisibleOpt = null;
+            let currentSelectedStillVisible = false;
+
+            for (let i = 0; i < studentSelect.options.length; i++) {
+                const opt = studentSelect.options[i];
+                const optSchool = (opt.getAttribute('data-school') || '').trim();
+                const optGrade = (opt.getAttribute('data-grade') || '').trim();
+                const optClass = (opt.getAttribute('data-class') || '').trim();
+
+                const matchSchool = !school || optSchool === school;
+                const matchGrade = !grade || optGrade === grade;
+                const matchClass = !cls || optClass === cls;
+
+                if (matchSchool && matchGrade && matchClass) {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    visibleCount++;
+                    if (!firstVisibleOpt) firstVisibleOpt = opt;
+                    if (opt.value === studentSelect.value) currentSelectedStillVisible = true;
+                } else {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                }
+            }
+
+            if (!currentSelectedStillVisible && firstVisibleOpt) {
+                studentSelect.value = firstVisibleOpt.value;
+            }
+
+            if (emptyHint) {
+                if (visibleCount === 0) {
+                    emptyHint.classList.remove('d-none');
+                    studentSelect.classList.add('is-invalid');
+                } else {
+                    emptyHint.classList.add('d-none');
+                    studentSelect.classList.remove('is-invalid');
+                }
+            }
+        }
+
         // 開啟堂數調整彈跳視窗
         function openAdjustCreditsModal() {
             filterAdjustModalStudents();
-            new bootstrap.Modal(document.getElementById('modalAdjustCredits')).show();
+            const modalEl = document.getElementById('modalAdjustCredits');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
         }
 
         // 堂數調整彈窗學生依學校、年別、班別獨立篩選

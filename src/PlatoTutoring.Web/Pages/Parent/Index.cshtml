@@ -180,16 +180,22 @@
                     <i class="bi bi-wallet2"></i>
                 </div>
                 <div>
-                    <div class="d-flex align-items-baseline gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="fs-6 fw-bold text-dark">目前可用總堂數：</span>
                         <span class="fs-2 fw-bolder" style="color: var(--plato-terracotta-dark);">@student.TotalCredits</span>
-                        <span class="fw-bold text-dark">堂</span>
-                        <span class="badge bg-light text-dark border ms-1 fw-normal">
-                            ＝ 付費儲值 <strong class="text-primary">@student.PaidCredits</strong> 堂 ＋ 學期贈送 <strong class="text-success">@student.BonusCredits</strong> 堂
-                        </span>
+                        <span class="fw-bold text-dark me-1">堂</span>
+                        <div class="d-inline-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge bg-light text-dark border py-2 px-3 fw-normal">
+                                付費儲值 <strong class="text-primary fs-6">@student.PaidCredits</strong> 堂
+                            </span>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-2 px-3 fw-normal">
+                                學期贈送 <strong class="text-success fs-6">@student.BonusCredits</strong> 堂
+                                <span class="text-secondary small ms-1">（期限至當學期結束，以到班日計算）</span>
+                            </span>
+                        </div>
                     </div>
-                    <div class="small text-muted mt-1">
-                        <i class="bi bi-info-circle me-1 text-primary"></i>小組指導優先扣抵贈送堂數；團體輔導完全免費不扣堂。每學期贈送堂數期末歸零。
+                    <div class="small text-muted mt-2">
+                        <i class="bi bi-info-circle me-1 text-primary"></i>小組指導優先扣抵贈送堂數；團體輔導完全免費不扣堂。贈送堂數一換學期即歸 0。
                     </div>
                 </div>
             </div>
@@ -246,29 +252,29 @@
             <!-- 月曆卡片 (先顯示月曆，標示小組與團體) -->
             <div class="booking-month-calendar card-plato p-3 p-md-4 mb-4 shadow-sm">
                 <div class="calendar-month-header">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <h2 class="h5 fw-bold mb-0 text-dark">
+                    <div class="d-flex align-items-center gap-2 flex-wrap my-auto">
+                        <h2 class="h5 fw-bold mb-0 text-dark d-flex align-items-center">
                             <i class="bi bi-calendar3 text-primary me-2"></i>@Model.CalendarYear 年 @Model.CalendarMonth 月 課堂月曆
                         </h2>
-                        <div class="btn-group btn-group-sm ms-md-2" role="group">
+                        <div class="btn-group btn-group-sm ms-md-2 my-auto align-self-center" role="group">
                             <a asp-page="/Parent/Index"
                                asp-route-studentId="@student.Id"
                                asp-route-year="@Model.PrevYear"
                                asp-route-month="@Model.PrevMonth"
-                               class="btn btn-outline-secondary" title="上一月">
-                                <i class="bi bi-chevron-left"></i> 上月
+                               class="btn btn-outline-secondary d-inline-flex align-items-center py-1" title="上一月">
+                                <i class="bi bi-chevron-left me-1"></i>上月
                             </a>
                             <a asp-page="/Parent/Index"
                                asp-route-studentId="@student.Id"
-                               class="btn btn-outline-dark" title="返回當月">
+                               class="btn btn-outline-dark d-inline-flex align-items-center py-1" title="返回當月">
                                 本月
                             </a>
                             <a asp-page="/Parent/Index"
                                asp-route-studentId="@student.Id"
                                asp-route-year="@Model.NextYear"
                                asp-route-month="@Model.NextMonth"
-                               class="btn btn-outline-secondary" title="下一月">
-                                下月 <i class="bi bi-chevron-right"></i>
+                               class="btn btn-outline-secondary d-inline-flex align-items-center py-1" title="下一月">
+                                下月<i class="bi bi-chevron-right ms-1"></i>
                             </a>
                         </div>
                     </div>

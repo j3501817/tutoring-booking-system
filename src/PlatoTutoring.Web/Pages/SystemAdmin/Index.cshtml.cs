@@ -36,7 +36,10 @@ public class IndexModel : PageModel
     public List<AttendancePurposeOption> PurposeOptions { get; set; } = new(); // 到班目的
     public List<AcademicHoliday> AcademicHolidays { get; set; } = new(); // 休假日
     public Dictionary<DateOnly, AcademicHoliday> HolidayMap { get; set; } = new();
+    public List<Semester> AllSemesters { get; set; } = new(); // 所有學期列表
     public Semester? CurrentSemester { get; set; }
+    public Semester? ViewingSemester { get; set; }
+    public int? SelectedSemesterId { get; set; }
 
     public int CalendarYear { get; set; }
     public int CalendarMonth { get; set; }
@@ -63,7 +66,7 @@ public class IndexModel : PageModel
         await next();
     }
 
-    public async Task OnGetAsync(int? year = null, int? month = null)
+    public async Task OnGetAsync(int? year = null, int? month = null, int? semesterId = null)
     {
         AllOptions = await _db.FieldOptions
             .OrderBy(o => o.Category)
@@ -88,9 +91,16 @@ public class IndexModel : PageModel
 
         HolidayMap = AcademicHolidays.ToDictionary(h => h.Date, h => h);
 
-        CurrentSemester = await _db.Semesters
-            .FirstOrDefaultAsync(s => s.IsCurrent)
-            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        AllSemesters = await _db.Semesters
+            .OrderBy(s => s.StartDate)
+            .ToListAsync();
+
+        CurrentSemester = AllSemesters.FirstOrDefault(s => s.IsCurrent)
+            ?? AllSemesters.OrderByDescending(s => s.StartDate).FirstOrDefault();
+
+        SelectedSemesterId = semesterId ?? CurrentSemester?.Id;
+        ViewingSemester = (SelectedSemesterId.HasValue ? AllSemesters.FirstOrDefault(s => s.Id == SelectedSemesterId.Value) : null)
+            ?? CurrentSemester;
 
         if (year.HasValue && month.HasValue && month.Value >= 1 && month.Value <= 12)
         {
@@ -99,9 +109,22 @@ public class IndexModel : PageModel
         }
         else
         {
+            var targetDate = ViewingSemester != null
+                ? new DateTime(ViewingSemester.StartDate.Year, ViewingSemester.StartDate.Month, 1)
+                : DateTime.Today;
+
+            // 若目前月份在學期內則顯示當前月，否則顯示學期開始月份
             var today = DateTime.Today;
-            CalendarYear = today.Year;
-            CalendarMonth = today.Month;
+            if (ViewingSemester != null && DateOnly.FromDateTime(today) >= ViewingSemester.StartDate && DateOnly.FromDateTime(today) <= ViewingSemester.EndDate)
+            {
+                CalendarYear = today.Year;
+                CalendarMonth = today.Month;
+            }
+            else
+            {
+                CalendarYear = targetDate.Year;
+                CalendarMonth = targetDate.Month;
+            }
         }
 
         DaysInMonth = DateTime.DaysInMonth(CalendarYear, CalendarMonth);
@@ -119,12 +142,14 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostCreateOptionAsync(
         string category,
         string value,
-        int sortOrder = 1)
+        int sortOrder = 1,
+        string? activeTab = null)
     {
+        var targetTab = activeTab ?? GetDefaultTabForCategory(category);
         if (string.IsNullOrWhiteSpace(category) || string.IsNullOrWhiteSpace(value))
         {
             TempData["ErrorMessage"] = "請填寫完整的欄位類別與選項名稱。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         var trimmedCat = category.Trim();
@@ -137,7 +162,7 @@ public class IndexModel : PageModel
         if (exists)
         {
             TempData["ErrorMessage"] = $"該類別下已存在相同的選項「{trimmedVal}」。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         if (sortOrder <= 0)
@@ -160,25 +185,27 @@ public class IndexModel : PageModel
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已新增欄位選項：{GetCategoryDisplayName(trimmedCat)} － {trimmedVal}";
-        return RedirectToPage();
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
     }
 
     public async Task<IActionResult> OnPostUpdateOptionAsync(
         int optionId,
         string value,
-        int sortOrder = 1)
+        int sortOrder = 1,
+        string? activeTab = null)
     {
         var opt = await _db.FieldOptions.FindAsync(optionId);
         if (opt == null)
         {
             TempData["ErrorMessage"] = "找不到指定的欄位選項。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: activeTab ?? "tab-school");
         }
 
+        var targetTab = activeTab ?? GetDefaultTabForCategory(opt.Category);
         if (string.IsNullOrWhiteSpace(value))
         {
             TempData["ErrorMessage"] = "選項名稱不可為空白。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         opt.Value = value.Trim();
@@ -187,31 +214,33 @@ public class IndexModel : PageModel
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已更新欄位選項：{GetCategoryDisplayName(opt.Category)} － {opt.Value}";
-        return RedirectToPage();
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
     }
 
-    public async Task<IActionResult> OnPostDeleteOptionAsync(int optionId)
+    public async Task<IActionResult> OnPostDeleteOptionAsync(int optionId, string? activeTab = null)
     {
         var opt = await _db.FieldOptions.FindAsync(optionId);
         if (opt == null)
         {
             TempData["ErrorMessage"] = "找不到指定的欄位選項。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: activeTab ?? "tab-school");
         }
 
+        var targetTab = activeTab ?? GetDefaultTabForCategory(opt.Category);
         var label = $"{GetCategoryDisplayName(opt.Category)} － {opt.Value}";
         _db.FieldOptions.Remove(opt);
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已刪除欄位選項：{label}";
-        return RedirectToPage();
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
     }
 
-    public async Task<IActionResult> OnPostCreatePurposeAsync(string name, string? description, int sortOrder = 1)
+    public async Task<IActionResult> OnPostCreatePurposeAsync(string name, string? description, int sortOrder = 1, string? activeTab = null)
     {
+        var targetTab = activeTab ?? "tab-purpose";
         if (string.IsNullOrWhiteSpace(name))
         {
             TempData["ErrorMessage"] = "到班目的名稱不可為空白。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         var trimmedName = name.Trim();
@@ -219,7 +248,7 @@ public class IndexModel : PageModel
         if (exists)
         {
             TempData["ErrorMessage"] = $"已存在相同的到班目的「{trimmedName}」。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         if (sortOrder <= 0)
@@ -237,22 +266,23 @@ public class IndexModel : PageModel
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已新增到班目的：{trimmedName}";
-        return RedirectToPage();
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
     }
 
-    public async Task<IActionResult> OnPostUpdatePurposeAsync(int id, string name, int sortOrder = 1)
+    public async Task<IActionResult> OnPostUpdatePurposeAsync(int id, string name, int sortOrder = 1, string? activeTab = null)
     {
+        var targetTab = activeTab ?? "tab-purpose";
         var purpose = await _db.AttendancePurposeOptions.FindAsync(id);
         if (purpose == null)
         {
             TempData["ErrorMessage"] = "找不到指定的到班目的。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         if (string.IsNullOrWhiteSpace(name))
         {
             TempData["ErrorMessage"] = "到班目的名稱不可為空白。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         purpose.Name = name.Trim();
@@ -260,26 +290,32 @@ public class IndexModel : PageModel
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已更新到班目的：{purpose.Name}";
-        return RedirectToPage();
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
     }
 
-    public async Task<IActionResult> OnPostDeletePurposeAsync(int id)
+    public async Task<IActionResult> OnPostDeletePurposeAsync(int id, string? activeTab = null)
     {
+        var targetTab = activeTab ?? "tab-purpose";
         var purpose = await _db.AttendancePurposeOptions.FindAsync(id);
         if (purpose == null)
         {
             TempData["ErrorMessage"] = "找不到指定的到班目的。";
-            return RedirectToPage();
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
         }
 
         var name = purpose.Name;
         _db.AttendancePurposeOptions.Remove(purpose);
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已刪除到班目的：{name}";
-        return RedirectToPage();
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: null, fragment: targetTab);
     }
 
-    public async Task<IActionResult> OnPostSaveSemesterAsync(string? name, DateTime startDate, DateTime endDate)
+    public async Task<IActionResult> OnPostSaveSemesterAsync(
+        int? semesterId,
+        string? name,
+        DateTime startDate,
+        DateTime endDate,
+        bool setAsCurrent = false)
     {
         if (endDate <= startDate)
         {
@@ -290,32 +326,120 @@ public class IndexModel : PageModel
         var startOnly = DateOnly.FromDateTime(startDate);
         var endOnly = DateOnly.FromDateTime(endDate);
 
-        var semester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
-                       ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        Semester? semester = null;
+        if (semesterId.HasValue && semesterId.Value > 0)
+        {
+            semester = await _db.Semesters.FindAsync(semesterId.Value);
+        }
 
-        if (semester == null)
+        var isNew = semester == null;
+        if (isNew)
         {
             semester = new Semester
             {
                 Name = string.IsNullOrWhiteSpace(name) ? $"{startDate:yyyy} 學年度" : name.Trim(),
                 StartDate = startOnly,
                 EndDate = endOnly,
-                IsCurrent = true
+                IsCurrent = setAsCurrent,
+                DefaultBonusCredits = 3
             };
             _db.Semesters.Add(semester);
         }
-        else
+        else if (semester != null)
         {
             if (!string.IsNullOrWhiteSpace(name)) semester.Name = name.Trim();
             semester.StartDate = startOnly;
             semester.EndDate = endOnly;
-            semester.IsCurrent = true;
+            if (setAsCurrent) semester.IsCurrent = true;
+        }
+
+        if (setAsCurrent)
+        {
+            var admin = await GetCurrentAuthorizedUserAsync();
+            var oldCurrent = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent && (!semesterId.HasValue || s.Id != semesterId.Value));
+            if (oldCurrent != null && admin != null)
+            {
+                var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
+                TempData["SuccessMessage"] = $"已設定「{semester.Name}」為目前學期！前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
+            }
+            foreach (var s in await _db.Semesters.ToListAsync())
+            {
+                if (s != semester) s.IsCurrent = false;
+            }
         }
 
         await _db.SaveChangesAsync();
-        TempData["SuccessMessage"] = $"已儲存學期期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
+        TempData["SuccessMessage"] = $"已儲存學期「{semester.Name}」期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
+        return RedirectToPage(new { semesterId = semester.Id });
+    }
+
+    public async Task<IActionResult> OnPostSwitchSemesterAsync(int semesterId)
+    {
+        var targetSemester = await _db.Semesters.FindAsync(semesterId);
+        if (targetSemester == null)
+        {
+            TempData["ErrorMessage"] = "找不到指定的學期。";
+            return RedirectToPage();
+        }
+
+        var admin = await GetCurrentAuthorizedUserAsync();
+        var oldCurrent = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent && s.Id != semesterId);
+        if (oldCurrent != null && admin != null)
+        {
+            // 換學期：將前學期贈送堂數歸 0
+            var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
+            TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期！已將前學期（{oldCurrent.Name}）之贈送堂數全數結算歸零（共 {expiredCount} 位學生調整）。";
+        }
+        else
+        {
+            TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期。";
+        }
+
+        foreach (var s in await _db.Semesters.ToListAsync())
+        {
+            s.IsCurrent = (s.Id == semesterId);
+        }
+        await _db.SaveChangesAsync();
+
+        return RedirectToPage(new { semesterId });
+    }
+
+    public async Task<IActionResult> OnPostDeleteSemesterAsync(int semesterId)
+    {
+        var semester = await _db.Semesters.FindAsync(semesterId);
+        if (semester == null)
+        {
+            TempData["ErrorMessage"] = "找不到指定的學期。";
+            return RedirectToPage();
+        }
+
+        if (semester.IsCurrent)
+        {
+            TempData["ErrorMessage"] = "目前進行中之學期不可刪除，請先將其他學期設為目前學期。";
+            return RedirectToPage();
+        }
+
+        var hasCourses = await _db.CourseProgresses.AnyAsync(c => c.SemesterId == semesterId);
+        if (hasCourses)
+        {
+            TempData["ErrorMessage"] = "該學期已關聯課程進度資料，不可直接刪除。";
+            return RedirectToPage();
+        }
+
+        _db.Semesters.Remove(semester);
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已成功刪除學期「{semester.Name}」。";
         return RedirectToPage();
     }
+
+    public static string GetDefaultTabForCategory(string category) => category switch
+    {
+        FieldCategories.School => "tab-school",
+        FieldCategories.Grade => "tab-grade",
+        FieldCategories.Class => "tab-class",
+        FieldCategories.Subject => "tab-subject",
+        _ => "tab-school"
+    };
 
     public async Task<IActionResult> OnPostCreateHolidayAsync(DateTime date, string name)
     {

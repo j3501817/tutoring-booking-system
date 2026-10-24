@@ -88,52 +88,64 @@
                             }
                             @foreach (var row in Model.PagedFamilyRows)
                             {
-                                var parent = row.Parent;
+                                var primaryParent = row.Parents.FirstOrDefault();
                                 <tr>
                                     <td class="ps-3 align-top py-3">
-                                        @if (parent != null)
+                                        @if (row.Parents.Count > 0)
                                         {
-                                            <div class="d-flex justify-content-between align-items-start gap-2">
-                                                <div>
-                                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                        <span class="fw-bold fs-6 text-dark">@parent.DisplayName</span>
-                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                                                            共 @row.Children.Count 位孩子
-                                                        </span>
-                                                    </div>
-                                                    <div class="small text-muted mt-1">
-                                                        <div><i class="bi bi-person-badge me-1"></i>帳號：<code>@parent.Username</code></div>
-                                                        <div><i class="bi bi-telephone me-1"></i>電話：@(string.IsNullOrWhiteSpace(parent.Phone) ? "未填寫" : parent.Phone)</div>
-                                                        <div>
-                                                            <i class="bi bi-chat-dots me-1"></i>LINE：
-                                                            @if (!string.IsNullOrWhiteSpace(parent.LineUserId))
-                                                            {
-                                                                <span class="text-success fw-semibold">已綁定 (@parent.LineUserId)</span>
-                                                            }
-                                                            else
-                                                            {
-                                                                <span class="text-muted">未綁定</span>
-                                                            }
+                                            <div class="d-flex flex-column gap-3">
+                                                @for (var pIdx = 0; pIdx < row.Parents.Count; pIdx++)
+                                                {
+                                                    var parent = row.Parents[pIdx];
+                                                    <div class="@(pIdx > 0 ? "pt-2 border-top" : "")">
+                                                        <div class="d-flex justify-content-between align-items-start gap-2">
+                                                            <div>
+                                                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                                    <span class="fw-bold fs-6 text-dark">@parent.DisplayName</span>
+                                                                    @if (row.Parents.Count > 1)
+                                                                    {
+                                                                        <span class="badge bg-secondary-subtle text-secondary border">家長 @(pIdx + 1)</span>
+                                                                    }
+                                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                                        共 @row.Children.Count 位孩子
+                                                                    </span>
+                                                                </div>
+                                                                <div class="small text-muted mt-1">
+                                                                    <div><i class="bi bi-person-badge me-1"></i>帳號：<code>@parent.Username</code></div>
+                                                                    <div><i class="bi bi-telephone me-1"></i>電話：@(string.IsNullOrWhiteSpace(parent.Phone) ? "未填寫" : parent.Phone)</div>
+                                                                    <div>
+                                                                        <i class="bi bi-chat-dots me-1"></i>LINE：
+                                                                        @if (!string.IsNullOrWhiteSpace(parent.LineUserId))
+                                                                        {
+                                                                            <span class="text-success fw-semibold">已綁定 (@parent.LineUserId)</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="text-muted">未綁定</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="d-flex flex-column gap-1">
+                                                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
+                                                                        onclick="openCreateStudentModal(@parent.Id, '@(row.Children.FirstOrDefault()?.Relationship ?? "媽媽")')">
+                                                                    <i class="bi bi-plus-circle me-1"></i>新增孩子
+                                                                </button>
+                                                                <div class="d-flex gap-1">
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-fill"
+                                                                            onclick="openEditParentModal(@parent.Id, '@Html.Raw(parent.DisplayName)', '@Html.Raw(parent.Username)', '@Html.Raw(parent.Phone)', '@Html.Raw(parent.LineUserId ?? "")')">
+                                                                        修改家長
+                                                                    </button>
+                                                                    <form method="post" asp-page-handler="DeleteParent" class="d-inline"
+                                                                          onsubmit="return confirm('確定要刪除家長「@parent.DisplayName」嗎？（學生資料將保留並改為未綁定）');">
+                                                                        <input type="hidden" name="userId" value="@parent.Id" />
+                                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div class="d-flex flex-column gap-1">
-                                                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
-                                                            onclick="openCreateStudentModal(@parent.Id, '@(row.Children.FirstOrDefault()?.Relationship ?? "媽媽")')">
-                                                        <i class="bi bi-plus-circle me-1"></i>新增孩子
-                                                    </button>
-                                                    <div class="d-flex gap-1">
-                                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-fill"
-                                                                onclick="openEditParentModal(@parent.Id, '@Html.Raw(parent.DisplayName)', '@Html.Raw(parent.Username)', '@Html.Raw(parent.Phone)', '@Html.Raw(parent.LineUserId ?? "")')">
-                                                            修改家長
-                                                        </button>
-                                                        <form method="post" asp-page-handler="DeleteParent" class="d-inline"
-                                                              onsubmit="return confirm('確定要刪除家長「@parent.DisplayName」嗎？（學生資料將保留並改為未綁定）');">
-                                                            <input type="hidden" name="userId" value="@parent.Id" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
-                                                        </form>
-                                                    </div>
-                                                </div>
+                                                }
                                             </div>
                                         }
                                         else
@@ -149,10 +161,10 @@
                                         {
                                             <div class="d-flex align-items-center justify-content-between p-2 rounded border bg-light text-muted small">
                                                 <span>此家長目前尚未綁定任何學生。</span>
-                                                @if (parent != null)
+                                                @if (primaryParent != null)
                                                 {
                                                     <button type="button" class="btn btn-sm btn-accent py-0 px-2"
-                                                            onclick="openCreateStudentModal(@parent.Id, '媽媽')">
+                                                            onclick="openCreateStudentModal(@primaryParent.Id, '媽媽')">
                                                         + 立即新增綁定學生
                                                     </button>
                                                 }
@@ -193,7 +205,7 @@
                                                         </div>
                                                         <div class="d-flex align-items-center gap-1 flex-shrink-0">
                                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                                    onclick="openEditStudentModal(@stu.Id, '@Html.Raw(stu.FullName)', '@Html.Raw(stu.School)', '@Html.Raw(stu.Grade)', '@Html.Raw(stu.ClassName)', '@Html.Raw(stu.Phone1)', '@Html.Raw(stu.Phone2)', '@Html.Raw(stu.Phone3)', '@stu.EnrollmentDate.ToString("yyyy-MM-dd")', @(parent?.Id ?? 0))">
+                                                                    onclick="openEditStudentModal(@stu.Id, '@Html.Raw(stu.FullName)', '@Html.Raw(stu.School)', '@Html.Raw(stu.Grade)', '@Html.Raw(stu.ClassName)', '@Html.Raw(stu.Phone1)', '@Html.Raw(stu.Phone2)', '@Html.Raw(stu.Phone3)', '@stu.EnrollmentDate.ToString("yyyy-MM-dd")', @(primaryParent?.Id ?? 0))">
                                                                 <i class="bi bi-pencil-square me-1"></i>修改學生
                                                             </button>
                                                             <form method="post" asp-page-handler="DeleteStudent" class="d-inline"
@@ -390,7 +402,7 @@
                             <input type="date" name="enrollmentDate" id="createStudentEnrollmentDate" class="form-control" value="@todayStr" required />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">學校（下拉選擇）</label>
+                            <label class="form-label fw-semibold">學校</label>
                             <select name="school" id="createStudentSchool" class="form-select" required>
                                 @foreach (var s in Model.SchoolOptions)
                                 {
@@ -399,7 +411,7 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">年別（下拉選擇）</label>
+                            <label class="form-label fw-semibold">年別</label>
                             <select name="grade" id="createStudentGrade" class="form-select" required>
                                 @foreach (var g in Model.GradeOptions)
                                 {
@@ -408,7 +420,7 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">班別（下拉選擇）</label>
+                            <label class="form-label fw-semibold">班別</label>
                             <select name="className" id="createStudentClass" class="form-select" required>
                                 <option value="">-- 請選擇班別 --</option>
                                 @foreach (var c in Model.ClassOptions)
@@ -498,7 +510,7 @@
                             <input type="date" name="enrollmentDate" id="editStudentEnrollmentDate" class="form-control" required />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">學校（下拉選擇）</label>
+                            <label class="form-label fw-semibold">學校</label>
                             <select name="school" id="editStudentSchool" class="form-select" required>
                                 @foreach (var s in Model.SchoolOptions)
                                 {
@@ -507,7 +519,7 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">年別（下拉選擇）</label>
+                            <label class="form-label fw-semibold">年別</label>
                             <select name="grade" id="editStudentGrade" class="form-select" required>
                                 @foreach (var g in Model.GradeOptions)
                                 {
@@ -516,7 +528,7 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">班別（下拉選擇）</label>
+                            <label class="form-label fw-semibold">班別</label>
                             <select name="className" id="editStudentClass" class="form-select" required>
                                 <option value="">-- 請選擇班別 --</option>
                                 @foreach (var c in Model.ClassOptions)

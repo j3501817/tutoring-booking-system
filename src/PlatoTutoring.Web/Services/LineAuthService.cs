@@ -120,9 +120,9 @@ public class LineAuthService
         return !string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret);
     }
 
-    public string BuildAuthorizeUrl(string redirectUri, string state)
+    public string BuildAuthorizeUrl(string redirectUri, string state, AppDbContext? db = null)
     {
-        var clientId = GetLoginClientId();
+        var clientId = GetLoginClientId(db);
         if (string.IsNullOrWhiteSpace(clientId))
         {
             throw new InvalidOperationException("尚未設定 LINE Login Client ID (請在環境變數或 appsettings.json 設定 LineLogin__ClientId 或 LineBot__ChannelId)。");
@@ -134,10 +134,10 @@ public class LineAuthService
         return $"https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id={clientId}&redirect_uri={encodedRedirect}&state={encodedState}&scope=profile%20openid&prompt=consent";
     }
 
-    public async Task<LineUserProfile?> ExchangeCodeForProfileAsync(string code, string redirectUri, CancellationToken ct = default)
+    public async Task<LineUserProfile?> ExchangeCodeForProfileAsync(string code, string redirectUri, AppDbContext? db = null, CancellationToken ct = default)
     {
-        var clientId = GetLoginClientId();
-        var clientSecret = GetLoginClientSecret();
+        var clientId = GetLoginClientId(db);
+        var clientSecret = GetLoginClientSecret(db);
 
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
         {

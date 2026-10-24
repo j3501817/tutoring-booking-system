@@ -56,7 +56,7 @@ public class IndexModel : PageModel
     public int TeacherTotalPages { get; set; } = 1;
 
     public record ChildBindingItem(Student Student, string Relationship);
-    public record FamilyGroupRow(AppUser? Parent, List<ChildBindingItem> Children);
+    public record FamilyGroupRow(List<AppUser> Parents, List<ChildBindingItem> Children);
 
     public async Task<IActionResult> OnGetAsync(int sp = 1, int tp = 1)
     {
@@ -104,31 +104,79 @@ public class IndexModel : PageModel
 
         SchoolOptions = fieldOptions.Where(o => o.Category == FieldCategories.School).ToList();
         GradeOptions = fieldOptions.Where(o => o.Category == FieldCategories.Grade).ToList();
-        ClassOptions = fieldOptions.Where(o => o.Category == FieldCategories.Class).ToList();
+        // 班別固定為資優班與精英班（不需連動學校）
+        ClassOptions = fieldOptions
+            .Where(o => o.Category == FieldCategories.Class && (o.Value == "資優班" || o.Value == "精英班"))
+            .ToList();
+        if (!ClassOptions.Any())
+        {
+            ClassOptions = new List<FieldOption>
+            {
+                new() { Category = FieldCategories.Class, Value = "資優班", SortOrder = 1, IsActive = true },
+                new() { Category = FieldCategories.Class, Value = "精英班", SortOrder = 2, IsActive = true }
+            };
+        }
         SubjectOptions = fieldOptions.Where(o => o.Category == FieldCategories.Subject).ToList();
 
-        // 建立「家長與學生關係」合併列表：同一位家長底下的多個學生顯示在同一筆
+        // 建立「家長與學生關係」合併列表：
+        // 關聯家長若有 2 位（或多位），家長區塊並列呈現 2 位家長，學生不拆成兩筆
         var rows = new List<FamilyGroupRow>();
-        var boundStudentIds = new HashSet<int>();
+        var visitedStudentIds = new HashSet<int>();
+        var visitedParentIds = new HashSet<int>();
 
-        foreach (var parent in Parents)
+        // 1. 優先處理有綁定關係的學生群組
+        foreach (var stu in Students)
         {
-            var links = AllLinks
-                .Where(l => l.ParentUserId == parent.Id && l.Student != null)
-                .Select(l =>
-                {
-                    boundStudentIds.Add(l.StudentId);
-                    return new ChildBindingItem(l.Student!, l.Relationship ?? "家長");
-                })
+            if (visitedStudentIds.Contains(stu.Id)) continue;
+
+            var studentLinks = AllLinks.Where(l => l.StudentId == stu.Id).ToList();
+            if (!studentLinks.Any()) continue;
+
+            var familyParentIds = studentLinks.Select(l => l.ParentUserId).Distinct().ToList();
+
+            // 關聯此組家長的所有孩子
+            var familyStudentIds = AllLinks
+                .Where(l => familyParentIds.Contains(l.ParentUserId))
+                .Select(l => l.StudentId)
+                .Distinct()
                 .ToList();
 
-            rows.Add(new FamilyGroupRow(parent, links));
+            var parentsForThisFamily = new List<AppUser>();
+            foreach (var pid in familyParentIds)
+            {
+                var p = Parents.FirstOrDefault(x => x.Id == pid);
+                if (p != null && !parentsForThisFamily.Any(x => x.Id == p.Id))
+                {
+                    parentsForThisFamily.Add(p);
+                    visitedParentIds.Add(p.Id);
+                }
+            }
+
+            var familyChildren = new List<ChildBindingItem>();
+            foreach (var sid in familyStudentIds)
+            {
+                visitedStudentIds.Add(sid);
+                var s = Students.FirstOrDefault(x => x.Id == sid);
+                if (s != null)
+                {
+                    var rel = AllLinks.FirstOrDefault(l => l.StudentId == sid)?.Relationship ?? "家長";
+                    familyChildren.Add(new ChildBindingItem(s, rel));
+                }
+            }
+
+            rows.Add(new FamilyGroupRow(parentsForThisFamily, familyChildren));
         }
 
-        // 未綁定任何家長的學生亦顯示於列表中，避免遺漏
-        foreach (var unboundStudent in Students.Where(s => !boundStudentIds.Contains(s.Id)))
+        // 2. 未綁定任何學生的家長
+        foreach (var parent in Parents.Where(p => !visitedParentIds.Contains(p.Id)))
         {
-            rows.Add(new FamilyGroupRow(null, new List<ChildBindingItem>
+            rows.Add(new FamilyGroupRow(new List<AppUser> { parent }, new List<ChildBindingItem>()));
+        }
+
+        // 3. 未綁定任何家長的孩子
+        foreach (var unboundStudent in Students.Where(s => !visitedStudentIds.Contains(s.Id)))
+        {
+            rows.Add(new FamilyGroupRow(new List<AppUser>(), new List<ChildBindingItem>
             {
                 new(unboundStudent, "未綁定")
             }));
