@@ -13,7 +13,7 @@
         </div>
         <h2 class="fw-bold mb-1">系統欄位與學期行事曆管理</h2>
         <p class="text-muted small mb-0">
-            集中維護系統下拉欄位（學校、年別、班別、任教科目、到班目的）以及學期行事曆與休假日設定。
+            集中維護系統下拉欄位（學校、年別、班別、任教科目、到班目的）以及學期行事曆與休假日排定。
         </p>
     </div>
     <div class="d-flex gap-2">
@@ -23,25 +23,33 @@
         </button>
         <button type="button" class="btn btn-accent fw-bold px-3"
                 onclick="openCreateOptionModal('School')">
-            <i class="bi bi-plus-lg me-1"></i>新增基本欄位
+            <i class="bi bi-plus-lg me-1"></i>新增欄位選項
         </button>
     </div>
 </div>
 
-<!-- 學期行事曆與休假日管理區塊 -->
+<!-- 1. 學期行事曆與休假日管理區塊（月曆視覺化顯示） -->
 <div class="card card-plato mb-4 border-primary border-opacity-25 shadow-sm">
     <div class="card-header bg-primary bg-opacity-10 py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
         <div>
             <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-calendar3 me-2"></i>學期行事曆與休假日設定</h5>
-            <div class="text-muted small">設定學期起訖時間與機構休假日，休假日將同步於家長預約行事曆上反灰且禁止預約</div>
+            <div class="text-muted small">設定學期起訖時間與機構休假日，休假日將同步於家長預約行事曆上全格反灰且禁止預約</div>
+        </div>
+        <div class="d-flex align-items-center gap-2 small">
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                <i class="bi bi-calendar2-range me-1"></i>學期期間
+            </span>
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                <i class="bi bi-moon-stars-fill me-1"></i>休假日（停課）
+            </span>
         </div>
     </div>
     <div class="card-body">
         <div class="row g-4">
-            <!-- 學期起訖時間 -->
-            <div class="col-lg-5 border-end-lg">
-                <h6 class="fw-bold mb-3"><i class="bi bi-calendar-range me-2 text-primary"></i>學期期間設定</h6>
-                <form method="post" asp-page-handler="SaveSemester" class="bg-light p-3 rounded-3">
+            <!-- 左側：學期起訖時間設定 -->
+            <div class="col-lg-4 border-end-lg">
+                <h6 class="fw-bold mb-3"><i class="bi bi-sliders2 me-2 text-primary"></i>學期期間設定</h6>
+                <form method="post" asp-page-handler="SaveSemester" class="bg-light p-3 rounded-3 mb-3 border">
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">學期名稱</label>
                         <input type="text" name="name" class="form-control form-control-sm"
@@ -63,77 +71,207 @@
                         <i class="bi bi-save me-1"></i>儲存學期期間
                     </button>
                 </form>
-            </div>
 
-            <!-- 休假日管理 -->
-            <div class="col-lg-7">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0"><i class="bi bi-calendar-x me-2 text-danger"></i>休假日清單（家長端反灰不可預約）</h6>
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="openCreateHolidayModal()">
-                        <i class="bi bi-plus-lg me-1"></i>新增休假日
+                <!-- 休假日快速列表 -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold small text-secondary">已排定休假日清單 (@Model.AcademicHolidays.Count 天)</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="openCreateHolidayModal()">
+                        <i class="bi bi-plus me-1"></i>排休
                     </button>
                 </div>
-                @if (Model.AcademicHolidays.Count == 0)
-                {
-                    <div class="text-muted small p-3 bg-light rounded text-center">目前無設定休假日。</div>
-                }
-                else
-                {
-                    <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
-                        <table class="table table-sm table-hover align-middle mb-0">
-                            <thead class="table-light sticky-top">
+                <div class="table-responsive border rounded-3 bg-white" style="max-height: 230px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>日期</th>
+                                <th>休假原因</th>
+                                <th class="text-end">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.AcademicHolidays.Any())
+                            {
                                 <tr>
-                                    <th>休假日期</th>
-                                    <th>節日/休假原因</th>
-                                    <th class="text-end">操作</th>
+                                    <td colspan="3" class="text-center text-muted py-3">尚未排定休假日。</td>
                                 </tr>
-                            </thead>
-                            <tbody>
+                            }
+                            else
+                            {
                                 @foreach (var h in Model.AcademicHolidays)
                                 {
                                     <tr>
-                                        <td class="fw-bold text-danger">@h.Date.ToString("yyyy-MM-dd (ddd)")</td>
-                                        <td>@h.Name</td>
+                                        <td class="fw-bold text-danger text-nowrap">@h.Date.ToString("MM/dd (ddd)")</td>
+                                        <td class="text-truncate" style="max-width: 110px;">@h.Name</td>
                                         <td class="text-end">
                                             <form method="post" asp-page-handler="DeleteHoliday" class="d-inline"
                                                   onsubmit="return confirm('確定要移除 @h.Date.ToString("yyyy-MM-dd") 休假日嗎？');">
                                                 <input type="hidden" name="id" value="@h.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
+                                                <button type="submit" class="btn btn-sm btn-link text-danger p-0 text-decoration-none">刪除</button>
                                             </form>
                                         </td>
                                     </tr>
                                 }
-                            </tbody>
-                        </table>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 右側：學期與休假日「月曆檢視」 -->
+            <div class="col-lg-8">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-calendar-month me-2 text-primary"></i>學期行事曆月曆視圖</h6>
+                        <span class="badge bg-secondary-subtle text-secondary border">點擊日期格可快速新增休假</span>
                     </div>
-                }
+                    <div class="d-flex align-items-center gap-1">
+                        <a asp-page="./Index" asp-route-year="@Model.PrevYear" asp-route-month="@Model.PrevMonth"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                        <span class="fw-bold px-2 text-nowrap" style="min-width: 140px; text-align: center;">
+                            @Model.CalendarYear 年 @Model.CalendarMonth 月
+                        </span>
+                        <a asp-page="./Index" asp-route-year="@Model.NextYear" asp-route-month="@Model.NextMonth"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                        <a asp-page="./Index" class="btn btn-sm btn-outline-primary ms-1">本月</a>
+                    </div>
+                </div>
+
+                <!-- 月曆網格 (星期日 ~ 星期六) -->
+                <div class="border rounded-3 p-2 bg-light">
+                    <!-- 星期標題 -->
+                    <div class="row g-1 text-center small fw-bold text-secondary mb-1">
+                        <div class="col text-danger">日</div>
+                        <div class="col">一</div>
+                        <div class="col">二</div>
+                        <div class="col">三</div>
+                        <div class="col">四</div>
+                        <div class="col">五</div>
+                        <div class="col text-primary">六</div>
+                    </div>
+
+                    <!-- 日期網格 -->
+                    <div class="d-flex flex-wrap" style="margin: -2px;">
+                        @for (int p = 0; p < Model.StartDayOfWeek; p++)
+                        {
+                            <div style="width: 14.285%; padding: 2px;">
+                                <div class="p-2 border rounded bg-white opacity-25" style="min-height: 68px;"></div>
+                            </div>
+                        }
+
+                        @for (int day = 1; day <= Model.DaysInMonth; day++)
+                        {
+                            var cellDate = new DateOnly(Model.CalendarYear, Model.CalendarMonth, day);
+                            var cellDateStr = cellDate.ToString("yyyy-MM-dd");
+                            var isHoliday = Model.HolidayMap.TryGetValue(cellDate, out var holiday);
+                            var isInSemester = Model.CurrentSemester != null
+                                               && cellDate >= Model.CurrentSemester.StartDate
+                                               && cellDate <= Model.CurrentSemester.EndDate;
+                            var isToday = cellDate == DateOnly.FromDateTime(DateTime.Today);
+
+                            <div style="width: 14.285%; padding: 2px;">
+                                <div class="p-2 border rounded position-relative d-flex flex-column justify-content-between @(isHoliday ? "bg-danger bg-opacity-10 border-danger border-opacity-50" : isInSemester ? "bg-white border-primary border-opacity-25" : "bg-white")"
+                                     style="min-height: 68px; cursor: pointer; transition: all 0.15s ease;"
+                                     onclick="@(isHoliday ? "" : $"openCreateHolidayModalWithDate('{cellDateStr}')")"
+                                     title="@(isHoliday ? $"休假：{holiday!.Name}" : isInSemester ? $"{cellDateStr}（學期中，點擊設為休假日）" : $"{cellDateStr}（點擊設為休假日）")">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small fw-bold @(isToday ? "badge bg-primary text-white" : isHoliday ? "text-danger" : "text-dark")">
+                                            @day
+                                        </span>
+                                        @if (isInSemester && !isHoliday)
+                                        {
+                                            <span class="badge bg-primary bg-opacity-10 text-primary p-0 px-1" style="font-size: 0.65rem;">學期</span>
+                                        }
+                                    </div>
+
+                                    @if (isHoliday)
+                                    {
+                                        <div class="mt-1">
+                                            <span class="badge bg-danger text-white text-truncate w-100 p-1" style="font-size: 0.7rem;" title="@holiday!.Name">
+                                                🏖️ @holiday.Name
+                                            </span>
+                                            <form method="post" asp-page-handler="DeleteHoliday" class="mt-1 text-end"
+                                                  onsubmit="event.stopPropagation(); return confirm('確定要移除 @cellDateStr 休假日嗎？');">
+                                                <input type="hidden" name="id" value="@holiday.Id" />
+                                                <button type="submit" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" style="font-size: 0.68rem;">
+                                                    <i class="bi bi-trash"></i> 移除
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- 1. 學校 -->
-    <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100 shadow-sm">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-building me-2 text-primary"></i>學校選項</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">學生就讀學校下拉選單（共 @Model.SchoolOptions.Count 項）</div>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-primary"
-                        onclick="openCreateOptionModal('@FieldCategories.School')">
-                    <i class="bi bi-plus-lg me-1"></i>新增
-                </button>
+<!-- 2. 下拉選單項目管理（改用 Tab 分頁，解決雜亂問題） -->
+<div class="card card-plato shadow-sm">
+    <div class="card-header bg-white py-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h5 class="fw-bold mb-1 text-dark"><i class="bi bi-menu-button-wide me-2 text-primary"></i>下拉欄位選單項目管理</h5>
+                <div class="text-muted small">點選分頁切換維護學校、年別、班別、到班目的與任教科目下拉選單</div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+        </div>
+
+        <!-- 導覽分頁 Tabs -->
+        <ul class="nav nav-pills custom-tab-pills mt-3" id="adminFieldTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-school-btn" data-bs-toggle="pill" data-bs-target="#tab-school" type="button" role="tab">
+                    <i class="bi bi-building me-1"></i>學校選項 (@Model.SchoolOptions.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-grade-btn" data-bs-toggle="pill" data-bs-target="#tab-grade" type="button" role="tab">
+                    <i class="bi bi-layers me-1"></i>年別選項 (@Model.GradeOptions.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-class-btn" data-bs-toggle="pill" data-bs-target="#tab-class" type="button" role="tab">
+                    <i class="bi bi-diagram-3 me-1"></i>班別選項 (@Model.ClassOptions.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-purpose-btn" data-bs-toggle="pill" data-bs-target="#tab-purpose" type="button" role="tab">
+                    <i class="bi bi-bullseye me-1"></i>到班目的 (@Model.PurposeOptions.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-subject-btn" data-bs-toggle="pill" data-bs-target="#tab-subject" type="button" role="tab">
+                    <i class="bi bi-book me-1"></i>任教科目 (@Model.SubjectOptions.Count)
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card-body p-3 p-md-4">
+        <div class="tab-content" id="adminFieldTabsContent">
+            <!-- Tab 1: 學校選項 -->
+            <div class="tab-pane fade show active" id="tab-school" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0"><i class="bi bi-building text-primary me-2"></i>學生就讀學校下拉選單</h6>
+                        <div class="text-muted small">學生與儲值作業時的學校篩選清單</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="openCreateOptionModal('@FieldCategories.School')">
+                        <i class="bi bi-plus-lg me-1"></i>新增學校
+                    </button>
+                </div>
+                <div class="table-responsive border rounded-3">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light sticky-top">
+                        <thead class="table-light">
                             <tr>
-                                <th class="ps-3" style="width: 65px;">排序</th>
+                                <th class="ps-3" style="width: 80px;">排序</th>
                                 <th>學校名稱</th>
-                                <th class="text-end pe-3" style="width: 120px;">操作</th>
+                                <th class="text-end pe-3" style="width: 140px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -161,30 +299,25 @@
                     </table>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- 2. 年別 -->
-    <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100 shadow-sm">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-layers me-2 text-success"></i>年別選項</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">學生年級下拉選單（共 @Model.GradeOptions.Count 項）</div>
+            <!-- Tab 2: 年別選項 -->
+            <div class="tab-pane fade" id="tab-grade" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0"><i class="bi bi-layers text-success me-2"></i>學生年別下拉選單</h6>
+                        <div class="text-muted small">國一、國二、國三、高一等年別選項</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-success" onclick="openCreateOptionModal('@FieldCategories.Grade')">
+                        <i class="bi bi-plus-lg me-1"></i>新增年別
+                    </button>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-success"
-                        onclick="openCreateOptionModal('@FieldCategories.Grade')">
-                    <i class="bi bi-plus-lg me-1"></i>新增
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <div class="table-responsive border rounded-3">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light sticky-top">
+                        <thead class="table-light">
                             <tr>
-                                <th class="ps-3" style="width: 65px;">排序</th>
+                                <th class="ps-3" style="width: 80px;">排序</th>
                                 <th>年別名稱</th>
-                                <th class="text-end pe-3" style="width: 120px;">操作</th>
+                                <th class="text-end pe-3" style="width: 140px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -212,30 +345,25 @@
                     </table>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- 3. 班別（獨立，不需連動學校） -->
-    <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100 shadow-sm">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-diagram-3 me-2 text-danger"></i>班別選項</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">學生所屬班別（資優班、精英班、通識等，共 @Model.ClassOptions.Count 項）</div>
+            <!-- Tab 3: 班別選項 -->
+            <div class="tab-pane fade" id="tab-class" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0"><i class="bi bi-diagram-3 text-warning-emphasis me-2"></i>學生班別選項（不需連動學校）</h6>
+                        <div class="text-muted small">資優班、精英班、通識等班別選項</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-warning fw-bold text-dark" onclick="openCreateOptionModal('@FieldCategories.Class')">
+                        <i class="bi bi-plus-lg me-1"></i>新增班別
+                    </button>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger"
-                        onclick="openCreateOptionModal('@FieldCategories.Class')">
-                    <i class="bi bi-plus-lg me-1"></i>新增
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <div class="table-responsive border rounded-3">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light sticky-top">
+                        <thead class="table-light">
                             <tr>
-                                <th class="ps-3" style="width: 65px;">排序</th>
+                                <th class="ps-3" style="width: 80px;">排序</th>
                                 <th>班別名稱</th>
-                                <th class="text-end pe-3" style="width: 120px;">操作</th>
+                                <th class="text-end pe-3" style="width: 140px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -243,7 +371,7 @@
                             {
                                 <tr>
                                     <td class="ps-3 text-muted small">@item.SortOrder</td>
-                                    <td><span class="badge bg-danger bg-opacity-10 text-danger border fs-6">@item.Value</span></td>
+                                    <td><span class="badge bg-warning bg-opacity-25 text-dark border fs-6">@item.Value</span></td>
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
@@ -263,82 +391,25 @@
                     </table>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- 4. 任教科目 -->
-    <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100 shadow-sm">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-journal-bookmark me-2 text-warning"></i>任教科目選項</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">老師管理任教科目多選項目（共 @Model.SubjectOptions.Count 項）</div>
+            <!-- Tab 4: 到班目的選項 -->
+            <div class="tab-pane fade" id="tab-purpose" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0"><i class="bi bi-bullseye text-primary me-2"></i>到班輔導目的選項</h6>
+                        <div class="text-muted small">家長預約、候補及老師代預約時選擇的 6 大到班目的維護</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="openCreatePurposeModal()">
+                        <i class="bi bi-plus-lg me-1"></i>新增目的
+                    </button>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-dark"
-                        onclick="openCreateOptionModal('@FieldCategories.Subject')">
-                    <i class="bi bi-plus-lg me-1"></i>新增
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <div class="table-responsive border rounded-3">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light sticky-top">
+                        <thead class="table-light">
                             <tr>
-                                <th class="ps-3" style="width: 65px;">排序</th>
-                                <th>科目名稱</th>
-                                <th class="text-end pe-3" style="width: 120px;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in Model.SubjectOptions)
-                            {
-                                <tr>
-                                    <td class="ps-3 text-muted small">@item.SortOrder</td>
-                                    <td><span class="badge bg-light text-dark border fs-6">@item.Value</span></td>
-                                    <td class="text-end pe-3">
-                                        <div class="d-inline-flex gap-1">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
-                                                修改
-                                            </button>
-                                            <form method="post" asp-page-handler="DeleteOption"
-                                                  onsubmit="return confirm('確定要刪除科目「@item.Value」嗎？');">
-                                                <input type="hidden" name="optionId" value="@item.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 5. 到班目的管理 -->
-    <div class="col-md-12 col-xl-8">
-        <div class="card card-plato h-100 shadow-sm border-info border-opacity-25">
-            <div class="card-header bg-info bg-opacity-10 py-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-check2-circle me-2 text-info"></i>到班目的管理（預約與輔導目的）</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">家長預約與老師代預約時選擇的「到班目的」選項（共 @Model.PurposeOptions.Count 項）</div>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-info text-dark fw-bold"
-                        onclick="openCreatePurposeModal()">
-                    <i class="bi bi-plus-lg me-1"></i>新增到班目的
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th class="ps-3" style="width: 65px;">排序</th>
-                                <th style="width: 180px;">到班目的名稱</th>
+                                <th class="ps-3" style="width: 80px;">排序</th>
                                 <th>目的名稱</th>
-                                <th class="text-end pe-3" style="width: 120px;">操作</th>
+                                <th class="text-end pe-3" style="width: 140px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -366,56 +437,94 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Tab 5: 任教科目選項 -->
+            <div class="tab-pane fade" id="tab-subject" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0"><i class="bi bi-book text-info me-2"></i>老師任教科目選項</h6>
+                        <div class="text-muted small">數學、理化、英文等老師任教科目標籤</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-info text-white" onclick="openCreateOptionModal('@FieldCategories.Subject')">
+                        <i class="bi bi-plus-lg me-1"></i>新增科目
+                    </button>
+                </div>
+                <div class="table-responsive border rounded-3">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 80px;">排序</th>
+                                <th>科目名稱</th>
+                                <th class="text-end pe-3" style="width: 140px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.SubjectOptions)
+                            {
+                                <tr>
+                                    <td class="ps-3 text-muted small">@item.SortOrder</td>
+                                    <td><span class="badge bg-info bg-opacity-10 text-info border fs-6">@item.Value</span></td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-inline-flex gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
+                                                修改
+                                            </button>
+                                            <form method="post" asp-page-handler="DeleteOption"
+                                                  onsubmit="return confirm('確定要刪除科目「@item.Value」嗎？');">
+                                                <input type="hidden" name="optionId" value="@item.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- 新增基本欄位選項 Modal -->
+<!-- 新增選項 Modal -->
 <div class="modal fade" id="modalCreateOption" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <form method="post" asp-page-handler="CreateOption">
+                <input type="hidden" name="category" id="createOptionCategory" />
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2"></i>新增欄位選項</h5>
+                    <h5 class="modal-title fw-bold" id="createOptionTitle"><i class="bi bi-plus-circle me-2"></i>新增下拉選項</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">欄位類別</label>
-                        <select name="category" id="createOptionCategory" class="form-select">
-                            <option value="@FieldCategories.School">學校</option>
-                            <option value="@FieldCategories.Grade">年別</option>
-                            <option value="@FieldCategories.Class">班別（資優班、精英班、通識等）</option>
-                            <option value="@FieldCategories.Subject">任教科目（老師多選）</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label fw-semibold">選項名稱</label>
-                        <input type="text" name="value" id="createOptionValue" class="form-control" placeholder="例如：三民、國一、資優班、數學" required />
+                        <input type="text" name="value" id="createOptionValue" class="form-control" required />
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-semibold">顯示排序</label>
                         <input type="number" name="sortOrder" class="form-control" value="0" min="0" />
-                        <div class="form-text">輸入 0 將自動排在最後一筆。</div>
+                        <div class="form-text">填 0 將由系統自動排至最後一筆。</div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-accent fw-bold">確認新增</button>
+                    <button type="submit" class="btn btn-primary fw-bold">確認新增</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- 修改基本欄位選項 Modal -->
+<!-- 修改選項 Modal -->
 <div class="modal fade" id="modalEditOption" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <form method="post" asp-page-handler="UpdateOption">
-                <input type="hidden" name="optionId" id="editOptionId" />
+                <input type="hidden" name="id" id="editOptionId" />
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>修改欄位選項</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>修改下拉選項</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
                 </div>
                 <div class="modal-body">
@@ -430,7 +539,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-dark fw-bold">儲存修改</button>
+                    <button type="submit" class="btn btn-primary fw-bold">儲存修改</button>
                 </div>
             </form>
         </div>
@@ -478,11 +587,11 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">休假日期</label>
-                        <input type="date" name="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                        <input type="date" name="date" id="holidayDateInput" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
                     </div>
                     <div class="mb-0">
-                        <label class="form-label fw-semibold">節日 / 休假名稱</label>
-                        <input type="text" name="name" class="form-control" placeholder="例如：中秋節、元旦連假、國慶日、段考後放假" required />
+                        <label class="form-label fw-semibold">節日 / 休假原因</label>
+                        <input type="text" name="name" id="holidayNameInput" class="form-control" placeholder="例如：中秋節、元旦連假、國慶日、段考後放假" required />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -532,7 +641,38 @@
         }
 
         function openCreateHolidayModal() {
+            document.getElementById('holidayDateInput').value = '@DateTime.Today.ToString("yyyy-MM-dd")';
+            document.getElementById('holidayNameInput').value = '';
             new bootstrap.Modal(document.getElementById('modalCreateHoliday')).show();
         }
+
+        function openCreateHolidayModalWithDate(dateStr) {
+            if (!dateStr) return;
+            document.getElementById('holidayDateInput').value = dateStr;
+            document.getElementById('holidayNameInput').value = '';
+            new bootstrap.Modal(document.getElementById('modalCreateHoliday')).show();
+        }
+
+        // 保存目前切換的 Tab 分頁到 hash
+        document.addEventListener('DOMContentLoaded', function () {
+            const hash = window.location.hash;
+            if (hash) {
+                const targetBtn = document.querySelector(`#adminFieldTabs button[data-bs-target="${hash}"]`);
+                if (targetBtn) {
+                    const tab = new bootstrap.Tab(targetBtn);
+                    tab.show();
+                }
+            }
+
+            const tabButtons = document.querySelectorAll('#adminFieldTabs button[data-bs-toggle="pill"]');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('shown.bs.tab', function (e) {
+                    const target = e.target.getAttribute('data-bs-target');
+                    if (target) {
+                        history.replaceState(null, null, target);
+                    }
+                });
+            });
+        });
     </script>
 }

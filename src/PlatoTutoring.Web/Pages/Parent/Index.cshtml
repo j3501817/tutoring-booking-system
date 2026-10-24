@@ -316,25 +316,32 @@
                         var isSelected = Model.SelectedDate.HasValue && Model.SelectedDate.Value == cellDate;
                         var isToday = cellDate == DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
 
-                        <div class="calendar-month-cell @(isHoliday ? "bg-secondary bg-opacity-10 border-secondary opacity-75" : hasSlots ? "has-slots" : "no-slots") @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
+                        <div class="calendar-month-cell @(isHoliday ? "is-holiday" : hasSlots ? "has-slots" : "no-slots") @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
                              data-date="@cellDateStr"
                              data-date-zh="@cellDateDisplayZh"
                              data-holiday="@(isHoliday ? "true" : "false")"
-                             role="@(hasSlots ? "button" : "presentation")"
-                             tabindex="@(hasSlots ? "0" : "-1")"
-                             aria-label="@(isHoliday ? $"{cellDateDisplayZh} 為機構休假日（{holidayName}）不開放預約" : hasSlots ? $"{cellDateDisplayZh} 有課堂可預約，點擊展開時段列表" : cellDateDisplayZh)"
-                             @(hasSlots ? "onclick=\"selectCalendarDate(this.dataset.date, this.dataset.dateZh)\"" : "")>
+                             role="button"
+                             tabindex="0"
+                             aria-label="@(isHoliday ? $"{cellDateDisplayZh} 為機構休假日（{holidayName}）點擊查看詳情" : hasSlots ? $"{cellDateDisplayZh} 有課堂可預約，點擊展開時段列表" : cellDateDisplayZh)"
+                             @(isHoliday ? $"onclick=\"showHolidayNoticeModal('{cellDateDisplayZh}', '{Html.Raw(holidayName ?? "機構休假日")}')\"" : hasSlots ? "onclick=\"selectCalendarDate(this.dataset.date, this.dataset.dateZh)\"" : "")>
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : isHoliday ? "text-secondary" : "")">
+                                <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : isHoliday ? "text-danger fw-bold" : "")">
                                     @day
                                 </span>
+                                @if (isHoliday)
+                                {
+                                    <span class="badge bg-danger text-white p-0 px-1" style="font-size: 0.65rem;">休假</span>
+                                }
                             </div>
 
                             @if (isHoliday)
                             {
                                 <div class="calendar-cell-badges d-flex flex-column gap-1">
-                                    <span class="badge bg-secondary text-white text-truncate" title="休假：@holidayName">
-                                        <i class="bi bi-moon-stars me-1"></i>@(holidayName ?? "休假")
+                                    <span class="badge bg-secondary text-white text-truncate p-1" style="font-size: 0.72rem;" title="節日/休假原因：@holidayName">
+                                        🏖️ @(holidayName ?? "休假日")
+                                    </span>
+                                    <span class="small text-danger fw-semibold" style="font-size: 0.68rem;">
+                                        停課不開放
                                     </span>
                                 </div>
                             }
@@ -1066,8 +1073,45 @@
     </div>
 </div>
 
+<!-- 休假日詳情彈窗 Modal -->
+<div class="modal fade" id="modalHolidayNotice" tabindex="-1" aria-labelledby="modalHolidayNoticeLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title h6 fw-bold" id="modalHolidayNoticeLabel">
+                    <i class="bi bi-moon-stars-fill me-2"></i>機構休假日通知
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="display-6 text-danger mb-2">🏖️</div>
+                <h5 class="fw-bold text-dark mb-1" id="holidayNoticeDateText">--</h5>
+                <div class="mb-3">
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fs-6 px-3 py-2" id="holidayNoticeReasonBadge">
+                        --
+                    </span>
+                </div>
+                <div class="p-3 bg-light rounded-3 text-secondary small text-start">
+                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i>停課與預約限制說明：</div>
+                    該日為本機構排定之公休日／節日休假，當天<strong>全日停課</strong>，暫停所有小組指導與團體輔導預約服務。如需預約其他日期輔導，請點選月曆其他開放日期。祝您假期愉快！
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <button type="button" class="btn btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">我知道了</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
+        function showHolidayNoticeModal(dateZh, reason) {
+            document.getElementById('holidayNoticeDateText').textContent = dateZh || '休假日';
+            document.getElementById('holidayNoticeReasonBadge').textContent = '節日 / 休假原因：' + (reason || '機構公休');
+            new bootstrap.Modal(document.getElementById('modalHolidayNotice')).show();
+        }
+        window.showHolidayNoticeModal = showHolidayNoticeModal;
+
         function selectCalendarDate(dateStr, dateZh) {
             if (!dateStr) return;
 

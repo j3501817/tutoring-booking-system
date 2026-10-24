@@ -4,48 +4,98 @@
     ViewData["Title"] = "LINE 官方通知綁定設定";
 }
 
-<div class="container py-5" style="max-width: 680px;">
+<div class="container py-4 py-md-5" style="max-width: 680px;">
     <div class="card-plato p-4 p-md-5 text-center shadow-sm">
         <div class="mb-3">
             <span class="d-inline-flex p-3 rounded-circle bg-success bg-opacity-10 text-success">
                 <i class="bi bi-line fs-1"></i>
             </span>
         </div>
-        <h2 class="h4 fw-bold mb-2">LINE 官方帳號通知授權綁定</h2>
+        <h2 class="h4 fw-bold mb-2">LINE 官方帳號通知授權與綁定</h2>
         <p class="text-secondary small mb-4">
             綁定完成後，孩子的課程預約確認、上課提醒與作業輔導通知將會即時發送至您的 LINE。
         </p>
 
-        @if (!Model.IsConfigured)
+        @if (Model.IsMessagingConfigured)
+        {
+            <div class="alert alert-success text-start mb-4 py-3">
+                <div class="d-flex align-items-center mb-1">
+                    <i class="bi bi-check-circle-fill fs-5 me-2 text-success"></i>
+                    <strong class="text-success-emphasis">LINE Messaging API 推播服務已連線就緒</strong>
+                </div>
+                <div class="small text-secondary">
+                    系統已成功偵測到 <code>LineBot__ChannelAccessToken</code> 與 <code>LineBot__ChannelSecret</code>，可隨時發送 7 大即時通知！
+                </div>
+            </div>
+        }
+
+        <!-- 快速手動輸入 LINE User ID 綁定與測試推播 -->
+        <div class="card p-4 bg-light border-0 mb-4 text-start">
+            <div class="fw-semibold small text-dark mb-2">
+                <i class="bi bi-person-check-fill me-1 text-primary"></i>立即綁定家長通知帳號（@Model.CurrentUserDisplayName）
+            </div>
+            <div class="small text-muted mb-3">
+                請輸入您的 LINE User ID（以 U 開頭的 33 碼英數字）：
+            </div>
+            <form method="post" asp-page-handler="DirectBind">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <div class="input-group mb-2">
+                    <input type="text" name="lineUserId" class="form-control"
+                           placeholder="例如：U1234567890abcdef1234567890abcdef"
+                           value="@(Model.CurrentUserLineId ?? "")" required />
+                    <button type="submit" class="btn btn-success fw-bold px-3">
+                        <i class="bi bi-link-45deg me-1"></i>確認綁定
+                    </button>
+                </div>
+                <div class="small text-secondary" style="font-size: 0.76rem;">
+                    💡 若已設定 Access Token，系統將在綁定成功時自動發送一則驗證推播到您的 LINE！
+                </div>
+            </form>
+        </div>
+
+        @if (!Model.IsLoginConfigured)
         {
             <div class="alert alert-warning text-start mb-4">
                 <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 me-2 text-warning"></i>
-                    <strong>伺服器尚未完成 LINE Login 憑證設定</strong>
+                    <i class="bi bi-info-circle-fill fs-5 me-2 text-primary"></i>
+                    <strong>LINE App 一鍵轉跳授權說明</strong>
                 </div>
                 <div class="small text-muted mb-2">
-                    系統偵測到 Web App 環境變數或組態檔中尚未設定 <code>LineLogin__ClientId</code> 與 <code>LineLogin__ClientSecret</code>。
+                    若希望家長點擊時由 LINE App 自動轉跳完成一鍵授權，需在環境變數或組態中設定 <code>LineLogin__ClientId</code> (或 <code>LineBot__ChannelId</code>)。
                 </div>
                 <div class="small">
-                    <strong>請管理員在環境變數加入：</strong>
-                    <ul class="mb-0 mt-1 ps-3">
-                        <li><code>LineLogin__ClientId</code> (或 <code>LineBot__ChannelId</code>)</li>
-                        <li><code>LineLogin__ClientSecret</code> (或 <code>LineBot__ChannelSecret</code>)</li>
-                    </ul>
+                    <strong>尋找位置：</strong>
+                    <div class="text-secondary mt-1">
+                        登入 <a href="https://developers.line.biz/console/" target="_blank" rel="noopener">LINE Developers Console</a> ➜ 選擇 Channel ➜ 在 <strong>Basic settings</strong> 頁籤最上方即可看到 <strong>Channel ID</strong>（一串 10 碼數字，例如：<code>2001234567</code>）。
+                    </div>
                 </div>
+
+                @if (Model.IsAdmin)
+                {
+                    <hr class="my-3" />
+                    <div class="fw-semibold small text-dark mb-2">
+                        <i class="bi bi-gear-fill me-1 text-secondary"></i>管理員快速設定 Channel ID（免重啟 Web App）
+                    </div>
+                    <form method="post" asp-page-handler="SaveChannelId" class="d-flex gap-2">
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <input type="text" name="channelId" class="form-control form-control-sm"
+                               placeholder="輸入 10 碼數字 Channel ID" required />
+                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap fw-bold">儲存並啟用一鍵跳轉</button>
+                    </form>
+                }
             </div>
 
-            <div class="card p-3 bg-light border-0 mb-4 text-start">
+            <div class="card p-3 bg-white border mb-4 text-start">
                 <div class="fw-semibold small text-dark mb-1">
-                    <i class="bi bi-tools me-1 text-primary"></i>開發與測試模式
+                    <i class="bi bi-magic me-1 text-success"></i>無金鑰時快速體驗 / 測試模式
                 </div>
                 <div class="small text-secondary mb-3">
-                    您可以在此使用「模擬綁定」功能，驗證家長頁面的通知綁定狀態與後續業務流程。
+                    若暫未取得 LINE User ID，可先使用快速模擬識別碼完成綁定，後續再於家長頁籤更換。
                 </div>
                 <form method="post" asp-page-handler="SimulateBind">
                     <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-                    <button type="submit" class="btn btn-outline-success w-100 fw-bold">
-                        <i class="bi bi-magic me-1"></i>建立測試模擬 LINE 帳號綁定
+                    <button type="submit" class="btn btn-outline-secondary btn-sm w-100 fw-bold">
+                        <i class="bi bi-check2-circle me-1"></i>建立測試專用 LINE 綁定
                     </button>
                 </form>
             </div>
