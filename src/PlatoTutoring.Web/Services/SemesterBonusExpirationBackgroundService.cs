@@ -12,13 +12,16 @@ public class SemesterBonusExpirationBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SemesterBonusExpirationBackgroundService> _logger;
+    private readonly IScheduleManagerService _scheduleManager;
 
     public SemesterBonusExpirationBackgroundService(
         IServiceProvider serviceProvider,
-        ILogger<SemesterBonusExpirationBackgroundService> logger)
+        ILogger<SemesterBonusExpirationBackgroundService> logger,
+        IScheduleManagerService scheduleManager)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _scheduleManager = scheduleManager;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -99,30 +102,47 @@ public class SemesterBonusExpirationBackgroundService : BackgroundService
             }
         }
 
-        if (!overdueSemesters.Any())
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
         {
-            _logger.LogInformation("目前無已過期學期需要清理贈送堂數。");
-            return 0;
+            if (!overdueSemesters.Any())
+            {
+                _logger.LogInformation("目前無已過期學期需要清理贈送堂數。");
+                sw.Stop();
+                _scheduleManager.RecordExecution("BonusExpiry", true, "自動排程巡檢完成，目前所有學期均在效期內，無過期贈送堂數。", sw.Elapsed, "系統排程");
+                return 0;
+            }
+
+            // 取得系統管理員作為操作人紀錄
+            var admin = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin, ct)
+                        ?? await db.Users.FirstOrDefaultAsync(ct);
+
+            if (admin == null)
+            {
+                _logger.LogWarning("資料庫中無任何使用者，無法標記贈送堂數歸零操作人。");
+                sw.Stop();
+                _scheduleManager.RecordExecution("BonusExpiry", false, "執行失敗：資料庫中無任何使用者，無法標記贈送堂數歸零操作人。", sw.Elapsed, "系統排程");
+                return 0;
+            }
+
+            foreach (var sem in overdueSemesters)
+            {
+                _logger.LogInformation("學期「{SemesterName}」結束日 ({EndDate}) 已屆滿，自動執行贈送堂數歸零...", sem.Name, sem.EndDate);
+                var count = await ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(sem.Id, admin.Id);
+                expiredCount += count;
+                _logger.LogInformation("學期「{SemesterName}」贈送堂數已自動歸零完畢，影響學生數：{Count}", sem.Name, count);
+            }
+
+            sw.Stop();
+            _scheduleManager.RecordExecution("BonusExpiry", true, $"學期結束自動歸零完畢，共巡檢 {overdueSemesters.Count} 個學期，影響 {expiredCount} 位學生。", sw.Elapsed, "系統排程");
+            return expiredCount;
         }
-
-        // 取得系統管理員作為操作人紀錄
-        var admin = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin, ct)
-                    ?? await db.Users.FirstOrDefaultAsync(ct);
-
-        if (admin == null)
+        catch (Exception ex)
         {
-            _logger.LogWarning("資料庫中無任何使用者，無法標記贈送堂數歸零操作人。");
-            return 0;
+            sw.Stop();
+            _logger.LogError(ex, "執行學期過期清理時發生錯誤");
+            _scheduleManager.RecordExecution("BonusExpiry", false, $"排程執行異常：{ex.Message}", sw.Elapsed, "系統排程");
+            throw;
         }
-
-        foreach (var sem in overdueSemesters)
-        {
-            _logger.LogInformation("學期「{SemesterName}」結束日 ({EndDate}) 已屆滿，自動執行贈送堂數歸零...", sem.Name, sem.EndDate);
-            var count = await ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(sem.Id, admin.Id);
-            expiredCount += count;
-            _logger.LogInformation("學期「{SemesterName}」贈送堂數已自動歸零完畢，影響學生數：{Count}", sem.Name, count);
-        }
-
-        return expiredCount;
     }
 }

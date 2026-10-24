@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using PlatoTutoring.Web.Data;
 using PlatoTutoring.Web.Models;
 using PlatoTutoring.Web.Services;
@@ -248,7 +249,15 @@ public class ComprehensiveEnhancementTests
         db.AcademicHolidays.Add(holiday);
         await db.SaveChangesAsync();
 
-        var model = new PlatoTutoring.Web.Pages.SystemAdmin.IndexModel(db, ledger, booking);
+        var services = new ServiceCollection();
+        services.AddScoped(_ => db);
+        services.AddScoped(_ => ledger);
+        services.AddScoped(_ => booking);
+        var sp = services.BuildServiceProvider();
+
+        var scheduleManager = new ScheduleManagerService(sp, Microsoft.Extensions.Logging.Abstractions.NullLogger<ScheduleManagerService>.Instance);
+
+        var model = new PlatoTutoring.Web.Pages.SystemAdmin.IndexModel(db, ledger, booking, scheduleManager);
         await model.OnGetAsync(2026, 10);
 
         Assert.Equal(2026, model.CalendarYear);
@@ -259,5 +268,14 @@ public class ComprehensiveEnhancementTests
 
         Assert.True(model.HolidayMap.ContainsKey(new DateOnly(2026, 10, 24)));
         Assert.Equal("光復節休假", model.HolidayMap[new DateOnly(2026, 10, 24)].Name);
+
+        // 驗證排程管理功能
+        Assert.NotEmpty(model.ScheduledTasks);
+        Assert.Contains(model.ScheduledTasks, t => t.JobCode == "BonusExpiry");
+        Assert.Contains(model.ScheduledTasks, t => t.JobCode == "WaitlistCleanup");
+
+        var (success, msg) = await scheduleManager.TriggerJobAsync("BonusExpiry");
+        Assert.True(success);
+        Assert.Contains("成功", msg);
     }
 }
