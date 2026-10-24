@@ -116,6 +116,12 @@ public class Student
     public string? ClassName { get; set; } = string.Empty;
     [Required, MaxLength(50)]
     public string GradeClass { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string? Phone1 { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string? Phone2 { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string? Phone3 { get; set; } = string.Empty;
     public DateOnly EnrollmentDate { get; set; }
     public int PaidCredits { get; set; }
     public int BonusCredits { get; set; }
@@ -124,6 +130,13 @@ public class Student
     public DateTime? GroupBookingSuspendedUntilUtc { get; set; }
 
     public int TotalCredits => PaidCredits + BonusCredits;
+
+    public List<string> AllPhones =>
+        new[] { Phone1, Phone2, Phone3 }
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p!.Trim())
+            .Distinct()
+            .ToList();
 
     public string DisplaySchoolGradeClass
     {
@@ -383,4 +396,14 @@ public class LineNotificationLog
     public string Status { get; set; } = "Sent";
     public int RetryCount { get; set; }
     public DateTime SentAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AcademicHoliday
+{
+    public int Id { get; set; }
+    public DateOnly Date { get; set; }
+    [Required, MaxLength(80)]
+    public string Name { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<HomeworkWatchItem> HomeworkWatchItems => Set<HomeworkWatchItem>();
     public DbSet<LineNotificationLog> LineNotificationLogs => Set<LineNotificationLog>();
     public DbSet<FieldOption> FieldOptions => Set<FieldOption>();
+    public DbSet<AcademicHoliday> AcademicHolidays => Set<AcademicHoliday>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<FieldOption>().ToTable("BK_FieldOptions");
         modelBuilder.Entity<FieldOption>().HasIndex(o => o.Category);
         modelBuilder.Entity<FieldOption>().Property(o => o.ParentValue).IsRequired(false);
+        modelBuilder.Entity<AcademicHoliday>().ToTable("BK_AcademicHolidays");
 
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.Username)

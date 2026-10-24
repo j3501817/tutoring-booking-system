@@ -185,13 +185,21 @@ public class BookingService
         var validPurpose = await _db.AttendancePurposeOptions
             .AnyAsync(p => p.IsActive && p.Name == purposeName.Trim());
         if (!validPurpose)
-            throw new InvalidOperationException("請選擇有效的五種到班目的之一。");
+            throw new InvalidOperationException("請選擇有效的到班目的。");
 
         if (slot.CourseProgress == null || !slot.CourseProgress.IsCurrentProgress)
             throw new InvalidOperationException("依規定僅可預約「目前開放進度」之時段。");
 
+        var slotDate = DateOnly.FromDateTime(ToTaipeiTime(slot.StartsAtUtc));
+        var isHoliday = await _db.AcademicHolidays.AnyAsync(h => h.IsActive && h.Date == slotDate);
+        if (isHoliday)
+            throw new InvalidOperationException("該日期為補習班休假日，不開放預約。");
+
         if (slot.StartsAtUtc <= timestamp)
             throw new InvalidOperationException("該時段已開課或結束，無法預約。");
+
+        if ((slot.StartsAtUtc - timestamp).TotalMinutes < 30.0)
+            throw new InvalidOperationException("開課前 30 分鐘截止預約，目前無法進行預約。");
 
         if (slot.RemainingSeats <= 0)
             throw new InvalidOperationException("該時段名額已滿，請改為登記候補。");
@@ -283,6 +291,15 @@ public class BookingService
         }
 
         await _db.SaveChangesAsync();
+
+        try
+        {
+            var tpeTime = FormatTaipeiDateTimeZh(slot.StartsAtUtc);
+            var progTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim();
+            await _lineService.NotifyBookingCompletedAsync(student.Id, tpeTime, progTitle, booking.PurposeName, op.DisplayName, timestamp);
+        }
+        catch { }
+
         return booking;
     }
 
@@ -343,6 +360,29 @@ public class BookingService
         }
 
         await _db.SaveChangesAsync();
+
+        try
+        {
+            if (canRefund && booking.CreditsDeducted > 0)
+            {
+                var s = await _db.Students.FindAsync(booking.StudentId);
+                var tpeTime = FormatTaipeiDateTimeZh(slot.StartsAtUtc);
+                var progTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim();
+                if (s != null)
+                {
+                    await _lineService.NotifyCreditsChangedAsync(
+                        booking.StudentId,
+                        "取消預約退還",
+                        $"取消預約 {progTitle}（{tpeTime}）退還堂數",
+                        booking.PaidCreditsUsed,
+                        booking.BonusCreditsUsed,
+                        s.PaidCredits,
+                        s.BonusCredits,
+                        timestamp);
+                }
+            }
+        }
+        catch { }
 
         await PromoteNextWaitlistEntryAsync(slot.Id, timestamp);
 
@@ -560,6 +600,14 @@ public class BookingService
             booking.PaidCreditsUsed = paidUsed;
             await _db.SaveChangesAsync();
         }
+
+        try
+        {
+            var tpeTime = FormatTaipeiDateTimeZh(slot.StartsAtUtc);
+            var progTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim();
+            await _lineService.NotifyBookingCompletedAsync(student.Id, tpeTime, progTitle, booking.PurposeName, op.DisplayName, timestamp);
+        }
+        catch { }
 
         return booking;
     }

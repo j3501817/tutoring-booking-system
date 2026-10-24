@@ -183,4 +183,142 @@ public class LineNotificationService
         await _db.SaveChangesAsync();
         return log.Status == "RetriedSuccess";
     }
+
+    /// <summary>1. 堂數有異動時通知（獲得贈券、完成預約扣堂、取消預約退還、退還費用）</summary>
+    public async Task NotifyCreditsChangedAsync(int studentId, string changeTypeZh, string note, int paidDelta, int bonusDelta, int paidAfter, int bonusAfter, DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId);
+        if (student == null) return;
+        var deltaText = "";
+        if (bonusDelta != 0) deltaText += $"贈送 {(bonusDelta > 0 ? "+" : "")}{bonusDelta} 堂 ";
+        if (paidDelta != 0) deltaText += $"付費 {(paidDelta > 0 ? "+" : "")}{paidDelta} 堂 ";
+
+        var msg = $"【柏拉圖補習班・堂數異動】{student.FullName} 之輔導堂數有異動（{changeTypeZh}）。\n" +
+                  $"異動內容：{deltaText.Trim()}\n" +
+                  $"目前餘額：付費 {paidAfter} 堂 / 贈送 {bonusAfter} 堂\n" +
+                  $"備註：{note}";
+
+        await SendToStudentParentsAsync(
+            studentId,
+            "CreditsChanged",
+            $"credits-change:{studentId}:{Guid.NewGuid():N}",
+            msg,
+            $"/Parent?studentId={studentId}#tab-parent-ledger",
+            nowUtc);
+    }
+
+    /// <summary>2. 有完成預約時通知（老師後台代約、家長學生自己預約）</summary>
+    public async Task NotifyBookingCompletedAsync(int studentId, string slotTimeZh, string progressTitle, string purpose, string operatorName, DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId);
+        if (student == null) return;
+
+        var msg = $"【柏拉圖補習班・預約成功】{student.FullName} 已完成輔導預約。\n" +
+                  $"預約時段：{slotTimeZh}\n" +
+                  $"進度名稱：{progressTitle}\n" +
+                  $"到班目的：{purpose}\n" +
+                  $"操作人員：{operatorName}\n" +
+                  $"提醒：如需取消或改期，請於開課 24 小時前至系統辦理。";
+
+        await SendToStudentParentsAsync(
+            studentId,
+            "BookingConfirmed",
+            $"booking-confirm:{studentId}:{Guid.NewGuid():N}",
+            msg,
+            $"/Parent?studentId={studentId}#tab-parent-records",
+            nowUtc);
+    }
+
+    /// <summary>3. 通知學生學習狀況(作業不佳、進度落差、觀念不清、輔導未完成、補課確認)需要預約指導</summary>
+    public async Task NotifyStudentLearningStatusAsync(int studentId, string conditionType, string progressTitle, string detailNote, DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId);
+        if (student == null) return;
+
+        var msg = $"【柏拉圖補習班・學習狀況提醒】{student.FullName} 於進度「{progressTitle}」出現「{conditionType}」狀況。\n" +
+                  $"老師備註：{detailNote}\n" +
+                  $"建議您儘速至預約系統為孩子預約小組指導或輔導時段，及時補強學習盲點。";
+
+        await SendToStudentParentsAsync(
+            studentId,
+            "LearningStatusAlert",
+            $"learning-status:{studentId}:{Guid.NewGuid():N}",
+            msg,
+            $"/Parent?studentId={studentId}",
+            nowUtc);
+    }
+
+    /// <summary>4. 提醒預約後仍未預約</summary>
+    public async Task NotifyUnbookedReminderAsync(int studentId, string reason, DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId);
+        if (student == null) return;
+
+        var msg = $"【柏拉圖補習班・未預約提醒】{student.FullName} 的學習補強通知（{reason}）目前仍未完成預約時段，請儘速登入系統完成預約，以利老師安排進度。";
+
+        await SendToStudentParentsAsync(
+            studentId,
+            "UnbookedReminder",
+            $"unbooked-remind:{studentId}:{Guid.NewGuid():N}",
+            msg,
+            $"/Parent?studentId={studentId}",
+            nowUtc);
+    }
+
+    /// <summary>5. 提醒兩日後有預約，記得到班或尚有一日可以取消改期</summary>
+    public async Task NotifyTwoDaysBeforeReminderAsync(int studentId, string slotTimeZh, string progressTitle, DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId);
+        if (student == null) return;
+
+        var msg = $"【柏拉圖補習班・到班提醒】{student.FullName} 於兩日後有預約輔導課堂！\n" +
+                  $"課堂時段：{slotTimeZh}（{progressTitle}）\n" +
+                  $"請準時到班。若因故需取消或改期，尚有 1 日寬限期（開課 24 小時前免費取消退堂）。";
+
+        await SendToStudentParentsAsync(
+            studentId,
+            "TwoDaysReminder",
+            $"two-days-remind:{studentId}:{Guid.NewGuid():N}",
+            msg,
+            $"/Parent?studentId={studentId}#tab-parent-records",
+            nowUtc);
+    }
+
+    /// <summary>6. 提醒團體輔導新進度開放預約了</summary>
+    public async Task NotifyNewGroupProgressAsync(string progressCode, string progressTitle, DateTime? nowUtc = null)
+    {
+        var parents = await _db.Users
+            .Where(u => u.Role == UserRole.Parent && !string.IsNullOrEmpty(u.LineUserId))
+            .ToListAsync();
+
+        var msg = $"【柏拉圖補習班・新進度公告】團體輔導新進度「{progressCode} {progressTitle}」現已開放預約！\n" +
+                  $"團體輔導免費開放，歡迎儘早至線上預約時段選課。";
+
+        foreach (var p in parents)
+        {
+            if (_lineAuth != null && !string.IsNullOrWhiteSpace(p.LineUserId))
+            {
+                await _lineAuth.SendPushMessageAsync(p.LineUserId, msg);
+            }
+        }
+    }
+
+    /// <summary>7. 候補成功也要通知</summary>
+    public async Task NotifyWaitlistSuccessAsync(int studentId, string slotTimeZh, string progressTitle, DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId);
+        if (student == null) return;
+
+        var msg = $"【柏拉圖補習班・候補成功】恭喜！{student.FullName} 登記候補的時段已釋出空位並為您保留。\n" +
+                  $"時段：{slotTimeZh}（{progressTitle}）\n" +
+                  $"名額已保留，請於 30 分鐘內登入網站確認預約！";
+
+        await SendToStudentParentsAsync(
+            studentId,
+            "WaitlistPromoted",
+            $"waitlist-promoted:{studentId}:{Guid.NewGuid():N}",
+            msg,
+            $"/Parent?studentId={studentId}",
+            nowUtc);
+    }
 }
