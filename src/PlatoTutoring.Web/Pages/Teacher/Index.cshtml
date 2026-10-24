@@ -2,8 +2,10 @@
 @model PlatoTutoring.Web.Pages.Teacher.IndexModel
 @{
     ViewData["Title"] = "老師教務、點名與儲值中心";
+    var todayTaipeiDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+    var todayStartUtc = DateTime.SpecifyKind(todayTaipeiDate.ToDateTime(TimeOnly.MinValue).AddHours(-8), DateTimeKind.Utc);
     var unresolvedHwCount = Model.HomeworkItems.Count(h => !h.IsResolvedByBooking);
-    var openSlotsCount = Model.Slots.Count(s => s.RemainingSeats > 0);
+    var openSlotsCount = Model.Slots.Count(s => s.RemainingSeats > 0 && s.StartsAtUtc >= todayStartUtc);
 }
 
 <!-- 頂部老師工作台標題與快捷統計 -->
@@ -105,7 +107,7 @@
                     data-bs-target="#tab-teacher-homework" type="button" role="tab">
                 <i class="bi bi-bell-fill"></i>
                 <span>作業追蹤與催促</span>
-                <span class="workspace-tab-count">@Model.HomeworkItems.Count</span>
+                <span class="workspace-tab-count">@unresolvedHwCount</span>
             </button>
         </li>
     </ul>

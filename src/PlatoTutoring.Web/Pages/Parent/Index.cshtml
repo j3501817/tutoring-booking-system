@@ -216,7 +216,6 @@
                         data-bs-target="#tab-parent-book" type="button" role="tab">
                     <i class="bi bi-calendar-week"></i>
                     <span>線上預約時段</span>
-                    <span class="workspace-tab-count">@Model.AvailableSlots.Count</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -236,13 +235,6 @@
                 </button>
             </li>
         </ul>
-
-        @if (Model.CurrentProgress != null)
-        {
-            <span class="badge bg-dark px-3 py-2 fw-semibold">
-                目前開放進度：@Model.CurrentProgress.Code @Model.CurrentProgress.Title
-            </span>
-        }
     </div>
 
     <div class="tab-content" id="parentWorkspaceTabContent">

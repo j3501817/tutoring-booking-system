@@ -115,14 +115,17 @@ public class IndexModel : PageModel
 
         if (SelectedStudent != null)
         {
-            // 已取消不要顯示，只顯示已確認預約 (Confirmed)
+            // 預約清單只需要顯示今天（含今天）以後的預約清單，已取消不顯示
+            var todayTaipei = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+            var todayStartUtc = DateTime.SpecifyKind(todayTaipei.ToDateTime(TimeOnly.MinValue).AddHours(-8), DateTimeKind.Utc);
+
             StudentBookings = await _db.Bookings
                 .Include(b => b.TutoringSlot)
                 .ThenInclude(s => s!.CourseProgress)
                 .Include(b => b.TutoringSlot)
                 .ThenInclude(s => s!.TeacherUser)
-                .Where(b => b.StudentId == SelectedStudent.Id && b.Status == BookingStatus.Confirmed)
-                .OrderByDescending(b => b.CreatedAtUtc)
+                .Where(b => b.StudentId == SelectedStudent.Id && b.Status == BookingStatus.Confirmed && b.TutoringSlot != null && b.TutoringSlot.StartsAtUtc >= todayStartUtc)
+                .OrderBy(b => b.TutoringSlot!.StartsAtUtc)
                 .ToListAsync();
 
             StudentWaitlistEntries = await _db.WaitlistEntries

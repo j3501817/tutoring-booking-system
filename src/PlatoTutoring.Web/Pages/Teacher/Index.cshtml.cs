@@ -166,11 +166,22 @@ public class IndexModel : PageModel
             .Take(50)
             .ToListAsync();
 
+        var nowUtc = DateTime.UtcNow;
+        var todayTaipeiDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+        var todayStartUtc = DateTime.SpecifyKind(todayTaipeiDate.ToDateTime(TimeOnly.MinValue).AddHours(-8), DateTimeKind.Utc);
+
+        // 已預約解決且課程時段已結束者不再顯示在列表中
+        var endedBookingIds = await _db.Bookings
+            .Where(b => b.TutoringSlot != null && b.TutoringSlot.EndsAtUtc <= nowUtc)
+            .Select(b => b.Id)
+            .ToListAsync();
+
         HomeworkItems = await _db.HomeworkWatchItems
             .Include(h => h.Student)
             .Include(h => h.CourseProgress)
+            .Where(h => !h.IsResolvedByBooking || (h.ResolvedBookingId.HasValue && !endedBookingIds.Contains(h.ResolvedBookingId.Value)))
             .OrderByDescending(h => h.FirstNotifiedAtUtc)
-            .Take(10)
+            .Take(50)
             .ToListAsync();
 
         // 處理今日課堂點名時段
@@ -209,17 +220,21 @@ public class IndexModel : PageModel
             }
         }
 
-        // 處理時段列表分頁與篩選
+        // 處理時段列表分頁與篩選：預設顯示今天（含今天）以後的時段
         var slotsQuery = _db.TutoringSlots
             .Include(s => s.CourseProgress)
             .Include(s => s.TeacherUser)
             .AsQueryable();
 
-
         if (!string.IsNullOrWhiteSpace(DateFrom) && DateOnly.TryParse(DateFrom, out var dFrom))
         {
             var utcFrom = DateTime.SpecifyKind(dFrom.ToDateTime(TimeOnly.MinValue).AddHours(-8), DateTimeKind.Utc);
             slotsQuery = slotsQuery.Where(s => s.StartsAtUtc >= utcFrom);
+        }
+        else
+        {
+            // 列表預設顯示今天（含今天）以後的時段
+            slotsQuery = slotsQuery.Where(s => s.StartsAtUtc >= todayStartUtc);
         }
 
         if (!string.IsNullOrWhiteSpace(DateTo) && DateOnly.TryParse(DateTo, out var dTo))
@@ -238,8 +253,10 @@ public class IndexModel : PageModel
         if (SlotsPage < 1) SlotsPage = 1;
         if (SlotsPage > SlotsTotalPages) SlotsPage = SlotsTotalPages;
 
+        // 排序以時間升冪排序，優先顯示可預約（尚有名額）的課堂
         PagedSlots = await slotsQuery
-            .OrderByDescending(s => s.StartsAtUtc)
+            .OrderBy(s => s.CurrentBookedCount >= s.MaxCapacity ? 1 : 0)
+            .ThenBy(s => s.StartsAtUtc)
             .Skip((SlotsPage - 1) * 10)
             .Take(10)
             .ToListAsync();

@@ -16,15 +16,18 @@ public class IndexModel : PageModel
     private readonly AppDbContext _db;
     private readonly CreditLedgerService _ledgerService;
     private readonly BookingService _bookingService;
+    private readonly IScheduleManagerService _scheduleManager;
 
     public IndexModel(
         AppDbContext db,
         CreditLedgerService ledgerService,
-        BookingService bookingService)
+        BookingService bookingService,
+        IScheduleManagerService scheduleManager)
     {
         _db = db;
         _ledgerService = ledgerService;
         _bookingService = bookingService;
+        _scheduleManager = scheduleManager;
     }
 
     public AppUser CurrentUser { get; set; } = null!;
@@ -40,6 +43,9 @@ public class IndexModel : PageModel
     public Semester? CurrentSemester { get; set; }
     public Semester? ViewingSemester { get; set; }
     public int? SelectedSemesterId { get; set; }
+
+    public IReadOnlyList<ScheduledTaskItem> ScheduledTasks { get; set; } = new List<ScheduledTaskItem>();
+    public IReadOnlyList<ScheduledTaskLog> ScheduledLogs { get; set; } = new List<ScheduledTaskLog>();
 
     public int CalendarYear { get; set; }
     public int CalendarMonth { get; set; }
@@ -137,6 +143,27 @@ public class IndexModel : PageModel
         var next = new DateTime(CalendarYear, CalendarMonth, 1).AddMonths(1);
         NextYear = next.Year;
         NextMonth = next.Month;
+
+        ScheduledTasks = _scheduleManager.GetScheduledTasks();
+        ScheduledLogs = _scheduleManager.GetRecentLogs(50);
+    }
+
+    public async Task<IActionResult> OnPostTriggerScheduleAsync(string jobCode)
+    {
+        var admin = await GetCurrentAuthorizedUserAsync();
+        var operatorName = admin?.DisplayName ?? "系統管理員";
+        var (isSuccess, message) = await _scheduleManager.TriggerJobAsync(jobCode, $"管理員 ({operatorName}) 手動");
+
+        if (isSuccess)
+        {
+            TempData["SuccessMessage"] = message;
+        }
+        else
+        {
+            TempData["ErrorMessage"] = message;
+        }
+
+        return RedirectToPage(new { sub = "schedules" });
     }
 
     public async Task<IActionResult> OnPostCreateOptionAsync(
