@@ -19,16 +19,53 @@
             </p>
         </div>
 
-        <form method="post" asp-page-handler="BindLine" class="d-flex gap-2 align-items-center flex-wrap">
-            <input type="hidden" name="studentId" value="@student?.Id" />
-            <div class="input-group" style="max-width: 380px;">
-                <span class="input-group-text bg-light fw-semibold small">
-                    <i class="bi bi-chat-dots-fill text-success me-1"></i>LINE 通知 ID
-                </span>
-                <input type="text" name="lineUserId" class="form-control" value="@Model.CurrentUser.LineUserId" placeholder="輸入 LINE User ID" />
-                <button type="submit" class="btn btn-outline-dark fw-semibold">儲存綁定</button>
+        <div class="d-flex flex-column align-items-start align-items-md-end gap-2">
+            @if (string.IsNullOrWhiteSpace(Model.CurrentUser.LineUserId))
+            {
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="/LineAuth/Login?returnUrl=@Url.Page("/Parent", null, new { studentId = student?.Id })"
+                       class="btn text-white fw-bold shadow-sm d-inline-flex align-items-center px-3 py-2"
+                       style="background-color: #06c755; border-color: #06c755;">
+                        <i class="bi bi-line fs-5 me-2"></i>一鍵自動授權綁定 LINE 通知
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#manualBindCollapse" aria-expanded="false" title="進階手動設定">
+                        <i class="bi bi-gear-fill"></i>
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex align-items-center gap-2 flex-wrap bg-white p-2 px-3 rounded-3 border shadow-sm">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2 d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-check-circle-fill"></i> LINE 通知已綁定
+                    </span>
+                    <span class="small font-monospace text-muted d-none d-md-inline" title="LINE User ID">
+                        @Model.CurrentUser.LineUserId
+                    </span>
+                    <a href="/LineAuth/Login?returnUrl=@Url.Page("/Parent", null, new { studentId = student?.Id })"
+                       class="btn btn-sm btn-outline-success fw-semibold" title="重新綁定或換帳號">
+                        <i class="bi bi-arrow-repeat me-1"></i>重新綁定
+                    </a>
+                    <form method="post" asp-page-handler="UnbindLine" class="d-inline" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？解除後將無法接收即時推播通知。');">
+                        <input type="hidden" name="studentId" value="@student?.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="解除綁定">
+                            <i class="bi bi-x-circle me-1"></i>解除
+                        </button>
+                    </form>
+                </div>
+            }
+
+            <div class="collapse" id="manualBindCollapse">
+                <form method="post" asp-page-handler="BindLine" class="d-flex gap-2 align-items-center">
+                    <input type="hidden" name="studentId" value="@student?.Id" />
+                    <div class="input-group input-group-sm" style="max-width: 340px;">
+                        <span class="input-group-text bg-light small">手動 ID</span>
+                        <input type="text" name="lineUserId" class="form-control" value="@Model.CurrentUser.LineUserId" placeholder="例如 U4af49806..." />
+                        <button type="submit" class="btn btn-outline-secondary">儲存</button>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -203,50 +240,156 @@
     </div>
 
     <div class="tab-content" id="parentWorkspaceTabContent">
-        <!-- 分頁一：線上預約時段 -->
+        <!-- 分頁一：線上預約時段（先顯示月曆，點日期之後展開當天課堂列表） -->
         <div class="tab-pane fade show active" id="tab-parent-book" role="tabpanel">
-            <div class="booking-split-grid">
-                <!-- 左側：日期月曆篩選器 -->
-                <div class="card-plato p-3 p-md-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="fw-bold"><i class="bi bi-calendar3 me-1"></i>篩選上課日期</span>
-                        <a asp-page="/Parent/Index" asp-route-studentId="@student.Id"
-                           class="btn btn-sm @(Model.SelectedDate == null ? "btn-dark" : "btn-outline-secondary")">
-                            全部日期
-                        </a>
+            
+            <!-- 月曆卡片 (先顯示月曆，標示小組與團體) -->
+            <div class="booking-month-calendar card-plato p-3 p-md-4 mb-4 shadow-sm">
+                <div class="calendar-month-header">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h2 class="h5 fw-bold mb-0 text-dark">
+                            <i class="bi bi-calendar3 text-primary me-2"></i>@Model.CalendarYear 年 @Model.CalendarMonth 月 課堂月曆
+                        </h2>
+                        <div class="btn-group btn-group-sm ms-md-2" role="group">
+                            <a asp-page="/Parent/Index"
+                               asp-route-studentId="@student.Id"
+                               asp-route-year="@Model.PrevYear"
+                               asp-route-month="@Model.PrevMonth"
+                               class="btn btn-outline-secondary" title="上一月">
+                                <i class="bi bi-chevron-left"></i> 上月
+                            </a>
+                            <a asp-page="/Parent/Index"
+                               asp-route-studentId="@student.Id"
+                               class="btn btn-outline-dark" title="返回當月">
+                                本月
+                            </a>
+                            <a asp-page="/Parent/Index"
+                               asp-route-studentId="@student.Id"
+                               asp-route-year="@Model.NextYear"
+                               asp-route-month="@Model.NextMonth"
+                               class="btn btn-outline-secondary" title="下一月">
+                                下月 <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </div>
                     </div>
-                    <div class="row g-2">
-                        @foreach (var d in Model.SlotDates)
-                        {
-                            var isDateActive = Model.SelectedDate == d;
-                            <div class="col-4 col-sm-3 col-lg-6">
-                                <a asp-page="/Parent/Index"
-                                   asp-route-studentId="@student.Id"
-                                   asp-route-date="@d.ToString("yyyy-MM-dd")"
-                                   class="calendar-day-btn @(isDateActive ? "active" : "")">
-                                    <span class="small opacity-75">@d.ToString("MM/dd")</span>
-                                    <span class="fw-bold">週@("日一二三四五六"[(int)d.DayOfWeek])</span>
-                                </a>
-                            </div>
-                        }
-                    </div>
-                    <hr class="my-3" />
-                    <div class="small text-secondary">
-                        <div class="fw-bold text-dark mb-2"><i class="bi bi-info-circle me-1"></i>預約與改期規則</div>
-                        <ul class="ps-3 mb-0">
-                            <li class="mb-1">小組指導每進度限 1 堂（扣 1 堂）；團體輔導免費不限。</li>
-                            <li class="mb-1">開課前 <strong>24 小時（含）以上</strong>取消自動退還原扣抵堂數；未滿 24 小時取消不退堂。</li>
-                            <li>滿額可登記候補，釋出名額時將發送 LINE 通知並保留 <strong>30 分鐘</strong>。</li>
-                        </ul>
+
+                    <!-- 圖例說明 (Legend) -->
+                    <div class="d-flex align-items-center gap-2 flex-wrap small">
+                        <span class="text-secondary me-1">標示說明：</span>
+                        <span class="badge badge-slot-small"><i class="bi bi-people-fill me-1"></i>小組指導</span>
+                        <span class="badge badge-slot-group"><i class="bi bi-collection-fill me-1"></i>團體輔導</span>
+                        <span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-1"></i>已預約</span>
                     </div>
                 </div>
 
-                <!-- 右側：時段卡片清單 -->
-                <div class="d-grid gap-3">
-                    @foreach (var slot in Model.AvailableSlots)
+                <!-- 星期列 (日 一 二 三 四 五 六) -->
+                <div class="calendar-month-grid mb-1">
+                    <div class="calendar-weekday-cell weekend">週日</div>
+                    <div class="calendar-weekday-cell">週一</div>
+                    <div class="calendar-weekday-cell">週二</div>
+                    <div class="calendar-weekday-cell">週三</div>
+                    <div class="calendar-weekday-cell">週四</div>
+                    <div class="calendar-weekday-cell">週五</div>
+                    <div class="calendar-weekday-cell weekend">週六</div>
+                </div>
+
+                <!-- 日期網格 -->
+                <div class="calendar-month-grid" id="parentCalendarGrid">
+                    <!-- 第一週前的空白格 -->
+                    @for (int p = 0; p < Model.StartDayOfWeek; p++)
+                    {
+                        <div class="calendar-month-cell empty-cell"></div>
+                    }
+
+                    @for (int day = 1; day <= Model.DaysInMonth; day++)
+                    {
+                        var cellDate = new DateOnly(Model.CalendarYear, Model.CalendarMonth, day);
+                        var cellDateStr = cellDate.ToString("yyyy-MM-dd");
+                        var cellDateDisplayZh = $"{cellDate:yyyy/MM/dd}（週{"日一二三四五六"[(int)cellDate.DayOfWeek]}）";
+                        var hasSlots = Model.CalendarDaysSummary.TryGetValue(cellDate, out var summary) && summary.TotalSlots > 0;
+                        var isSelected = Model.SelectedDate.HasValue && Model.SelectedDate.Value == cellDate;
+                        var isToday = cellDate == DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
+
+                        <div class="calendar-month-cell @(hasSlots ? "has-slots" : "no-slots") @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
+                             data-date="@cellDateStr"
+                             data-date-zh="@cellDateDisplayZh"
+                             @(hasSlots ? $"onclick=\"selectCalendarDate('{cellDateStr}', '{cellDateDisplayZh}')\"" : "")>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : "")">
+                                    @day
+                                </span>
+                                @if (summary?.HasMyBooking == true)
+                                {
+                                    <span class="badge bg-success py-0 px-1 font-monospace" style="font-size: 0.65rem;" title="孩子已有確認預約">
+                                        <i class="bi bi-check-lg"></i>已約
+                                    </span>
+                                }
+                            </div>
+
+                            @if (hasSlots && summary != null)
+                            {
+                                <div class="calendar-cell-badges d-flex flex-column gap-1">
+                                    @if (summary.SmallGroupCount > 0)
+                                    {
+                                        <span class="badge badge-slot-small text-truncate" title="小組指導共 @summary.SmallGroupCount 堂">
+                                            小組 @summary.SmallGroupCount
+                                        </span>
+                                    }
+                                    @if (summary.GroupCount > 0)
+                                    {
+                                        <span class="badge badge-slot-group text-truncate" title="團體輔導共 @summary.GroupCount 堂">
+                                            團體 @summary.GroupCount
+                                        </span>
+                                    }
+                                    <div class="slot-seats-note text-truncate @(summary.IsFull ? "text-danger fw-bold" : "text-muted")">
+                                        @(summary.IsFull ? "已滿額" : $"餘 {summary.TotalRemainingSeats} 空位")
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- 未點選日期時的引導提示卡片 -->
+            <div class="card-plato p-4 p-md-5 text-center text-muted mb-4 shadow-sm @(Model.SelectedDate.HasValue ? "d-none" : "")" id="noDateSelectedPrompt">
+                <div class="mb-3">
+                    <span class="d-inline-flex p-3 rounded-circle bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-calendar2-week fs-1"></i>
+                    </span>
+                </div>
+                <h3 class="h5 fw-bold text-dark mb-1">請在上方月曆點選有標示課堂的日期</h3>
+                <p class="text-secondary small mb-0">
+                    點擊月曆中有「小組」或「團體」標籤之日期，將在此展開當天的輔導課堂列表、剩餘名額與預約按鈕。
+                </p>
+            </div>
+
+            <!-- 點日期之後展開：當天課堂列表容器 -->
+            <div id="daySlotsContainer" class="@(Model.SelectedDate.HasValue ? "" : "d-none") mb-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 p-3 bg-white rounded-3 border shadow-sm">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="metric-icon-box ocean"><i class="bi bi-calendar-event"></i></span>
+                        <div>
+                            <h3 class="h5 fw-bold mb-0 text-dark" id="selectedDateTitle">
+                                @(Model.SelectedDate.HasValue ? $"📅 {Model.SelectedDate.Value:yyyy/MM/dd}（週{"日一二三四五六"[(int)Model.SelectedDate.Value.DayOfWeek]}）當日課堂列表" : "")
+                            </h3>
+                            <span class="small text-muted" id="selectedDateSubtitle">
+                                @(Model.SelectedDate.HasValue ? $"當天共開放 {Model.AvailableSlots.Count} 堂輔導課，請選擇到班目的後預約" : "")
+                            </span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelectedDate()">
+                        <i class="bi bi-x-circle me-1"></i>收合課堂列表
+                    </button>
+                </div>
+
+                <!-- 當天時段卡片清單 -->
+                <div class="d-grid gap-3" id="slotCardsList">
+                    @foreach (var slot in Model.AllCurrentSlots)
                     {
                         var startTpe = BookingService.ToTaipeiTime(slot.StartsAtUtc);
                         var endTpe = BookingService.ToTaipeiTime(slot.EndsAtUtc);
+                        var slotDateStr = DateOnly.FromDateTime(startTpe).ToString("yyyy-MM-dd");
                         var dayZh = "日一二三四五六"[(int)startTpe.DayOfWeek];
                         var isFull = slot.RemainingSeats <= 0;
                         var isGroup = slot.SlotType == SlotType.GroupCounseling;
@@ -257,7 +400,10 @@
                         var isMyBooked = myBooking != null;
                         var sameProgressOtherBooked = slot.SlotType == SlotType.SmallGroup && Model.StudentBookings.Any(b => b.Status == BookingStatus.Confirmed && b.TutoringSlot?.CourseProgressId == slot.CourseProgressId && b.TutoringSlotId != slot.Id);
 
-                        <div class="card-plato p-3 p-md-4 slot-card @(isMyBooked ? "border-success shadow-sm" : isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")"
+                        var isVisibleForSelectedDate = Model.SelectedDate.HasValue && Model.SelectedDate.Value.ToString("yyyy-MM-dd") == slotDateStr;
+
+                        <div class="card-plato p-3 p-md-4 slot-card slot-card-item @(isVisibleForSelectedDate ? "" : "d-none") @(isMyBooked ? "border-success shadow-sm" : isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")"
+                             data-slot-date="@slotDateStr"
                              style="@(isMyBooked ? "border: 2px solid var(--plato-sage) !important; background: #f8fbf9;" : "")">
                             <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                                 <div class="flex-grow-1">
@@ -374,6 +520,25 @@
                             </div>
                         </div>
                     }
+                </div>
+            </div>
+
+            <!-- 預約與改期規則說明卡片 -->
+            <div class="card-plato p-3 p-md-4 bg-light border-0">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-info-circle-fill text-primary"></i>
+                    <strong class="text-dark">預約與改期規則提醒</strong>
+                </div>
+                <div class="row g-2 small text-secondary">
+                    <div class="col-12 col-md-4">
+                        <i class="bi bi-dot text-primary"></i>小組指導每進度限 <strong>1 堂</strong>（扣 1 堂）；團體輔導免費不限堂數。
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <i class="bi bi-dot text-primary"></i>開課前 <strong>24 小時（含）以上</strong>取消自動退還扣抵堂數；未滿 24 小時取消不退堂。
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <i class="bi bi-dot text-primary"></i>名額額滿可登記候補，釋出空位時將發送 LINE 通知並為您保留 <strong>30 分鐘</strong>。
+                    </div>
                 </div>
             </div>
         </div>
@@ -644,6 +809,77 @@
 
 @section Scripts {
     <script>
+        function selectCalendarDate(dateStr, dateZh) {
+            if (!dateStr) return;
+
+            // 1. 更新月曆格子的選中樣式
+            document.querySelectorAll('.calendar-month-cell').forEach(cell => {
+                if (cell.getAttribute('data-date') === dateStr) {
+                    cell.classList.add('selected-day');
+                } else {
+                    cell.classList.remove('selected-day');
+                }
+            });
+
+            // 2. 顯示課堂容器，隱藏未選擇提示
+            const noDatePrompt = document.getElementById('noDateSelectedPrompt');
+            const daySlotsContainer = document.getElementById('daySlotsContainer');
+            if (noDatePrompt) noDatePrompt.classList.add('d-none');
+            if (daySlotsContainer) daySlotsContainer.classList.remove('d-none');
+
+            // 3. 篩選當日課堂卡片
+            let matchCount = 0;
+            document.querySelectorAll('.slot-card-item').forEach(card => {
+                if (card.getAttribute('data-slot-date') === dateStr) {
+                    card.classList.remove('d-none');
+                    matchCount++;
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+
+            // 4. 更新標題文字
+            const titleElem = document.getElementById('selectedDateTitle');
+            const subTitleElem = document.getElementById('selectedDateSubtitle');
+            if (titleElem) {
+                titleElem.textContent = `📅 ${dateZh || dateStr} 當日課堂列表`;
+            }
+            if (subTitleElem) {
+                subTitleElem.textContent = `當天共開放 ${matchCount} 堂輔導課，請選擇到班目的後預約`;
+            }
+
+            // 5. 更新網址 query string（不觸發頁面刷新，方便家長分享或重新載入保持選取狀態）
+            const url = new URL(window.location.href);
+            url.searchParams.set('date', dateStr);
+            history.replaceState(null, null, url.toString());
+
+            // 6. 平滑捲動至時段列表
+            daySlotsContainer?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function clearSelectedDate() {
+            // 1. 清除月曆選取樣式
+            document.querySelectorAll('.calendar-month-cell').forEach(cell => {
+                cell.classList.remove('selected-day');
+            });
+
+            // 2. 隱藏課堂容器，顯示提示
+            const noDatePrompt = document.getElementById('noDateSelectedPrompt');
+            const daySlotsContainer = document.getElementById('daySlotsContainer');
+            if (noDatePrompt) noDatePrompt.classList.remove('d-none');
+            if (daySlotsContainer) daySlotsContainer.classList.add('d-none');
+
+            // 3. 隱藏所有課堂卡片
+            document.querySelectorAll('.slot-card-item').forEach(card => {
+                card.classList.add('d-none');
+            });
+
+            // 4. 移除網址中的 date 參數
+            const url = new URL(window.location.href);
+            url.searchParams.delete('date');
+            history.replaceState(null, null, url.toString());
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // 保留切換孩子時的目前頁籤
             const hash = window.location.hash;
@@ -664,6 +900,17 @@
                     }
                 });
             });
+
+            // 若網址帶有 date 參數，且該日期格子存在，自動觸發選取
+            const urlParams = new URLSearchParams(window.location.search);
+            const dateParam = urlParams.get('date');
+            if (dateParam) {
+                const targetCell = document.querySelector(`.calendar-month-cell[data-date="${dateParam}"]`);
+                if (targetCell) {
+                    const dateZh = targetCell.getAttribute('data-date-zh') || dateParam;
+                    selectCalendarDate(dateParam, dateZh);
+                }
+            }
         });
     </script>
 }

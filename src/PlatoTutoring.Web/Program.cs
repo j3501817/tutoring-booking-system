@@ -51,7 +51,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 });
 
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<CreditLedgerService>();
+builder.Services.AddScoped<LineAuthService>();
 builder.Services.AddScoped<LineNotificationService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<AttachmentStorageService>();
