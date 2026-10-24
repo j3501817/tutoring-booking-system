@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using PlatoTutoring.Web.Data;
 
 namespace PlatoTutoring.Web.Services;
 
@@ -53,9 +54,9 @@ public class LineAuthService
         _logger = logger;
     }
 
-    public string? GetLoginClientId()
+    public string? GetLoginClientId(AppDbContext? db = null)
     {
-        return _config["LineLogin:ClientId"]
+        var val = _config["LineLogin:ClientId"]
             ?? _config["LineLogin__ClientId"]
             ?? Environment.GetEnvironmentVariable("LineLogin__ClientId")
             ?? Environment.GetEnvironmentVariable("LINE_LOGIN_CLIENT_ID")
@@ -63,11 +64,22 @@ public class LineAuthService
             ?? _config["LineBot__ChannelId"]
             ?? Environment.GetEnvironmentVariable("LineBot__ChannelId")
             ?? Environment.GetEnvironmentVariable("LINE_CHANNEL_ID");
+
+        if (string.IsNullOrWhiteSpace(val) && db != null)
+        {
+            try
+            {
+                val = db.SystemSettings.FirstOrDefault(s => s.Key == "LineLogin:ClientId" || s.Key == "LineBot:ChannelId")?.Value;
+            }
+            catch { }
+        }
+
+        return string.IsNullOrWhiteSpace(val) ? null : val.Trim();
     }
 
-    public string? GetLoginClientSecret()
+    public string? GetLoginClientSecret(AppDbContext? db = null)
     {
-        return _config["LineLogin:ClientSecret"]
+        var val = _config["LineLogin:ClientSecret"]
             ?? _config["LineLogin__ClientSecret"]
             ?? Environment.GetEnvironmentVariable("LineLogin__ClientSecret")
             ?? Environment.GetEnvironmentVariable("LINE_LOGIN_CLIENT_SECRET")
@@ -75,6 +87,17 @@ public class LineAuthService
             ?? _config["LineBot__ChannelSecret"]
             ?? Environment.GetEnvironmentVariable("LineBot__ChannelSecret")
             ?? Environment.GetEnvironmentVariable("LINE_CHANNEL_SECRET");
+
+        if (string.IsNullOrWhiteSpace(val) && db != null)
+        {
+            try
+            {
+                val = db.SystemSettings.FirstOrDefault(s => s.Key == "LineLogin:ClientSecret" || s.Key == "LineBot:ChannelSecret")?.Value;
+            }
+            catch { }
+        }
+
+        return string.IsNullOrWhiteSpace(val) ? null : val.Trim();
     }
 
     public string? GetChannelAccessToken()
@@ -85,10 +108,15 @@ public class LineAuthService
             ?? Environment.GetEnvironmentVariable("LINE_CHANNEL_ACCESS_TOKEN");
     }
 
-    public bool IsLineLoginConfigured()
+    public bool IsMessagingConfigured()
     {
-        var clientId = GetLoginClientId();
-        var clientSecret = GetLoginClientSecret();
+        return !string.IsNullOrWhiteSpace(GetChannelAccessToken());
+    }
+
+    public bool IsLineLoginConfigured(AppDbContext? db = null)
+    {
+        var clientId = GetLoginClientId(db);
+        var clientSecret = GetLoginClientSecret(db);
         return !string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret);
     }
 

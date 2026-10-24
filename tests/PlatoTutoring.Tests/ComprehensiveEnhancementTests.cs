@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using PlatoTutoring.Web.Data;
 using PlatoTutoring.Web.Models;
 using PlatoTutoring.Web.Services;
@@ -204,5 +205,59 @@ public class ComprehensiveEnhancementTests
         });
 
         Assert.Contains("休假日", ex.Message);
+    }
+
+    [Fact]
+    public void LineAuthService_DetectsMessagingApi_AndReadsSettings()
+    {
+        var configDict = new Dictionary<string, string?>
+        {
+            { "LineBot:ChannelAccessToken", "mock_token_123" },
+            { "LineBot:ChannelSecret", "mock_secret_456" }
+        };
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(configDict)
+            .Build();
+
+        var authService = new LineAuthService(
+            config,
+            new HttpClient(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LineAuthService>.Instance);
+
+        Assert.True(authService.IsMessagingConfigured());
+        Assert.Equal("mock_token_123", authService.GetChannelAccessToken());
+        Assert.Equal("mock_secret_456", authService.GetLoginClientSecret());
+
+        // 尚未在 config 設定 ChannelId，但可透過 db SystemSettings 回退讀取
+        var (db, _, _, _, _) = CreateServices();
+        db.SystemSettings.Add(new SystemSetting { Key = "LineBot:ChannelId", Value = "2009998888" });
+        db.SaveChanges();
+
+        Assert.Equal("2009998888", authService.GetLoginClientId(db));
+        Assert.True(authService.IsLineLoginConfigured(db));
+    }
+
+    [Fact]
+    public async Task SystemAdminCalendar_BuildsMonthlyGrid_WithHolidayMap()
+    {
+        var (db, ledger, booking, _, _) = CreateServices();
+        var adminUser = new AppUser { Username = "admin_cal", PasswordHash = "pw", DisplayName = "管理員", Role = UserRole.Admin };
+        db.Users.Add(adminUser);
+
+        var holiday = new AcademicHoliday { Date = new DateOnly(2026, 10, 24), Name = "光復節休假", IsActive = true };
+        db.AcademicHolidays.Add(holiday);
+        await db.SaveChangesAsync();
+
+        var model = new PlatoTutoring.Web.Pages.SystemAdmin.IndexModel(db, ledger, booking);
+        await model.OnGetAsync(2026, 10);
+
+        Assert.Equal(2026, model.CalendarYear);
+        Assert.Equal(10, model.CalendarMonth);
+        Assert.Equal(31, model.DaysInMonth);
+        Assert.Equal(9, model.PrevMonth);
+        Assert.Equal(11, model.NextMonth);
+
+        Assert.True(model.HolidayMap.ContainsKey(new DateOnly(2026, 10, 24)));
+        Assert.Equal("光復節休假", model.HolidayMap[new DateOnly(2026, 10, 24)].Name);
     }
 }

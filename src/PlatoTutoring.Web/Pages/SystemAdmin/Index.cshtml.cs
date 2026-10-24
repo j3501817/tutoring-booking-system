@@ -35,7 +35,17 @@ public class IndexModel : PageModel
     public List<FieldOption> SubjectOptions { get; set; } = new();
     public List<AttendancePurposeOption> PurposeOptions { get; set; } = new(); // 到班目的
     public List<AcademicHoliday> AcademicHolidays { get; set; } = new(); // 休假日
+    public Dictionary<DateOnly, AcademicHoliday> HolidayMap { get; set; } = new();
     public Semester? CurrentSemester { get; set; }
+
+    public int CalendarYear { get; set; }
+    public int CalendarMonth { get; set; }
+    public int PrevYear { get; set; }
+    public int PrevMonth { get; set; }
+    public int NextYear { get; set; }
+    public int NextMonth { get; set; }
+    public int StartDayOfWeek { get; set; }
+    public int DaysInMonth { get; set; }
 
     public override async Task OnPageHandlerExecutionAsync(
         PageHandlerExecutingContext context,
@@ -53,7 +63,7 @@ public class IndexModel : PageModel
         await next();
     }
 
-    public async Task OnGetAsync()
+    public async Task OnGetAsync(int? year = null, int? month = null)
     {
         AllOptions = await _db.FieldOptions
             .OrderBy(o => o.Category)
@@ -76,9 +86,34 @@ public class IndexModel : PageModel
             .OrderBy(h => h.Date)
             .ToListAsync();
 
+        HolidayMap = AcademicHolidays.ToDictionary(h => h.Date, h => h);
+
         CurrentSemester = await _db.Semesters
             .FirstOrDefaultAsync(s => s.IsCurrent)
             ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+
+        if (year.HasValue && month.HasValue && month.Value >= 1 && month.Value <= 12)
+        {
+            CalendarYear = year.Value;
+            CalendarMonth = month.Value;
+        }
+        else
+        {
+            var today = DateTime.Today;
+            CalendarYear = today.Year;
+            CalendarMonth = today.Month;
+        }
+
+        DaysInMonth = DateTime.DaysInMonth(CalendarYear, CalendarMonth);
+        StartDayOfWeek = (int)new DateOnly(CalendarYear, CalendarMonth, 1).DayOfWeek;
+
+        var prev = new DateTime(CalendarYear, CalendarMonth, 1).AddMonths(-1);
+        PrevYear = prev.Year;
+        PrevMonth = prev.Month;
+
+        var next = new DateTime(CalendarYear, CalendarMonth, 1).AddMonths(1);
+        NextYear = next.Year;
+        NextMonth = next.Month;
     }
 
     public async Task<IActionResult> OnPostCreateOptionAsync(
