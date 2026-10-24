@@ -19,16 +19,53 @@
             </p>
         </div>
 
-        <form method="post" asp-page-handler="BindLine" class="d-flex gap-2 align-items-center flex-wrap">
-            <input type="hidden" name="studentId" value="@student?.Id" />
-            <div class="input-group" style="max-width: 380px;">
-                <span class="input-group-text bg-light fw-semibold small">
-                    <i class="bi bi-chat-dots-fill text-success me-1"></i>LINE 通知 ID
-                </span>
-                <input type="text" name="lineUserId" class="form-control" value="@Model.CurrentUser.LineUserId" placeholder="輸入 LINE User ID" />
-                <button type="submit" class="btn btn-outline-dark fw-semibold">儲存綁定</button>
+        <div class="d-flex flex-column align-items-start align-items-md-end gap-2">
+            @if (string.IsNullOrWhiteSpace(Model.CurrentUser.LineUserId))
+            {
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="/LineAuth/Login?returnUrl=@Url.Page("/Parent", null, new { studentId = student?.Id })"
+                       class="btn text-white fw-bold shadow-sm d-inline-flex align-items-center px-3 py-2"
+                       style="background-color: #06c755; border-color: #06c755;">
+                        <i class="bi bi-line fs-5 me-2"></i>一鍵自動授權綁定 LINE 通知
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#manualBindCollapse" aria-expanded="false" title="進階手動設定">
+                        <i class="bi bi-gear-fill"></i>
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex align-items-center gap-2 flex-wrap bg-white p-2 px-3 rounded-3 border shadow-sm">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2 d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-check-circle-fill"></i> LINE 通知已綁定
+                    </span>
+                    <span class="small font-monospace text-muted d-none d-md-inline" title="LINE User ID">
+                        @Model.CurrentUser.LineUserId
+                    </span>
+                    <a href="/LineAuth/Login?returnUrl=@Url.Page("/Parent", null, new { studentId = student?.Id })"
+                       class="btn btn-sm btn-outline-success fw-semibold" title="重新綁定或換帳號">
+                        <i class="bi bi-arrow-repeat me-1"></i>重新綁定
+                    </a>
+                    <form method="post" asp-page-handler="UnbindLine" class="d-inline" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？解除後將無法接收即時推播通知。');">
+                        <input type="hidden" name="studentId" value="@student?.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="解除綁定">
+                            <i class="bi bi-x-circle me-1"></i>解除
+                        </button>
+                    </form>
+                </div>
+            }
+
+            <div class="collapse" id="manualBindCollapse">
+                <form method="post" asp-page-handler="BindLine" class="d-flex gap-2 align-items-center">
+                    <input type="hidden" name="studentId" value="@student?.Id" />
+                    <div class="input-group input-group-sm" style="max-width: 340px;">
+                        <span class="input-group-text bg-light small">手動 ID</span>
+                        <input type="text" name="lineUserId" class="form-control" value="@Model.CurrentUser.LineUserId" placeholder="例如 U4af49806..." />
+                        <button type="submit" class="btn btn-outline-secondary">儲存</button>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 

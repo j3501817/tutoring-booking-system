@@ -249,6 +249,17 @@ public class IndexModel : PageModel
         return RedirectToPage(new { studentId });
     }
 
+    public async Task<IActionResult> OnPostUnbindLineAsync(int? studentId)
+    {
+        var user = await GetCurrentParentOrAdminAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        user.LineUserId = null;
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = "已成功解除 LINE 官方帳號通知綁定。";
+        return RedirectToPage(new { studentId });
+    }
+
     private async Task<AppUser?> GetCurrentParentOrAdminAsync()
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);

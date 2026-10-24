@@ -7,10 +7,12 @@ namespace PlatoTutoring.Web.Services;
 public class LineNotificationService
 {
     private readonly AppDbContext _db;
+    private readonly LineAuthService? _lineAuth;
 
-    public LineNotificationService(AppDbContext db)
+    public LineNotificationService(AppDbContext db, LineAuthService? lineAuth = null)
     {
         _db = db;
+        _lineAuth = lineAuth;
     }
 
     public async Task<LineNotificationLog?> SendToStudentParentsAsync(
@@ -40,6 +42,16 @@ public class LineNotificationService
                 continue;
             }
 
+            var status = string.IsNullOrWhiteSpace(link.ParentUser.LineUserId) ? "Failed_NoLineId" : "Sent";
+            if (_lineAuth != null && !string.IsNullOrWhiteSpace(link.ParentUser.LineUserId))
+            {
+                var (pSuccess, pMsg) = await _lineAuth.SendPushMessageAsync(link.ParentUser.LineUserId, messageText);
+                if (!pSuccess && !pMsg.Contains("尚未設定"))
+                {
+                    status = "Failed_LineApi";
+                }
+            }
+
             var log = new LineNotificationLog
             {
                 RecipientParentUserId = link.ParentUserId,
@@ -48,7 +60,7 @@ public class LineNotificationService
                 IdempotencyKey = key,
                 MessageText = messageText,
                 ActionUrl = actionUrl,
-                Status = string.IsNullOrWhiteSpace(link.ParentUser.LineUserId) ? "Failed_NoLineId" : "Sent",
+                Status = status,
                 RetryCount = 0,
                 SentAtUtc = timestamp
             };
@@ -153,7 +165,15 @@ public class LineNotificationService
         if (!string.IsNullOrWhiteSpace(log.RecipientParentUser?.LineUserId))
         {
             log.LineUserId = log.RecipientParentUser.LineUserId;
-            log.Status = "RetriedSuccess";
+            if (_lineAuth != null)
+            {
+                var (pSuccess, pMsg) = await _lineAuth.SendPushMessageAsync(log.LineUserId, log.MessageText);
+                log.Status = (pSuccess || pMsg.Contains("尚未設定")) ? "RetriedSuccess" : "Failed_LineApi";
+            }
+            else
+            {
+                log.Status = "RetriedSuccess";
+            }
         }
         else
         {
