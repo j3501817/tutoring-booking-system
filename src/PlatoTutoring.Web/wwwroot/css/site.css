@@ -756,6 +756,11 @@ html, body {
   box-shadow: 0 4px 12px rgba(200, 125, 75, 0.15);
 }
 
+.calendar-month-cell.has-slots:focus-visible {
+  outline: 2px solid var(--plato-terracotta);
+  outline-offset: 2px;
+}
+
 .calendar-month-cell.selected-day {
   border: 2px solid var(--plato-terracotta) !important;
   background: #fdf6f0 !important;
