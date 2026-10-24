@@ -275,7 +275,11 @@
 
                     <!-- 週期預約按鈕與圖例說明 -->
                     <div class="d-flex align-items-center gap-2 flex-wrap small">
-                        <button type="button" class="btn btn-sm btn-primary fw-bold" onclick="openRecurringBookingModal()">
+                        <button type="button"
+                                class="btn btn-sm btn-primary fw-bold"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalRecurringBooking"
+                                onclick="openRecurringBookingModal()">
                             <i class="bi bi-arrow-repeat me-1"></i>週期預約
                         </button>
                         <span class="text-secondary ms-2 me-1">標示說明：</span>
@@ -1069,6 +1073,17 @@
                     </div>
                 </form>
             }
+            else
+            {
+                <div class="modal-body text-center py-5 text-muted">
+                    <i class="bi bi-person-x fs-1 text-warning d-block mb-2"></i>
+                    <h5 class="fw-bold text-dark">尚未選擇學生</h5>
+                    <p class="small text-secondary mb-0">請先於頁面上方切換或選擇獲授權的孩子，再進行週期預約。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">關閉</button>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -1283,7 +1298,25 @@
                     filterRecurringSlots();
                 });
             });
+
+            // 監聽週期預約 Modal 開啟，自動重新整理過濾
+            const recModal = document.getElementById('modalRecurringBooking');
+            if (recModal) {
+                recModal.addEventListener('show.bs.modal', function () {
+                    filterRecurringSlots();
+                });
+            }
         });
+
+        function openRecurringBookingModal() {
+            filterRecurringSlots();
+            const modalElem = document.getElementById('modalRecurringBooking');
+            if (modalElem) {
+                const modal = bootstrap.Modal.getInstance(modalElem) || new bootstrap.Modal(modalElem);
+                modal.show();
+            }
+        }
+        window.openRecurringBookingModal = openRecurringBookingModal;
 
         function filterRecurringSlots() {
             // 取得選取的星期集合
