@@ -360,7 +360,7 @@ public class IndexModel : PageModel
             if (oldCurrent != null && admin != null)
             {
                 var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
-                TempData["SuccessMessage"] = $"已設定「{semester.Name}」為目前學期！前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
+                TempData["SuccessMessage"] = $"已設定「{semester!.Name}」為目前學期！前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
             }
             foreach (var s in await _db.Semesters.ToListAsync())
             {
@@ -369,7 +369,7 @@ public class IndexModel : PageModel
         }
 
         await _db.SaveChangesAsync();
-        TempData["SuccessMessage"] = $"已儲存學期「{semester.Name}」期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
+        TempData["SuccessMessage"] = $"已儲存學期「{semester!.Name}」期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
         return RedirectToPage(new { semesterId = semester.Id });
     }
 
