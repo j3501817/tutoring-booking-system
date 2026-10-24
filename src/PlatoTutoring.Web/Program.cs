@@ -58,6 +58,7 @@ builder.Services.AddScoped<LineNotificationService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<AttachmentStorageService>();
 builder.Services.AddScoped<StudentParentLinkingService>();
+builder.Services.AddHostedService<SemesterBonusExpirationBackgroundService>();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

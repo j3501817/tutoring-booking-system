@@ -198,8 +198,13 @@
                         </a>
                         <ul class="sidebar-subnav">
                             <li>
-                                <a class="sidebar-subnav-link @(IsActive("/SystemAdmin") ? "text-white fw-semibold" : "")" asp-page="/SystemAdmin/Index">
-                                    <i class="bi bi-list-Columns-reverse"></i>欄位管理
+                                <a class="sidebar-subnav-link" href="/SystemAdmin?sub=calendar#subtab-calendar">
+                                    <i class="bi bi-calendar3"></i>學期行事曆管理
+                                </a>
+                            </li>
+                            <li>
+                                <a class="sidebar-subnav-link" href="/SystemAdmin?sub=fields#subtab-fields">
+                                    <i class="bi bi-list-columns-reverse"></i>系統欄位管理
                                 </a>
                             </li>
                         </ul>
@@ -435,8 +440,54 @@
         </div>
     </div>
 
+    <!-- 全域送出/等待遮罩 (阻斷其他操作與防止重複點擊) -->
+    <div id="globalLoadingOverlay" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(5px); z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: #ffffff; pointer-events: all; user-select: none;">
+        <div class="spinner-border text-light mb-3" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="fw-bold mb-2" id="globalLoadingTitle" style="letter-spacing: 0.05em;">處理中，請稍候...</h4>
+        <p class="text-white-50 small mb-0" id="globalLoadingDesc">系統正在儲存並同步資料，請勿關閉視窗或點擊其他功能</p>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        window.showGlobalLoading = function(title, desc) {
+            const overlay = document.getElementById('globalLoadingOverlay');
+            if (overlay) {
+                if (title) document.getElementById('globalLoadingTitle').textContent = title;
+                if (desc) document.getElementById('globalLoadingDesc').textContent = desc;
+                overlay.style.display = 'flex';
+                document.body.style.pointerEvents = 'none';
+                overlay.style.pointerEvents = 'all';
+            }
+        };
+
+        window.hideGlobalLoading = function() {
+            const overlay = document.getElementById('globalLoadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                document.body.style.pointerEvents = 'auto';
+            }
+        };
+
+        // 攔截所有表單送出（POST 或非新視窗操作）
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            if (!form || form.target === '_blank') return;
+            if (form.getAttribute('data-no-loading') === 'true') return;
+            
+            if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
+                return;
+            }
+
+            window.showGlobalLoading('處理中，請稍候...', '系統正在儲存並同步資料，請勿關閉視窗或點擊其他功能');
+
+            // 20 秒逾時防呆
+            setTimeout(function() {
+                window.hideGlobalLoading();
+            }, 20000);
+        });
+
         function activateWorkspaceTab(tabPaneId) {
             const triggerEl = document.querySelector(`[data-bs-target="#${tabPaneId}"]`);
             if (triggerEl && window.bootstrap) {

@@ -5,47 +5,53 @@
     ViewData["Title"] = "系統管理 － 欄位與行事曆管理";
 }
 
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
             <span class="badge bg-dark">系統管理</span>
-            <span class="badge badge-terracotta">欄位與行事曆</span>
+            <span class="badge badge-terracotta">獨立子功能切換</span>
         </div>
-        <h2 class="fw-bold mb-1">系統欄位與學期行事曆管理</h2>
+        <h2 class="fw-bold mb-1">系統管理</h2>
         <p class="text-muted small mb-0">
-            集中維護系統下拉欄位（學校、年別、班別、任教科目、到班目的）以及學期行事曆與休假日排定。
+            請點選上方頁籤切換「學期行事曆管理」與「系統欄位管理」兩個獨立子功能。
         </p>
     </div>
-    <div class="d-flex gap-2">
-        <button type="button" class="btn btn-outline-danger fw-bold px-3"
-                onclick="openCreateHolidayModal()">
-            <i class="bi bi-calendar-x me-1"></i>新增休假日
-        </button>
-        <button type="button" class="btn btn-accent fw-bold px-3"
-                onclick="openCreateOptionModal('School')">
-            <i class="bi bi-plus-lg me-1"></i>新增欄位選項
-        </button>
+    <!-- 頂部兩大子功能分頁切換 -->
+    <div class="workspace-tabs-shell">
+        <ul class="nav nav-pills bg-white border rounded-3 p-1 shadow-sm" id="systemAdminSubTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold px-3 py-2" id="subtab-calendar-btn" data-bs-toggle="pill" data-bs-target="#subtab-calendar" type="button" role="tab" onclick="switchSubTab('calendar')">
+                    <i class="bi bi-calendar3 me-1 text-primary"></i>學期行事曆管理
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold px-3 py-2" id="subtab-fields-btn" data-bs-toggle="pill" data-bs-target="#subtab-fields" type="button" role="tab" onclick="switchSubTab('fields')">
+                    <i class="bi bi-menu-button-wide me-1 text-primary"></i>系統欄位管理
+                </button>
+            </li>
+        </ul>
     </div>
 </div>
 
-<!-- 1. 學期行事曆與休假日管理區塊（月曆視覺化顯示） -->
-<div class="card card-plato mb-4 border-primary border-opacity-25 shadow-sm">
-    <div class="card-header bg-primary bg-opacity-10 py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-        <div>
-            <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-calendar3 me-2"></i>學期行事曆與休假日設定</h5>
-            <div class="text-muted small">設定學期起訖時間與機構休假日，休假日將同步於家長預約行事曆上全格反灰且禁止預約</div>
-        </div>
-        <div class="d-flex align-items-center gap-2 small">
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
-                <i class="bi bi-calendar2-range me-1"></i>學期期間
-            </span>
-            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
-                <i class="bi bi-moon-stars-fill me-1"></i>休假日（停課）
-            </span>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="row g-4">
+<div class="tab-content" id="systemAdminTabContent">
+    <!-- =================================================================== -->
+    <!-- 子功能 1：學期行事曆管理（學期清單列表、編輯學期期間、月曆視覺化與休假日） -->
+    <!-- =================================================================== -->
+    <div class="tab-pane fade show active" id="subtab-calendar" role="tabpanel" aria-labelledby="subtab-calendar-btn">
+        <div class="card card-plato mb-4 border-primary border-opacity-25 shadow-sm">
+            <div class="card-header bg-primary bg-opacity-10 py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                <div>
+                    <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-calendar3 me-2"></i>學期行事曆與休假日設定</h5>
+                    <div class="text-muted small">設定學期起訖時間與機構休假日，休假日將同步於家長預約行事曆上全格反灰且禁止預約</div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger fw-bold px-3" onclick="openCreateHolidayModal()">
+                        <i class="bi bi-calendar-x me-1"></i>新增休假日
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
             <!-- 左側：學期列表與起訖時間設定 -->
             <div class="col-lg-5 border-end-lg">
                 <!-- 1. 學期功能列表（支援多學期：目前學期與下學期等） -->
@@ -253,12 +259,6 @@
                         <a asp-page="./Index" asp-route-semesterId="@Model.SelectedSemesterId" class="btn btn-sm btn-outline-primary ms-1">本月</a>
                     </div>
                 </div>
-                           class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-chevron-right"></i>
-                        </a>
-                        <a asp-page="./Index" class="btn btn-sm btn-outline-primary ms-1">本月</a>
-                    </div>
-                </div>
 
                 <!-- 月曆網格 (星期日 ~ 星期六) -->
                 <div class="border rounded-3 p-2 bg-light">
@@ -327,21 +327,24 @@
                             </div>
                         }
                     </div>
-                </div>
-            </div>
         </div>
     </div>
-</div>
 
-<!-- 2. 下拉選單項目管理（改用 Tab 分頁，解決雜亂問題） -->
-<div class="card card-plato shadow-sm">
-    <div class="card-header bg-white py-3">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-            <div>
-                <h5 class="fw-bold mb-1 text-dark"><i class="bi bi-menu-button-wide me-2 text-primary"></i>下拉欄位選單項目管理</h5>
-                <div class="text-muted small">點選分頁切換維護學校、年別、班別、到班目的與任教科目下拉選單</div>
-            </div>
-        </div>
+    <!-- =================================================================== -->
+    <!-- 子功能 2：系統欄位管理（學校、年別、班別、到班目的、任教科目 Tab 分頁維護） -->
+    <!-- =================================================================== -->
+    <div class="tab-pane fade" id="subtab-fields" role="tabpanel" aria-labelledby="subtab-fields-btn">
+        <div class="card card-plato shadow-sm">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <h5 class="fw-bold mb-1 text-dark"><i class="bi bi-menu-button-wide me-2 text-primary"></i>系統下拉欄位項目管理</h5>
+                        <div class="text-muted small">點選分頁切換維護學校、年別、班別、到班目的與任教科目下拉選單</div>
+                    </div>
+                    <button type="button" class="btn btn-accent fw-bold px-3" onclick="openCreateOptionModal('School')">
+                        <i class="bi bi-plus-lg me-1"></i>新增欄位選項
+                    </button>
+                </div>
 
         <!-- 導覽分頁 Tabs -->
         <ul class="nav nav-pills custom-tab-pills mt-3" id="adminFieldTabs" role="tablist">
@@ -611,7 +614,8 @@
             </div>
         </div>
     </div>
-</div>
+    </div> <!-- 閉合 subtab-fields -->
+</div> <!-- 閉合 systemAdminTabContent -->
 
 <!-- 新增選項 Modal -->
 <div class="modal fade" id="modalCreateOption" tabindex="-1" aria-hidden="true">
@@ -807,14 +811,40 @@
             new bootstrap.Modal(document.getElementById('modalCreateHoliday')).show();
         }
 
+        function switchSubTab(sub) {
+            localStorage.setItem('plato_admin_subtab', sub);
+        }
+
         // 保存目前切換的 Tab 分頁到 hash 與 localStorage
         document.addEventListener('DOMContentLoaded', function () {
+            // 處理主要子功能切換 (學期行事曆 vs 系統欄位)
+            const urlParams = new URLSearchParams(window.location.search);
+            let subParam = urlParams.get('sub');
+            if (!subParam) {
+                if (window.location.hash.includes('subtab-fields') || window.location.hash.includes('tab-')) {
+                    subParam = 'fields';
+                } else if (window.location.hash.includes('subtab-calendar')) {
+                    subParam = 'calendar';
+                } else {
+                    subParam = localStorage.getItem('plato_admin_subtab') || 'calendar';
+                }
+            }
+
+            if (subParam === 'fields') {
+                const fieldsBtn = document.getElementById('subtab-fields-btn');
+                if (fieldsBtn) new bootstrap.Tab(fieldsBtn).show();
+            } else {
+                const calBtn = document.getElementById('subtab-calendar-btn');
+                if (calBtn) new bootstrap.Tab(calBtn).show();
+            }
+
+            // 處理欄位管理內部的子分頁
             let activeHash = window.location.hash;
-            if (!activeHash) {
+            if (!activeHash || activeHash.includes('subtab-')) {
                 const saved = localStorage.getItem('plato_admin_tab');
                 if (saved) activeHash = saved;
             }
-            if (activeHash) {
+            if (activeHash && !activeHash.includes('subtab-')) {
                 if (!activeHash.startsWith('#')) activeHash = '#' + activeHash;
                 const targetBtn = document.querySelector(`#adminFieldTabs button[data-bs-target="${activeHash}"]`);
                 if (targetBtn) {

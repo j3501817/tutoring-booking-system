@@ -5,10 +5,6 @@
 @{
     ViewData["Title"] = "學生 / 家長 / 老師管理";
     var todayStr = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8)).ToString("yyyy-MM-dd");
-    var classMapJson = JsonSerializer.Serialize(
-        Model.ClassOptions
-            .GroupBy(c => c.ParentValue ?? "")
-            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortOrder).Select(x => x.Value).ToList()));
 }
 
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
@@ -68,6 +64,50 @@
                         <i class="bi bi-plus-lg me-1"></i>新增學生
                     </button>
                 </div>
+            </div>
+
+            <!-- 篩選列（學校、年別、班別獨立不連動） -->
+            <div class="px-3 pt-3 pb-2 bg-light border-bottom">
+                <form method="get" class="row g-2 align-items-end">
+                    <input type="hidden" name="sp" value="1" />
+                    <input type="hidden" name="tp" value="@Model.TeacherPage" />
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">學校篩選</label>
+                        <select name="FilterSchool" class="form-select form-select-sm">
+                            <option value="">全部學校</option>
+                            @foreach (var s in Model.SchoolOptions)
+                            {
+                                <option value="@s.Value" selected="@(Model.FilterSchool == s.Value)">@s.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">年別篩選</label>
+                        <select name="FilterGrade" class="form-select form-select-sm">
+                            <option value="">全部年別</option>
+                            @foreach (var g in Model.GradeOptions)
+                            {
+                                <option value="@g.Value" selected="@(Model.FilterGrade == g.Value)">@g.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-secondary mb-1">班別篩選（資優班／精英班）</label>
+                        <select name="FilterClass" class="form-select form-select-sm">
+                            <option value="">全部班別</option>
+                            @foreach (var c in Model.ClassOptions)
+                            {
+                                <option value="@c.Value" selected="@(Model.FilterClass == c.Value)">@c.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                            <i class="bi bi-funnel me-1"></i>篩選
+                        </button>
+                        <a href="/Members" class="btn btn-sm btn-outline-secondary">清除</a>
+                    </div>
+                </form>
             </div>
 
             <div class="card-body p-0">
@@ -234,16 +274,16 @@
                 <nav aria-label="學生與家長列表分頁">
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item @(Model.StudentParentPage <= 1 ? "disabled" : "")">
-                            <a class="page-link" href="/Members?sp=@(Model.StudentParentPage - 1)&tp=@Model.TeacherPage#tab-student-parent">上一頁</a>
+                            <a class="page-link" href="/Members?sp=@(Model.StudentParentPage - 1)&tp=@Model.TeacherPage&FilterSchool=@Model.FilterSchool&FilterGrade=@Model.FilterGrade&FilterClass=@Model.FilterClass#tab-student-parent">上一頁</a>
                         </li>
                         @for (var p = 1; p <= Model.StudentParentTotalPages; p++)
                         {
                             <li class="page-item @(p == Model.StudentParentPage ? "active" : "")">
-                                <a class="page-link" href="/Members?sp=@p&tp=@Model.TeacherPage#tab-student-parent">@p</a>
+                                <a class="page-link" href="/Members?sp=@p&tp=@Model.TeacherPage&FilterSchool=@Model.FilterSchool&FilterGrade=@Model.FilterGrade&FilterClass=@Model.FilterClass#tab-student-parent">@p</a>
                             </li>
                         }
                         <li class="page-item @(Model.StudentParentPage >= Model.StudentParentTotalPages ? "disabled" : "")">
-                            <a class="page-link" href="/Members?sp=@(Model.StudentParentPage + 1)&tp=@Model.TeacherPage#tab-student-parent">下一頁</a>
+                            <a class="page-link" href="/Members?sp=@(Model.StudentParentPage + 1)&tp=@Model.TeacherPage&FilterSchool=@Model.FilterSchool&FilterGrade=@Model.FilterGrade&FilterClass=@Model.FilterClass#tab-student-parent">下一頁</a>
                         </li>
                     </ul>
                 </nav>
@@ -808,9 +848,6 @@
 
 @section Scripts {
     <script>
-        const schoolClassMap = @Html.Raw(classMapJson);
-        const defaultClasses = ['A班', 'B班', 'C班'];
-
         function ensureSelectOption(selectEl, val) {
             if (!val) return;
             const exists = Array.from(selectEl.options).some(o => o.value === val);
@@ -821,29 +858,6 @@
                 selectEl.appendChild(opt);
             }
             selectEl.value = val;
-        }
-
-        function syncCascadingClasses(schoolSelectId, classSelectId, selectedClass) {
-            const schoolSelect = document.getElementById(schoolSelectId);
-            const classSelect = document.getElementById(classSelectId);
-            if (!schoolSelect || !classSelect) return;
-
-            const schoolVal = schoolSelect.value;
-            const classes = (schoolClassMap[schoolVal] && schoolClassMap[schoolVal].length > 0)
-                ? schoolClassMap[schoolVal]
-                : defaultClasses;
-
-            classSelect.innerHTML = '';
-            classes.forEach(function (cls) {
-                const opt = document.createElement('option');
-                opt.value = cls;
-                opt.textContent = cls;
-                classSelect.appendChild(opt);
-            });
-
-            if (selectedClass) {
-                ensureSelectOption(classSelect, selectedClass);
-            }
         }
 
         function openCreateStudentModal(parentId) {
@@ -914,9 +928,5 @@
 
             new bootstrap.Modal(document.getElementById('modalEditTeacher')).show();
         }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            syncCascadingClasses('createStudentSchool', 'createStudentClass', '');
-        });
     </script>
 }

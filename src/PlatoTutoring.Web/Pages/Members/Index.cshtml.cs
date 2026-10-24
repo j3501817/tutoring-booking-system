@@ -55,6 +55,16 @@ public class IndexModel : PageModel
     public int TeacherPage { get; set; } = 1;
     public int TeacherTotalPages { get; set; } = 1;
 
+    // 學生與家長列表篩選條件（學校、年別、班別獨立不連動）
+    [BindProperty(SupportsGet = true)]
+    public string? FilterSchool { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? FilterGrade { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? FilterClass { get; set; }
+
     public record ChildBindingItem(Student Student, string Relationship);
     public record FamilyGroupRow(List<AppUser> Parents, List<ChildBindingItem> Children);
 
@@ -180,6 +190,27 @@ public class IndexModel : PageModel
             {
                 new(unboundStudent, "未綁定")
             }));
+        }
+        // 套用學生多維篩選（學校、年別、班別獨立不連動）
+        if (!string.IsNullOrWhiteSpace(FilterSchool) || !string.IsNullOrWhiteSpace(FilterGrade) || !string.IsNullOrWhiteSpace(FilterClass))
+        {
+            var filteredRows = new List<FamilyGroupRow>();
+            foreach (var row in rows)
+            {
+                var matchedChildren = row.Children.Where(c =>
+                {
+                    var matchSchool = string.IsNullOrWhiteSpace(FilterSchool) || c.Student.School == FilterSchool;
+                    var matchGrade = string.IsNullOrWhiteSpace(FilterGrade) || c.Student.Grade == FilterGrade;
+                    var matchClass = string.IsNullOrWhiteSpace(FilterClass) || c.Student.ClassName == FilterClass;
+                    return matchSchool && matchGrade && matchClass;
+                }).ToList();
+
+                if (matchedChildren.Any())
+                {
+                    filteredRows.Add(new FamilyGroupRow(row.Parents, matchedChildren));
+                }
+            }
+            rows = filteredRows;
         }
 
         AllFamilyRows = rows;
