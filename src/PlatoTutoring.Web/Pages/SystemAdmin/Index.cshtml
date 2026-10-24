@@ -2,46 +2,134 @@
 @model PlatoTutoring.Web.Pages.SystemAdmin.IndexModel
 @using PlatoTutoring.Web.Models
 @{
-    ViewData["Title"] = "系統管理 － 欄位管理";
+    ViewData["Title"] = "系統管理 － 欄位與行事曆管理";
 }
 
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
             <span class="badge bg-dark">系統管理</span>
-            <span class="badge badge-terracotta">欄位管理</span>
+            <span class="badge badge-terracotta">欄位與行事曆</span>
         </div>
-        <h2 class="fw-bold mb-1">系統下拉與多選欄位管理</h2>
+        <h2 class="fw-bold mb-1">系統欄位與學期行事曆管理</h2>
         <p class="text-muted small mb-0">
-            集中維護「學生與家長管理」及「老師管理」使用的下拉與多選欄位：學校、年別、班級（連動學校）、關係稱謂、任教科目。
+            集中維護系統下拉欄位（學校、年別、班別、任教科目、到班目的）以及學期行事曆與休假日設定。
         </p>
     </div>
-    <div>
-        <button type="button" class="btn btn-accent fw-bold px-3"
-                onclick="openCreateOptionModal('School', '')">
-            <i class="bi bi-plus-lg me-1"></i>新增欄位選項
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-danger fw-bold px-3"
+                onclick="openCreateHolidayModal()">
+            <i class="bi bi-calendar-x me-1"></i>新增休假日
         </button>
+        <button type="button" class="btn btn-accent fw-bold px-3"
+                onclick="openCreateOptionModal('School')">
+            <i class="bi bi-plus-lg me-1"></i>新增基本欄位
+        </button>
+    </div>
+</div>
+
+<!-- 學期行事曆與休假日管理區塊 -->
+<div class="card card-plato mb-4 border-primary border-opacity-25 shadow-sm">
+    <div class="card-header bg-primary bg-opacity-10 py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+        <div>
+            <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-calendar3 me-2"></i>學期行事曆與休假日設定</h5>
+            <div class="text-muted small">設定學期起訖時間與機構休假日，休假日將同步於家長預約行事曆上反灰且禁止預約</div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <!-- 學期起訖時間 -->
+            <div class="col-lg-5 border-end-lg">
+                <h6 class="fw-bold mb-3"><i class="bi bi-calendar-range me-2 text-primary"></i>學期期間設定</h6>
+                <form method="post" asp-page-handler="SaveSemester" class="bg-light p-3 rounded-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">學期名稱</label>
+                        <input type="text" name="name" class="form-control form-control-sm"
+                               value="@(Model.CurrentSemester?.Name ?? $"{DateTime.Today.Year} 學年度")" required />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">學期開始日期</label>
+                            <input type="date" name="startDate" class="form-control form-control-sm"
+                                   value="@(Model.CurrentSemester?.StartDate.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"))" required />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small">學期結束日期</label>
+                            <input type="date" name="endDate" class="form-control form-control-sm"
+                                   value="@(Model.CurrentSemester?.EndDate.ToString("yyyy-MM-dd") ?? DateTime.Today.AddMonths(6).ToString("yyyy-MM-dd"))" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
+                        <i class="bi bi-save me-1"></i>儲存學期期間
+                    </button>
+                </form>
+            </div>
+
+            <!-- 休假日管理 -->
+            <div class="col-lg-7">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-calendar-x me-2 text-danger"></i>休假日清單（家長端反灰不可預約）</h6>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="openCreateHolidayModal()">
+                        <i class="bi bi-plus-lg me-1"></i>新增休假日
+                    </button>
+                </div>
+                @if (Model.AcademicHolidays.Count == 0)
+                {
+                    <div class="text-muted small p-3 bg-light rounded text-center">目前無設定休假日。</div>
+                }
+                else
+                {
+                    <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>休假日期</th>
+                                    <th>節日/休假原因</th>
+                                    <th class="text-end">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var h in Model.AcademicHolidays)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-danger">@h.Date.ToString("yyyy-MM-dd (ddd)")</td>
+                                        <td>@h.Name</td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="DeleteHoliday" class="d-inline"
+                                                  onsubmit="return confirm('確定要移除 @h.Date.ToString("yyyy-MM-dd") 休假日嗎？');">
+                                                <input type="hidden" name="id" value="@h.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="row g-4">
     <!-- 1. 學校 -->
     <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100">
+        <div class="card card-plato h-100 shadow-sm">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="fw-bold mb-0"><i class="bi bi-building me-2 text-primary"></i>學校選項</h6>
                     <div class="text-muted" style="font-size: 0.78rem;">學生就讀學校下拉選單（共 @Model.SchoolOptions.Count 項）</div>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-primary"
-                        onclick="openCreateOptionModal('@FieldCategories.School', '')">
-                    <i class="bi bi-plus-lg me-1"></i>新增學校
+                        onclick="openCreateOptionModal('@FieldCategories.School')">
+                    <i class="bi bi-plus-lg me-1"></i>新增
                 </button>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                        <thead class="table-light sticky-top">
                             <tr>
                                 <th class="ps-3" style="width: 65px;">排序</th>
                                 <th>學校名稱</th>
@@ -57,11 +145,11 @@
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', '', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
-                                                  onsubmit="return confirm('確定要刪除學校「@item.Value」及其連動的班級選項嗎？');">
+                                                  onsubmit="return confirm('確定要刪除學校「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
@@ -78,21 +166,21 @@
 
     <!-- 2. 年別 -->
     <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100">
+        <div class="card card-plato h-100 shadow-sm">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="fw-bold mb-0"><i class="bi bi-layers me-2 text-success"></i>年別選項</h6>
                     <div class="text-muted" style="font-size: 0.78rem;">學生年級下拉選單（共 @Model.GradeOptions.Count 項）</div>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-success"
-                        onclick="openCreateOptionModal('@FieldCategories.Grade', '')">
-                    <i class="bi bi-plus-lg me-1"></i>新增年別
+                        onclick="openCreateOptionModal('@FieldCategories.Grade')">
+                    <i class="bi bi-plus-lg me-1"></i>新增
                 </button>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                        <thead class="table-light sticky-top">
                             <tr>
                                 <th class="ps-3" style="width: 65px;">排序</th>
                                 <th>年別名稱</th>
@@ -108,7 +196,7 @@
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', '', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
@@ -127,43 +215,43 @@
         </div>
     </div>
 
-    <!-- 3. 關係稱謂 -->
+    <!-- 3. 班別（獨立，不需連動學校） -->
     <div class="col-md-6 col-xl-4">
-        <div class="card card-plato h-100">
+        <div class="card card-plato h-100 shadow-sm">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-people me-2 text-info"></i>關係稱謂選項</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">家長與學生關係稱謂下拉選單（共 @Model.RelationshipOptions.Count 項）</div>
+                    <h6 class="fw-bold mb-0"><i class="bi bi-diagram-3 me-2 text-danger"></i>班別選項</h6>
+                    <div class="text-muted" style="font-size: 0.78rem;">學生所屬班別（資優班、精英班、通識等，共 @Model.ClassOptions.Count 項）</div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-info"
-                        onclick="openCreateOptionModal('@FieldCategories.Relationship', '')">
-                    <i class="bi bi-plus-lg me-1"></i>新增稱謂
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        onclick="openCreateOptionModal('@FieldCategories.Class')">
+                    <i class="bi bi-plus-lg me-1"></i>新增
                 </button>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                        <thead class="table-light sticky-top">
                             <tr>
                                 <th class="ps-3" style="width: 65px;">排序</th>
-                                <th>關係稱謂</th>
+                                <th>班別名稱</th>
                                 <th class="text-end pe-3" style="width: 120px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in Model.RelationshipOptions)
+                            @foreach (var item in Model.ClassOptions)
                             {
                                 <tr>
                                     <td class="ps-3 text-muted small">@item.SortOrder</td>
-                                    <td class="fw-bold">@item.Value</td>
+                                    <td><span class="badge bg-danger bg-opacity-10 text-danger border fs-6">@item.Value</span></td>
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', '', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
-                                                  onsubmit="return confirm('確定要刪除關係稱謂「@item.Value」嗎？');">
+                                                  onsubmit="return confirm('確定要刪除班別「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
@@ -178,26 +266,26 @@
         </div>
     </div>
 
-    <!-- 4. 任教科目 (老師多選) -->
-    <div class="col-md-6 col-xl-5">
-        <div class="card card-plato h-100">
+    <!-- 4. 任教科目 -->
+    <div class="col-md-6 col-xl-4">
+        <div class="card card-plato h-100 shadow-sm">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-journal-bookmark-fill me-2 text-warning"></i>任教科目選項（老師多選）</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">老師管理中的任教科目多選項目（共 @Model.SubjectOptions.Count 項）</div>
+                    <h6 class="fw-bold mb-0"><i class="bi bi-journal-bookmark me-2 text-warning"></i>任教科目選項</h6>
+                    <div class="text-muted" style="font-size: 0.78rem;">老師管理任教科目多選項目（共 @Model.SubjectOptions.Count 項）</div>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-dark"
-                        onclick="openCreateOptionModal('@FieldCategories.Subject', '')">
-                    <i class="bi bi-plus-lg me-1"></i>新增科目
+                        onclick="openCreateOptionModal('@FieldCategories.Subject')">
+                    <i class="bi bi-plus-lg me-1"></i>新增
                 </button>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                        <thead class="table-light sticky-top">
                             <tr>
                                 <th class="ps-3" style="width: 65px;">排序</th>
-                                <th>任教科目名稱</th>
+                                <th>科目名稱</th>
                                 <th class="text-end pe-3" style="width: 120px;">操作</th>
                             </tr>
                         </thead>
@@ -206,15 +294,15 @@
                             {
                                 <tr>
                                     <td class="ps-3 text-muted small">@item.SortOrder</td>
-                                    <td><span class="badge bg-light text-dark border fs-6 fw-semibold">@item.Value</span></td>
+                                    <td><span class="badge bg-light text-dark border fs-6">@item.Value</span></td>
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', '', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
-                                                  onsubmit="return confirm('確定要刪除任教科目「@item.Value」嗎？');">
+                                                  onsubmit="return confirm('確定要刪除科目「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
@@ -229,74 +317,60 @@
         </div>
     </div>
 
-    <!-- 5. 班級（連動學校） -->
-    <div class="col-md-12 col-xl-7">
-        <div class="card card-plato h-100">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <!-- 5. 到班目的管理 -->
+    <div class="col-md-12 col-xl-8">
+        <div class="card card-plato h-100 shadow-sm border-info border-opacity-25">
+            <div class="card-header bg-info bg-opacity-10 py-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fw-bold mb-0"><i class="bi bi-diagram-3-fill me-2 text-danger"></i>班級選項（連動學校）</h6>
-                    <div class="text-muted" style="font-size: 0.78rem;">依學生選擇之「學校」自動連動顯示對應的班級選項（共 @Model.ClassOptions.Count 項）</div>
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-check2-circle me-2 text-info"></i>到班目的管理（預約與輔導目的）</h6>
+                    <div class="text-muted" style="font-size: 0.78rem;">家長預約與老師代預約時選擇的「到班目的」選項（共 @Model.PurposeOptions.Count 項）</div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger"
-                        onclick="openCreateOptionModal('@FieldCategories.Class', '@(Model.SchoolOptions.FirstOrDefault()?.Value ?? "三民")')">
-                    <i class="bi bi-plus-lg me-1"></i>新增連動班級
+                <button type="button" class="btn btn-sm btn-outline-info text-dark fw-bold"
+                        onclick="openCreatePurposeModal()">
+                    <i class="bi bi-plus-lg me-1"></i>新增到班目的
                 </button>
             </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    @foreach (var schoolGroup in Model.SchoolOptions)
-                    {
-                        var schoolClasses = Model.ClassOptions
-                            .Where(c => c.ParentValue == schoolGroup.Value)
-                            .OrderBy(c => c.SortOrder)
-                            .ToList();
-                        <div class="col-md-6">
-                            <div class="border rounded-3 p-3 bg-light bg-opacity-50 h-100">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold text-dark">
-                                        <i class="bi bi-building me-1 text-primary"></i>@schoolGroup.Value
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0"
-                                            onclick="openCreateOptionModal('@FieldCategories.Class', '@Html.Raw(schoolGroup.Value)')">
-                                        <i class="bi bi-plus-circle me-1"></i>新增班級
-                                    </button>
-                                </div>
-                                @if (schoolClasses.Count == 0)
-                                {
-                                    <div class="text-muted small">尚未設定連動班級</div>
-                                }
-                                else
-                                {
-                                    <div class="d-flex flex-wrap gap-2">
-                                        @foreach (var cls in schoolClasses)
-                                        {
-                                            <div class="d-inline-flex align-items-center bg-white border rounded-pill px-3 py-1 gap-2 shadow-sm">
-                                                <span class="fw-semibold small">@cls.Value</span>
-                                                <button type="button" class="btn btn-link btn-sm p-0 text-secondary" title="修改班級"
-                                                        onclick="openEditOptionModal(@cls.Id, '@cls.Category', '@Html.Raw(cls.Value)', '@Html.Raw(cls.ParentValue ?? "")', @cls.SortOrder)">
-                                                    <i class="bi bi-pencil-square"></i>
-                                                </button>
-                                                <form method="post" asp-page-handler="DeleteOption" class="d-inline"
-                                                      onsubmit="return confirm('確定要刪除「@schoolGroup.Value - @cls.Value」嗎？');">
-                                                    <input type="hidden" name="optionId" value="@cls.Id" />
-                                                    <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="刪除班級">
-                                                        <i class="bi bi-x-circle"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="ps-3" style="width: 65px;">排序</th>
+                                <th style="width: 180px;">到班目的名稱</th>
+                                <th>目的名稱</th>
+                                <th class="text-end pe-3" style="width: 120px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.PurposeOptions)
+                            {
+                                <tr>
+                                    <td class="ps-3 text-muted small">@item.SortOrder</td>
+                                    <td><span class="badge bg-primary bg-opacity-10 text-primary border fs-6">@item.Name</span></td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-inline-flex gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                    onclick="openEditPurposeModal(@item.Id, '@Html.Raw(item.Name)', @item.SortOrder)">
+                                                修改
+                                            </button>
+                                            <form method="post" asp-page-handler="DeletePurpose"
+                                                  onsubmit="return confirm('確定要刪除到班目的「@item.Name」嗎？');">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 新增欄位選項 Modal -->
+<!-- 新增基本欄位選項 Modal -->
 <div class="modal fade" id="modalCreateOption" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -308,35 +382,16 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">欄位類別</label>
-                        <select name="category" id="createOptionCategory" class="form-select" onchange="toggleCreateParentSchool()">
+                        <select name="category" id="createOptionCategory" class="form-select">
                             <option value="@FieldCategories.School">學校</option>
                             <option value="@FieldCategories.Grade">年別</option>
-                            <option value="@FieldCategories.Class">班級（連動學校）</option>
-                            <option value="@FieldCategories.Relationship">關係稱謂</option>
+                            <option value="@FieldCategories.Class">班別（資優班、精英班、通識等）</option>
                             <option value="@FieldCategories.Subject">任教科目（老師多選）</option>
-                        </select>
-                    </div>
-                    <div class="mb-3 d-none" id="createParentSchoolGroup">
-                        <label class="form-label fw-semibold">所屬連動學校</label>
-                        <select name="parentValue" id="createOptionParentValue" class="form-select">
-                            <option value="">-- 請選擇學校 --</option>
-                            @foreach (var s in Model.SchoolOptions)
-                            {
-                                <option value="@s.Value">@s.Value</option>
-                            }
                         </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">選項名稱</label>
-                        <input type="text" name="value" id="createOptionValue" class="form-control" placeholder="例如：三民、國一、A班、爸爸、數學" required />
-                    </div>
-                    <div class="mb-3" id="createSchoolDefaultClassesGroup">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="autoCreateDefaultClasses" value="true" id="chkAutoClasses" checked />
-                            <label class="form-check-label small text-muted" for="chkAutoClasses">
-                                自動為此學校建立預設連動班級（A班、B班、C班）
-                            </label>
-                        </div>
+                        <input type="text" name="value" id="createOptionValue" class="form-control" placeholder="例如：三民、國一、資優班、數學" required />
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-semibold">顯示排序</label>
@@ -353,7 +408,7 @@
     </div>
 </div>
 
-<!-- 修改欄位選項 Modal -->
+<!-- 修改基本欄位選項 Modal -->
 <div class="modal fade" id="modalEditOption" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -364,15 +419,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3 d-none" id="editParentSchoolGroup">
-                        <label class="form-label fw-semibold">所屬連動學校</label>
-                        <select name="parentValue" id="editOptionParentValue" class="form-select">
-                            @foreach (var s in Model.SchoolOptions)
-                            {
-                                <option value="@s.Value">@s.Value</option>
-                            }
-                        </select>
-                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">選項名稱</label>
                         <input type="text" name="value" id="editOptionValue" class="form-control" required />
@@ -391,51 +437,102 @@
     </div>
 </div>
 
+<!-- 新增/修改到班目的 Modal -->
+<div class="modal fade" id="modalPurpose" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" id="formPurpose" asp-page-handler="CreatePurpose">
+                <input type="hidden" name="id" id="purposeId" />
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="purposeModalTitle"><i class="bi bi-check2-circle me-2"></i>新增到班目的</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">目的名稱</label>
+                        <input type="text" name="name" id="purposeName" class="form-control" placeholder="例如：作業補正、輔導未完、考前救急" required />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">顯示排序</label>
+                        <input type="number" name="sortOrder" id="purposeSortOrder" class="form-control" value="0" min="0" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary fw-bold" id="purposeSubmitBtn">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 新增休假日 Modal -->
+<div class="modal fade" id="modalCreateHoliday" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" asp-page-handler="CreateHoliday">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold text-danger"><i class="bi bi-calendar-x me-2"></i>新增休假日</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">休假日期</label>
+                        <input type="date" name="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">節日 / 休假名稱</label>
+                        <input type="text" name="name" class="form-control" placeholder="例如：中秋節、元旦連假、國慶日、段考後放假" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-danger fw-bold">確認新增休假日</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
-        function toggleCreateParentSchool() {
-            const cat = document.getElementById('createOptionCategory').value;
-            const parentGroup = document.getElementById('createParentSchoolGroup');
-            const schoolClassesGroup = document.getElementById('createSchoolDefaultClassesGroup');
-            if (cat === 'Class') {
-                parentGroup.classList.remove('d-none');
-            } else {
-                parentGroup.classList.add('d-none');
-            }
-            if (cat === 'School') {
-                schoolClassesGroup.classList.remove('d-none');
-            } else {
-                schoolClassesGroup.classList.add('d-none');
-            }
-        }
-
-        function openCreateOptionModal(category, parentValue) {
-            const catSelect = document.getElementById('createOptionCategory');
-            catSelect.value = category || 'School';
-            toggleCreateParentSchool();
-
-            const parentSelect = document.getElementById('createOptionParentValue');
-            if (parentValue) {
-                parentSelect.value = parentValue;
-            }
+        function openCreateOptionModal(category) {
+            document.getElementById('createOptionCategory').value = category || 'School';
             document.getElementById('createOptionValue').value = '';
             new bootstrap.Modal(document.getElementById('modalCreateOption')).show();
         }
 
-        function openEditOptionModal(id, category, value, parentValue, sortOrder) {
+        function openEditOptionModal(id, category, value, sortOrder) {
             document.getElementById('editOptionId').value = id;
             document.getElementById('editOptionValue').value = value;
             document.getElementById('editOptionSortOrder').value = sortOrder;
-
-            const parentGroup = document.getElementById('editParentSchoolGroup');
-            const parentSelect = document.getElementById('editOptionParentValue');
-            if (category === 'Class') {
-                parentGroup.classList.remove('d-none');
-                parentSelect.value = parentValue || '';
-            } else {
-                parentGroup.classList.add('d-none');
-            }
             new bootstrap.Modal(document.getElementById('modalEditOption')).show();
+        }
+
+        function openCreatePurposeModal() {
+            const form = document.getElementById('formPurpose');
+            form.action = '?handler=CreatePurpose';
+            document.getElementById('purposeModalTitle').innerHTML = '<i class="bi bi-plus-circle me-2"></i>新增到班目的';
+            document.getElementById('purposeId').value = '';
+            document.getElementById('purposeName').value = '';
+            document.getElementById('purposeSortOrder').value = '0';
+            document.getElementById('purposeSubmitBtn').textContent = '確認新增';
+            new bootstrap.Modal(document.getElementById('modalPurpose')).show();
+        }
+
+        function openEditPurposeModal(id, name, sortOrder) {
+            const form = document.getElementById('formPurpose');
+            form.action = '?handler=UpdatePurpose';
+            document.getElementById('purposeModalTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>修改到班目的';
+            document.getElementById('purposeId').value = id;
+            document.getElementById('purposeName').value = name;
+            document.getElementById('purposeSortOrder').value = sortOrder;
+            document.getElementById('purposeSubmitBtn').textContent = '儲存修改';
+            new bootstrap.Modal(document.getElementById('modalPurpose')).show();
+        }
+
+        function openCreateHolidayModal() {
+            new bootstrap.Modal(document.getElementById('modalCreateHoliday')).show();
         }
     </script>
 }

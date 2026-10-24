@@ -389,46 +389,28 @@
                 </div>
             </div>
 
-            <!-- 發放贈送堂數與沖正更正 -->
+            <!-- 發放贈送堂數與沖正更正（改為按鈕與彈跳視窗） -->
             <div class="col-12 col-xl-5">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box"><i class="bi bi-arrow-left-right"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">發放贈送堂數／沖正更正堂數</h2>
-                                <div class="small text-muted">所有更正均以新交易沖正調整，不修改原始歷史流水帳</div>
+                <div class="card-plato p-3 p-md-4 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="section-header-clean mb-3">
+                            <div class="section-header-title">
+                                <span class="metric-icon-box"><i class="bi bi-arrow-left-right"></i></span>
+                                <div>
+                                    <h2 class="h5 fw-bold mb-0">堂數手動調整與發放</h2>
+                                    <div class="small text-muted">所有更正均以新交易沖正調整，不修改原始流水帳</div>
+                                </div>
                             </div>
                         </div>
+                        <p class="text-secondary small mb-3">
+                            如需對學生發放學期獎勵贈送堂數、或進行誤扣沖正，請點擊下方按鈕以彈跳視窗進行操作。支援依學校、年別、班別條件快速篩選學生名單。
+                        </p>
                     </div>
-                    <form method="post" asp-page-handler="AdjustCredits">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="adjStudent">選擇學生</label>
-                            <select id="adjStudent" name="studentId" class="form-select" required>
-                                @foreach (var s in Model.ActiveStudents)
-                                {
-                                    <option value="@s.Id">@s.FullName (@s.GradeClass) － 付費:@s.PaidCredits / 贈送:@s.BonusCredits</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="bonusDelta">贈送堂數異動 (+/-)</label>
-                                <input type="number" id="bonusDelta" name="bonusDelta" class="form-control" value="1" min="-20" max="20" required />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-semibold" for="paidDelta">付費堂數異動 (+/-)</label>
-                                <input type="number" id="paidDelta" name="paidDelta" class="form-control" value="0" min="-20" max="20" required />
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="adjReason">沖正或贈送原因（必填稽核紀錄）</label>
-                            <input type="text" id="adjReason" name="reason" class="form-control" placeholder="例如：段考進步獎勵贈送 1 堂 / 登錄錯誤沖正" required />
-                        </div>
-                        <button type="submit" class="btn btn-outline-dark w-100 fw-semibold">
-                            <i class="bi bi-journal-plus me-1"></i>送出堂數調整流水帳
+                    <div>
+                        <button type="button" class="btn btn-outline-dark w-100 py-3 fw-bold shadow-sm" onclick="openAdjustCreditsModal()">
+                            <i class="bi bi-pencil-square me-2 text-primary"></i>發放贈送堂數／沖正更正堂數
                         </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -790,28 +772,60 @@
             </div>
             <form method="post" asp-page-handler="CreateSlot">
                 <div class="modal-body p-4">
+                    <!-- 所屬課程進度多選（過濾結束日期未到之課程進度） -->
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="createSlotProgress">所屬課程進度</label>
-                        <select id="createSlotProgress" name="courseProgressId" class="form-select" required>
-                            @foreach (var p in Model.ProgressList)
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-collection me-1 text-primary"></i>所屬課程進度（可多選批次建立時段，結束日期未到之課程）
+                        </label>
+                        <div class="border rounded-3 p-3 bg-light" style="max-height: 180px; overflow-y: auto;">
+                            @if (Model.ProgressList.Count == 0)
                             {
-                                <option value="@p.Id">@p.Code @p.Title (@(p.IsCurrentProgress ? "目前進度" : "非目前進度"))</option>
+                                <div class="text-muted small">目前無有效之課程進度。</div>
                             }
-                        </select>
+                            else
+                            {
+                                @foreach (var p in Model.ProgressList)
+                                {
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="courseProgressIds" value="@p.Id" id="createProg_@p.Id" />
+                                        <label class="form-check-label d-flex align-items-center justify-content-between" for="createProg_@p.Id">
+                                            <span>
+                                                <strong class="text-dark">@p.Code</strong> @p.Title
+                                                @if (p.IsCurrentProgress)
+                                                {
+                                                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle ms-1">目前進度</span>
+                                                }
+                                            </span>
+                                            <span class="text-muted small">
+                                                @(p.WeekStartDate.ToString("MM/dd")) ～ @(p.WeekEndDate.ToString("MM/dd"))
+                                            </span>
+                                        </label>
+                                    </div>
+                                }
+                            }
+                        </div>
+                        <div class="form-text">可同時勾選多個課程進度，系統將自動為每個選定進度各建立一筆該時段之輔導課堂。</div>
                     </div>
+
                     <div class="row g-3 mb-3">
                         <div class="col-12 col-sm-6">
                             <label class="form-label fw-semibold" for="createSlotType">輔導類型</label>
-                            <select id="createSlotType" name="slotType" class="form-select">
+                            <select id="createSlotType" name="slotType" class="form-select" onchange="updateCreateSlotCapacityDisplay(this.value)">
                                 <option value="SmallGroup">小組指導（扣 1 堂）</option>
                                 <option value="GroupCounseling">團體輔導（免費 0 堂）</option>
                             </select>
                         </div>
                         <div class="col-12 col-sm-6">
-                            <label class="form-label fw-semibold" for="createSlotGradeClass">適用班別</label>
-                            <input type="text" id="createSlotGradeClass" name="gradeClass" class="form-control" value="國三A班" required />
+                            <label class="form-label fw-semibold" for="createSlotGrade">適用年別</label>
+                            <select id="createSlotGrade" name="grade" class="form-select" required>
+                                @foreach (var g in Model.GradeOptions)
+                                {
+                                    <option value="@g.Value">@g.Value</option>
+                                }
+                            </select>
                         </div>
                     </div>
+
                     <div class="row g-3 mb-3">
                         <div class="col-12 col-sm-6">
                             <label class="form-label fw-semibold" for="createSlotDate">上課日期</label>
@@ -823,22 +837,25 @@
                             <input type="time" id="createStartTime" name="startTime" class="form-control" value="18:30" required />
                         </div>
                     </div>
-                    <div class="row g-3 mb-3">
+
+                    <!-- 時長與容納名額純文字唯讀顯示（固定 2 小時，名額依類型調整） -->
+                    <div class="row g-3 mb-3 p-3 bg-light rounded-3">
                         <div class="col-12 col-sm-6">
-                            <label class="form-label fw-semibold" for="createDurationMinutes">時長 (分鐘)</label>
-                            <input type="number" id="createDurationMinutes" name="durationMinutes" class="form-control" value="90" min="30" max="240" required />
+                            <div class="text-muted small fw-semibold">輔導時長（固定）</div>
+                            <div class="fs-6 fw-bold text-dark pt-1">
+                                <i class="bi bi-clock me-1 text-primary"></i>2 小時 (120 分鐘)
+                            </div>
                         </div>
                         <div class="col-12 col-sm-6">
-                            <label class="form-label fw-semibold" for="createMaxCapacity">容納名額</label>
-                            <input type="number" id="createMaxCapacity" name="maxCapacity" class="form-control" value="4" min="1" max="50" required />
+                            <div class="text-muted small fw-semibold">容納名額（依類型自動設定）</div>
+                            <div class="fs-6 fw-bold text-dark pt-1" id="createCapacityDisplay">
+                                <i class="bi bi-people me-1 text-success"></i>4 人 (小組指導)
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="createIsExtraSlot" name="isExtraSlot" value="true" />
-                        <label class="form-check-label" for="createIsExtraSlot">標記為「考前／臨時加開時段」</label>
-                    </div>
+
                     <div class="mb-2">
-                        <label class="form-label fw-semibold" for="createSlotNotes">時段備註</label>
+                        <label class="form-label fw-semibold" for="createSlotNotes">時段備註 (選填)</label>
                         <input type="text" id="createSlotNotes" name="notes" class="form-control" placeholder="例如：二次函數重點加強" />
                     </div>
                 </div>
@@ -888,7 +905,7 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="modalProxyPurpose">五種到班目的</label>
+                        <label class="form-label fw-semibold" for="modalProxyPurpose">到班目的（下拉選擇）</label>
                         <select id="modalProxyPurpose" name="purposeName" class="form-select" required>
                             @foreach (var p in Model.PurposeOptions)
                             {
@@ -904,19 +921,107 @@
                                 <i class="bi bi-gift text-success me-1"></i>選擇不扣堂數（特殊獎勵／專案代約）
                             </label>
                         </div>
-                        <div class="small text-muted">若選擇「不扣堂數」，此筆代約將不扣除任何付費與贈送堂數，額度不足亦可完成預約（僅限老師代約適用）。</div>
+                        <div class="small text-muted">若開啟「選擇不扣堂數」，此筆代約將不扣除任何付費與贈送堂數，額度不足亦可完成預約（僅限老師代約適用）。</div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-accent fw-semibold" onclick="if(!document.getElementById('proxyWaiveSwitch').checked){document.getElementById('waiveCreditDeductionInput').value='false';}">
-                            <i class="bi bi-check2-circle me-1"></i>確認代預約
-                        </button>
-                        <button type="submit" class="btn btn-success fw-semibold" onclick="document.getElementById('waiveCreditDeductionInput').value='true'; document.getElementById('proxyWaiveSwitch').checked=true;">
-                            <i class="bi bi-gift-fill me-1"></i>不扣堂數代預約
-                        </button>
+                    <button type="submit" class="btn btn-accent fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i>確認代預約
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: 發放贈送堂數／沖正更正堂數（含學校、年別、班別三重篩選） -->
+<div class="modal fade" id="modalAdjustCredits" tabindex="-1" aria-labelledby="modalAdjustCreditsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="modalAdjustCreditsLabel">
+                    <i class="bi bi-arrow-left-right me-1 text-primary"></i>發放贈送堂數／沖正更正堂數
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="AdjustCredits">
+                <div class="modal-body p-4">
+                    <!-- 學生篩選器 -->
+                    <div class="p-3 mb-3 bg-light rounded-3 border">
+                        <div class="fw-bold small text-dark mb-2">
+                            <i class="bi bi-funnel me-1 text-primary"></i>先篩選學生範圍（學校、年別、班別獨立不連動）：
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">學校篩選</label>
+                                <select id="filterAdjSchool" class="form-select form-select-sm" onchange="filterAdjustModalStudents()">
+                                    <option value="">全部學校</option>
+                                    @foreach (var s in Model.SchoolOptions)
+                                    {
+                                        <option value="@s.Value">@s.Value</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">年別篩選</label>
+                                <select id="filterAdjGrade" class="form-select form-select-sm" onchange="filterAdjustModalStudents()">
+                                    <option value="">全部年別</option>
+                                    @foreach (var g in Model.GradeOptions)
+                                    {
+                                        <option value="@g.Value">@g.Value</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">班別篩選（資優班/精英班/通識）</label>
+                                <select id="filterAdjClass" class="form-select form-select-sm" onchange="filterAdjustModalStudents()">
+                                    <option value="">全部班別</option>
+                                    @foreach (var c in Model.ClassOptions)
+                                    {
+                                        <option value="@c.Value">@c.Value</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="modalAdjStudent">選擇調整學生</label>
+                        <select id="modalAdjStudent" name="studentId" class="form-select" required>
+                            @foreach (var s in Model.ActiveStudents)
+                            {
+                                <option value="@s.Id" data-school="@s.School" data-grade="@s.Grade" data-class="@s.ClassName">
+                                    @s.FullName (@s.DisplaySchoolGradeClass) － 付費:@s.PaidCredits / 贈送:@s.BonusCredits
+                                </option>
+                            }
+                        </select>
+                        <div id="modalAdjStudentEmptyHint" class="text-danger small mt-1 d-none">無符合上述篩選條件的學生。</div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="modalBonusDelta">贈送堂數異動 (+/-)</label>
+                            <input type="number" id="modalBonusDelta" name="bonusDelta" class="form-control" value="1" min="-20" max="20" required />
+                            <div class="form-text">正數代表加發贈送堂數，負數代表沖正扣回。</div>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold" for="modalPaidDelta">付費堂數異動 (+/-)</label>
+                            <input type="number" id="modalPaidDelta" name="paidDelta" class="form-control" value="0" min="-20" max="20" required />
+                            <div class="form-text">一般情況維持 0，登錄錯誤時方作沖正。</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="modalAdjReason">沖正或贈送原因（必填稽核紀錄）</label>
+                        <input type="text" id="modalAdjReason" name="reason" class="form-control" placeholder="例如：段考進步獎勵贈送 1 堂 / 登錄錯誤沖正" required />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i>確認送出堂數調整
+                    </button>
                 </div>
             </form>
         </div>
@@ -1047,6 +1152,70 @@
 
             showSavingOverlay();
             document.getElementById('singleRollcallForm').submit();
+        // 開啟堂數調整彈跳視窗
+        function openAdjustCreditsModal() {
+            filterAdjustModalStudents();
+            new bootstrap.Modal(document.getElementById('modalAdjustCredits')).show();
+        }
+
+        // 堂數調整彈窗學生依學校、年別、班別獨立篩選
+        function filterAdjustModalStudents() {
+            const school = (document.getElementById('filterAdjSchool')?.value || '').trim();
+            const grade = (document.getElementById('filterAdjGrade')?.value || '').trim();
+            const cls = (document.getElementById('filterAdjClass')?.value || '').trim();
+            const studentSelect = document.getElementById('modalAdjStudent');
+            const emptyHint = document.getElementById('modalAdjStudentEmptyHint');
+            if (!studentSelect) return;
+
+            let visibleCount = 0;
+            let firstVisibleOpt = null;
+            let currentSelectedStillVisible = false;
+
+            for (let i = 0; i < studentSelect.options.length; i++) {
+                const opt = studentSelect.options[i];
+                const optSchool = (opt.getAttribute('data-school') || '').trim();
+                const optGrade = (opt.getAttribute('data-grade') || '').trim();
+                const optClass = (opt.getAttribute('data-class') || '').trim();
+
+                const matchSchool = !school || optSchool === school;
+                const matchGrade = !grade || optGrade === grade;
+                const matchClass = !cls || optClass === cls;
+
+                if (matchSchool && matchGrade && matchClass) {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    visibleCount++;
+                    if (!firstVisibleOpt) firstVisibleOpt = opt;
+                    if (opt.selected) currentSelectedStillVisible = true;
+                } else {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                    if (opt.selected) opt.selected = false;
+                }
+            }
+
+            if (!currentSelectedStillVisible && firstVisibleOpt) {
+                firstVisibleOpt.selected = true;
+            }
+
+            if (emptyHint) {
+                if (visibleCount === 0) {
+                    emptyHint.classList.remove('d-none');
+                } else {
+                    emptyHint.classList.add('d-none');
+                }
+            }
+        }
+
+        // 建立時段名額即時顯示切換
+        function updateCreateSlotCapacityDisplay(slotType) {
+            const display = document.getElementById('createCapacityDisplay');
+            if (!display) return;
+            if (slotType === 'GroupCounseling') {
+                display.innerHTML = '<i class="bi bi-people me-1 text-primary"></i>20 人 (團體輔導)';
+            } else {
+                display.innerHTML = '<i class="bi bi-people me-1 text-success"></i>4 人 (小組指導)';
+            }
         }
 
         // 開啟修改時段 Modal 並填入資料

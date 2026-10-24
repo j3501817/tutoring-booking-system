@@ -167,9 +167,6 @@
                                                     var rel = item.Relationship;
                                                     <div class="p-2 px-3 rounded-3 border bg-white shadow-sm d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
                                                         <div class="d-flex flex-wrap align-items-center gap-2">
-                                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
-                                                                關係：@rel
-                                                            </span>
                                                             <span class="fw-bold fs-6 text-dark">@stu.FullName</span>
                                                             @if (stu.IsDroppedOut)
                                                             {
@@ -181,16 +178,22 @@
                                                             <span class="badge bg-light text-dark border">
                                                                 <i class="bi bi-mortarboard me-1 text-success"></i>年別：@(string.IsNullOrWhiteSpace(stu.Grade) ? "未填" : stu.Grade)
                                                             </span>
-                                                            <span class="badge bg-light text-dark border">
-                                                                <i class="bi bi-diagram-3 me-1 text-warning"></i>班級：@(string.IsNullOrWhiteSpace(stu.ClassName) ? "未填" : stu.ClassName)
+                                                            <span class="badge bg-danger bg-opacity-10 text-danger border">
+                                                                <i class="bi bi-diagram-3 me-1"></i>班別：@(string.IsNullOrWhiteSpace(stu.ClassName) ? "未填" : stu.ClassName)
                                                             </span>
+                                                            @if (!string.IsNullOrWhiteSpace(stu.Phone1) || !string.IsNullOrWhiteSpace(stu.Phone2) || !string.IsNullOrWhiteSpace(stu.Phone3))
+                                                            {
+                                                                <span class="badge bg-light text-secondary border">
+                                                                    <i class="bi bi-telephone me-1"></i>@(string.Join(" / ", stu.AllPhones))
+                                                                </span>
+                                                            }
                                                             <span class="small text-muted ms-1">
                                                                 堂數：<strong class="text-success">@stu.PaidCredits</strong> 購 / <strong class="text-primary">@stu.BonusCredits</strong> 贈
                                                             </span>
                                                         </div>
                                                         <div class="d-flex align-items-center gap-1 flex-shrink-0">
                                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                                    onclick="openEditStudentModal(@stu.Id, '@Html.Raw(stu.FullName)', '@Html.Raw(stu.School)', '@Html.Raw(stu.Grade)', '@Html.Raw(stu.ClassName)', '@stu.EnrollmentDate.ToString("yyyy-MM-dd")', @(parent?.Id ?? 0), '@Html.Raw(rel)')">
+                                                                    onclick="openEditStudentModal(@stu.Id, '@Html.Raw(stu.FullName)', '@Html.Raw(stu.School)', '@Html.Raw(stu.Grade)', '@Html.Raw(stu.ClassName)', '@Html.Raw(stu.Phone1)', '@Html.Raw(stu.Phone2)', '@Html.Raw(stu.Phone3)', '@stu.EnrollmentDate.ToString("yyyy-MM-dd")', @(parent?.Id ?? 0))">
                                                                 <i class="bi bi-pencil-square me-1"></i>修改學生
                                                             </button>
                                                             <form method="post" asp-page-handler="DeleteStudent" class="d-inline"
@@ -388,8 +391,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">學校（下拉選擇）</label>
-                            <select name="school" id="createStudentSchool" class="form-select"
-                                    onchange="syncCascadingClasses('createStudentSchool', 'createStudentClass', '')" required>
+                            <select name="school" id="createStudentSchool" class="form-select" required>
                                 @foreach (var s in Model.SchoolOptions)
                                 {
                                     <option value="@s.Value">@s.Value</option>
@@ -406,26 +408,51 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">班級（連動學校）</label>
+                            <label class="form-label fw-semibold">班別（下拉選擇）</label>
                             <select name="className" id="createStudentClass" class="form-select" required>
-                            </select>
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label fw-semibold">選擇所屬家長</label>
-                            <select name="parentUserId" id="createStudentParentId" class="form-select">
-                                <option value="">-- 暫不綁定家長 --</option>
-                                @foreach (var p in Model.Parents)
+                                <option value="">-- 請選擇班別 --</option>
+                                @foreach (var c in Model.ClassOptions)
                                 {
-                                    <option value="@p.Id">@p.DisplayName (@p.Username / @p.Phone)</option>
+                                    <option value="@c.Value">@c.Value</option>
                                 }
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">關係稱謂（下拉選擇）</label>
-                            <select name="relationship" id="createStudentRelationship" class="form-select">
-                                @foreach (var r in Model.RelationshipOptions)
+                        <!-- 學生聯絡電話（三個手機欄位，自動關聯家長） -->
+                        <div class="col-12">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="form-label fw-bold text-dark mb-1">
+                                    <i class="bi bi-phone me-1 text-primary"></i>學生手機號碼（共可填寫 3 支，將自動比對並關聯家長聯絡電話）
+                                </label>
+                                <div class="text-muted small mb-2">輸入後若與家長聯絡電話相符將自動關聯；若未找到對應家長則維持未綁定。</div>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">主要手機</span>
+                                            <input type="text" name="phone1" class="form-control" placeholder="0912-345-678" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">備用手機 1</span>
+                                            <input type="text" name="phone2" class="form-control" placeholder="0922-000-000" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">備用手機 2</span>
+                                            <input type="text" name="phone3" class="form-control" placeholder="0933-000-000" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">手動指定家長（選填，若已填寫手機號碼則可留空由系統自動關聯）</label>
+                            <select name="parentUserId" id="createStudentParentId" class="form-select">
+                                <option value="">-- 由電話自動比對／暫不指定 --</option>
+                                @foreach (var p in Model.Parents)
                                 {
-                                    <option value="@r.Value">@r.Value</option>
+                                    <option value="@p.Id">@p.DisplayName (@p.Username / @p.Phone)</option>
                                 }
                             </select>
                         </div>
@@ -472,8 +499,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">學校（下拉選擇）</label>
-                            <select name="school" id="editStudentSchool" class="form-select"
-                                    onchange="syncCascadingClasses('editStudentSchool', 'editStudentClass', '')" required>
+                            <select name="school" id="editStudentSchool" class="form-select" required>
                                 @foreach (var s in Model.SchoolOptions)
                                 {
                                     <option value="@s.Value">@s.Value</option>
@@ -490,26 +516,50 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">班級（連動學校）</label>
+                            <label class="form-label fw-semibold">班別（下拉選擇）</label>
                             <select name="className" id="editStudentClass" class="form-select" required>
+                                <option value="">-- 請選擇班別 --</option>
+                                @foreach (var c in Model.ClassOptions)
+                                {
+                                    <option value="@c.Value">@c.Value</option>
+                                }
                             </select>
                         </div>
-                        <div class="col-md-8">
-                            <label class="form-label fw-semibold">選擇所屬家長</label>
+                        <!-- 學生聯絡電話（三個手機欄位） -->
+                        <div class="col-12">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="form-label fw-bold text-dark mb-1">
+                                    <i class="bi bi-phone me-1 text-primary"></i>學生手機號碼（共可填寫 3 支，儲存時將自動比對關聯家長聯絡電話）
+                                </label>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">主要手機</span>
+                                            <input type="text" name="phone1" id="editStudentPhone1" class="form-control" placeholder="0912-345-678" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">備用手機 1</span>
+                                            <input type="text" name="phone2" id="editStudentPhone2" class="form-control" placeholder="0922-000-000" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">備用手機 2</span>
+                                            <input type="text" name="phone3" id="editStudentPhone3" class="form-control" placeholder="0933-000-000" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">手動指定家長（選填，亦可由電話自動比對關聯）</label>
                             <select name="parentUserId" id="editStudentParentId" class="form-select">
                                 <option value="">-- 未綁定家長 --</option>
                                 @foreach (var p in Model.Parents)
                                 {
                                     <option value="@p.Id">@p.DisplayName (@p.Username / @p.Phone)</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">關係稱謂（下拉選擇）</label>
-                            <select name="relationship" id="editStudentRelationship" class="form-select">
-                                @foreach (var r in Model.RelationshipOptions)
-                                {
-                                    <option value="@r.Value">@r.Value</option>
                                 }
                             </select>
                         </div>
@@ -784,23 +834,20 @@
             }
         }
 
-        function openCreateStudentModal(parentId, relationship) {
+        function openCreateStudentModal(parentId) {
             document.getElementById('createStudentFullName').value = '';
             const schoolSelect = document.getElementById('createStudentSchool');
             if (schoolSelect.options.length > 0) schoolSelect.selectedIndex = 0;
-            syncCascadingClasses('createStudentSchool', 'createStudentClass', '');
+            const classSelect = document.getElementById('createStudentClass');
+            if (classSelect.options.length > 0) classSelect.selectedIndex = 0;
 
             const parentSelect = document.getElementById('createStudentParentId');
             parentSelect.value = parentId && parentId > 0 ? String(parentId) : '';
 
-            const relSelect = document.getElementById('createStudentRelationship');
-            if (relationship) {
-                ensureSelectOption(relSelect, relationship);
-            }
             new bootstrap.Modal(document.getElementById('modalCreateStudent')).show();
         }
 
-        function openEditStudentModal(id, fullName, school, grade, className, enrollmentDate, parentId, relationship) {
+        function openEditStudentModal(id, fullName, school, grade, className, phone1, phone2, phone3, enrollmentDate, parentId) {
             document.getElementById('editStudentId').value = id;
             document.getElementById('editStudentFullName').value = fullName;
             document.getElementById('editStudentEnrollmentDate').value = enrollmentDate;
@@ -811,15 +858,15 @@
             const gradeSelect = document.getElementById('editStudentGrade');
             ensureSelectOption(gradeSelect, grade);
 
-            syncCascadingClasses('editStudentSchool', 'editStudentClass', className);
+            const classSelect = document.getElementById('editStudentClass');
+            ensureSelectOption(classSelect, className);
+
+            document.getElementById('editStudentPhone1').value = phone1 || '';
+            document.getElementById('editStudentPhone2').value = phone2 || '';
+            document.getElementById('editStudentPhone3').value = phone3 || '';
 
             const parentSelect = document.getElementById('editStudentParentId');
             parentSelect.value = parentId && parentId > 0 ? String(parentId) : '';
-
-            const relSelect = document.getElementById('editStudentRelationship');
-            if (relationship && relationship !== '未綁定') {
-                ensureSelectOption(relSelect, relationship);
-            }
 
             new bootstrap.Modal(document.getElementById('modalEditStudent')).show();
         }

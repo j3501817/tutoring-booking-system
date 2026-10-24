@@ -17,15 +17,18 @@ public class IndexModel : PageModel
     private readonly AppDbContext _db;
     private readonly CreditLedgerService _ledgerService;
     private readonly BookingService _bookingService;
+    private readonly StudentParentLinkingService _linkingService;
 
     public IndexModel(
         AppDbContext db,
         CreditLedgerService ledgerService,
-        BookingService bookingService)
+        BookingService bookingService,
+        StudentParentLinkingService linkingService)
     {
         _db = db;
         _ledgerService = ledgerService;
         _bookingService = bookingService;
+        _linkingService = linkingService;
     }
 
     public AppUser CurrentUser { get; set; } = null!;
@@ -39,7 +42,6 @@ public class IndexModel : PageModel
     public List<FieldOption> SchoolOptions { get; set; } = new();
     public List<FieldOption> GradeOptions { get; set; } = new();
     public List<FieldOption> ClassOptions { get; set; } = new();
-    public List<FieldOption> RelationshipOptions { get; set; } = new();
     public List<FieldOption> SubjectOptions { get; set; } = new();
 
     // 學生與家長合併列表（同家長不拆成兩筆）與分頁 (10筆/頁)
@@ -103,7 +105,6 @@ public class IndexModel : PageModel
         SchoolOptions = fieldOptions.Where(o => o.Category == FieldCategories.School).ToList();
         GradeOptions = fieldOptions.Where(o => o.Category == FieldCategories.Grade).ToList();
         ClassOptions = fieldOptions.Where(o => o.Category == FieldCategories.Class).ToList();
-        RelationshipOptions = fieldOptions.Where(o => o.Category == FieldCategories.Relationship).ToList();
         SubjectOptions = fieldOptions.Where(o => o.Category == FieldCategories.Subject).ToList();
 
         // 建立「家長與學生關係」合併列表：同一位家長底下的多個學生顯示在同一筆
@@ -151,16 +152,18 @@ public class IndexModel : PageModel
     }
 
     // =========================================================================
-    // 1. 學生管理：新增 / 修改 / 刪除（含學校、年別、連動班級、家長與關係稱謂下拉）
+    // 1. 學生管理：新增 / 修改 / 刪除（含學校、年別、班別、三個手機欄位與自動電話關聯）
     // =========================================================================
     public async Task<IActionResult> OnPostCreateStudentAsync(
         string fullName,
         string school,
         string grade,
         string className,
+        string? phone1,
+        string? phone2,
+        string? phone3,
         DateOnly enrollmentDate,
         int? parentUserId,
-        string? relationship,
         bool grantProRataBonus)
     {
         var operatorUser = await GetCurrentUserAsync();
@@ -190,6 +193,9 @@ public class IndexModel : PageModel
                 Grade = cleanGrade,
                 ClassName = cleanClass,
                 GradeClass = combinedGradeClass.Length > 50 ? combinedGradeClass[..50] : combinedGradeClass,
+                Phone1 = phone1?.Trim() ?? string.Empty,
+                Phone2 = phone2?.Trim() ?? string.Empty,
+                Phone3 = phone3?.Trim() ?? string.Empty,
                 EnrollmentDate = enrollmentDate == default ? DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8)) : enrollmentDate
             };
 
@@ -202,10 +208,13 @@ public class IndexModel : PageModel
                 {
                     ParentUserId = parentUserId.Value,
                     StudentId = student.Id,
-                    Relationship = string.IsNullOrWhiteSpace(relationship) ? "媽媽" : relationship.Trim()
+                    Relationship = "家長"
                 });
                 await _db.SaveChangesAsync();
             }
+
+            // 雙向電話自動比對關聯
+            var linkedCount = await _linkingService.AutoLinkStudentByPhonesAsync(student.Id);
 
             if (grantProRataBonus)
             {
@@ -213,12 +222,13 @@ public class IndexModel : PageModel
                 if (sem != null)
                 {
                     var entry = await _ledgerService.GrantSemesterBonusAsync(student.Id, sem.Id, operatorUser.Id);
-                    TempData["SuccessMessage"] = $"已新增學生「{student.FullName}（{student.DisplaySchoolGradeClass}）」，並自動核發學期贈送堂數 +{entry.BonusDelta} 堂！";
+                    TempData["SuccessMessage"] = $"已新增學生「{student.FullName}（{student.DisplaySchoolGradeClass}）」，自動比對關聯 {linkedCount} 位家長，並核發學期贈送堂數 +{entry.BonusDelta} 堂！";
                     return Redirect("/Members#tab-student-parent");
                 }
             }
 
-            TempData["SuccessMessage"] = $"已新增學生「{student.FullName}（{student.DisplaySchoolGradeClass}）」。";
+            var linkNote = linkedCount > 0 ? $"，電話自動比對成功關聯 {linkedCount} 位家長" : "（未比對到相同電話之已建檔家長，維持未綁定）";
+            TempData["SuccessMessage"] = $"已新增學生「{student.FullName}（{student.DisplaySchoolGradeClass}）」{linkNote}。";
         }
         catch (Exception ex)
         {
@@ -234,9 +244,11 @@ public class IndexModel : PageModel
         string school,
         string grade,
         string className,
+        string? phone1,
+        string? phone2,
+        string? phone3,
         DateOnly enrollmentDate,
-        int? parentUserId,
-        string? relationship)
+        int? parentUserId)
     {
         var operatorUser = await GetCurrentUserAsync();
         if (operatorUser == null) return RedirectToPage("/Account/Login");
@@ -254,6 +266,9 @@ public class IndexModel : PageModel
             student.School = school?.Trim() ?? string.Empty;
             student.Grade = grade?.Trim() ?? string.Empty;
             student.ClassName = className?.Trim() ?? string.Empty;
+            student.Phone1 = phone1?.Trim() ?? string.Empty;
+            student.Phone2 = phone2?.Trim() ?? string.Empty;
+            student.Phone3 = phone3?.Trim() ?? string.Empty;
             student.SyncGradeClass();
             if (string.IsNullOrWhiteSpace(student.GradeClass))
             {
@@ -264,23 +279,31 @@ public class IndexModel : PageModel
                 student.EnrollmentDate = enrollmentDate;
             }
 
-            var existingLinks = await _db.ParentStudentLinks
-                .Where(l => l.StudentId == student.Id)
-                .ToListAsync();
-            _db.ParentStudentLinks.RemoveRange(existingLinks);
-
-            if (parentUserId.HasValue && parentUserId.Value > 0)
+            if (parentUserId.HasValue)
             {
-                _db.ParentStudentLinks.Add(new ParentStudentLink
+                var existingLinks = await _db.ParentStudentLinks
+                    .Where(l => l.StudentId == student.Id)
+                    .ToListAsync();
+                _db.ParentStudentLinks.RemoveRange(existingLinks);
+
+                if (parentUserId.Value > 0)
                 {
-                    ParentUserId = parentUserId.Value,
-                    StudentId = student.Id,
-                    Relationship = string.IsNullOrWhiteSpace(relationship) ? "媽媽" : relationship.Trim()
-                });
+                    _db.ParentStudentLinks.Add(new ParentStudentLink
+                    {
+                        ParentUserId = parentUserId.Value,
+                        StudentId = student.Id,
+                        Relationship = "家長"
+                    });
+                }
             }
 
             await _db.SaveChangesAsync();
-            TempData["SuccessMessage"] = $"已更新學生「{student.FullName}（{student.DisplaySchoolGradeClass}）」的資料與家長綁定。";
+
+            // 執行手機比對自動綁定
+            var linkedCount = await _linkingService.AutoLinkStudentByPhonesAsync(student.Id);
+
+            var linkNote = linkedCount > 0 ? $"，電話比對已關聯 {linkedCount} 位家長" : "";
+            TempData["SuccessMessage"] = $"已更新學生「{student.FullName}（{student.DisplaySchoolGradeClass}）」資料{linkNote}。";
         }
         catch (Exception ex)
         {
@@ -393,7 +416,11 @@ public class IndexModel : PageModel
             _db.Users.Add(parent);
             await _db.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"已新增家長帳號：「{parent.DisplayName} ({parent.Username})」。";
+            // 電話雙向比對自動關聯
+            var linkedStudentsCount = await _linkingService.AutoLinkParentByPhoneAsync(parent.Id);
+            var linkMsg = linkedStudentsCount > 0 ? $"，且電話比對自動關聯了 {linkedStudentsCount} 位學生" : "";
+
+            TempData["SuccessMessage"] = $"已新增家長帳號：「{parent.DisplayName} ({parent.Username})」{linkMsg}。";
         }
         catch (Exception ex)
         {
@@ -442,7 +469,12 @@ public class IndexModel : PageModel
             }
 
             await _db.SaveChangesAsync();
-            TempData["SuccessMessage"] = $"已更新家長「{parent.DisplayName} ({parent.Username})」的資料。";
+
+            // 電話雙向比對自動關聯
+            var linkedStudentsCount = await _linkingService.AutoLinkParentByPhoneAsync(parent.Id);
+            var linkMsg = linkedStudentsCount > 0 ? $"，電話比對已關聯 {linkedStudentsCount} 位學生" : "";
+
+            TempData["SuccessMessage"] = $"已更新家長「{parent.DisplayName} ({parent.Username})」的資料{linkMsg}。";
         }
         catch (Exception ex)
         {

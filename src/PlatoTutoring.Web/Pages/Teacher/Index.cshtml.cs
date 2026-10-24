@@ -99,11 +99,12 @@ public class IndexModel : PageModel
             .Where(f => f.Category == FieldCategories.Class && f.IsActive)
             .OrderBy(f => f.SortOrder).ThenBy(f => f.Id).ToListAsync();
 
+        var todayDate = DateOnly.FromDateTime(DateTime.Today);
         ProgressList = await _db.CourseProgresses
+            .Where(p => p.WeekEndDate >= todayDate)
             .OrderByDescending(p => p.IsCurrentProgress)
-            .ThenByDescending(p => p.Id)
+            .ThenByDescending(p => p.WeekStartDate)
             .ToListAsync();
-
 
         PurposeOptions = await _db.AttendancePurposeOptions
             .Where(p => p.IsActive)
@@ -287,37 +288,50 @@ public class IndexModel : PageModel
     }
 
     public async Task<IActionResult> OnPostCreateSlotAsync(
-        int courseProgressId,
-        string gradeClass,
+        List<int> courseProgressIds,
+        string grade,
         SlotType slotType,
         DateOnly slotDate,
         TimeOnly startTime,
-        int durationMinutes,
-        int maxCapacity,
-        bool isExtraSlot,
         string? notes)
     {
         var user = await GetCurrentTeacherOrAdminAsync();
         if (user == null) return RedirectToPage("/Account/Login");
 
+        if (courseProgressIds == null || courseProgressIds.Count == 0)
+        {
+            TempData["ErrorMessage"] = "請至少選擇一項課程進度。";
+            return RedirectToPage();
+        }
+
         try
         {
             var localStart = slotDate.ToDateTime(startTime);
             var startsAtUtc = DateTime.SpecifyKind(localStart.AddHours(-8), DateTimeKind.Utc);
-            var endsAtUtc = startsAtUtc.AddMinutes(Math.Max(30, durationMinutes));
+            // 固定 2 小時 (120 分鐘)
+            var endsAtUtc = startsAtUtc.AddMinutes(120);
 
-            await _bookingService.CreateSlotAsync(
-                user.Id,
-                courseProgressId,
-                gradeClass,
-                slotType,
-                startsAtUtc,
-                endsAtUtc,
-                maxCapacity,
-                isExtraSlot,
-                notes ?? string.Empty);
+            // 依據輔導類型固定名額：小組指導 4 人，團體輔導 20 人
+            var maxCapacity = (slotType == SlotType.GroupCounseling ? 20 : 4);
 
-            TempData["SuccessMessage"] = $"已建立輔導時段：{slotDate:yyyy/MM/dd} {startTime:HH:mm}（名額 {maxCapacity} 名）。";
+            var createdCount = 0;
+            foreach (var progressId in courseProgressIds)
+            {
+                await _bookingService.CreateSlotAsync(
+                    user.Id,
+                    progressId,
+                    grade?.Trim() ?? string.Empty,
+                    slotType,
+                    startsAtUtc,
+                    endsAtUtc,
+                    maxCapacity,
+                    false, // 不需要標記為考前加開
+                    notes ?? string.Empty);
+                createdCount++;
+            }
+
+            var typeName = slotType == SlotType.GroupCounseling ? "團體輔導" : "小組指導";
+            TempData["SuccessMessage"] = $"已成功建立 {createdCount} 筆輔導時段（{typeName}，固定 2 小時，容納名額 {maxCapacity} 人）。";
         }
         catch (Exception ex)
         {

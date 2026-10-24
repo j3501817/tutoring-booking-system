@@ -31,9 +31,11 @@ public class IndexModel : PageModel
     public List<FieldOption> AllOptions { get; set; } = new();
     public List<FieldOption> SchoolOptions { get; set; } = new();
     public List<FieldOption> GradeOptions { get; set; } = new();
-    public List<FieldOption> ClassOptions { get; set; } = new();
-    public List<FieldOption> RelationshipOptions { get; set; } = new();
+    public List<FieldOption> ClassOptions { get; set; } = new(); // 班別
     public List<FieldOption> SubjectOptions { get; set; } = new();
+    public List<AttendancePurposeOption> PurposeOptions { get; set; } = new(); // 到班目的
+    public List<AcademicHoliday> AcademicHolidays { get; set; } = new(); // 休假日
+    public Semester? CurrentSemester { get; set; }
 
     public override async Task OnPageHandlerExecutionAsync(
         PageHandlerExecutingContext context,
@@ -55,7 +57,6 @@ public class IndexModel : PageModel
     {
         AllOptions = await _db.FieldOptions
             .OrderBy(o => o.Category)
-            .ThenBy(o => o.ParentValue)
             .ThenBy(o => o.SortOrder)
             .ThenBy(o => o.Id)
             .ToListAsync();
@@ -63,16 +64,27 @@ public class IndexModel : PageModel
         SchoolOptions = AllOptions.Where(o => o.Category == FieldCategories.School).ToList();
         GradeOptions = AllOptions.Where(o => o.Category == FieldCategories.Grade).ToList();
         ClassOptions = AllOptions.Where(o => o.Category == FieldCategories.Class).ToList();
-        RelationshipOptions = AllOptions.Where(o => o.Category == FieldCategories.Relationship).ToList();
         SubjectOptions = AllOptions.Where(o => o.Category == FieldCategories.Subject).ToList();
+
+        PurposeOptions = await _db.AttendancePurposeOptions
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Id)
+            .ToListAsync();
+
+        AcademicHolidays = await _db.AcademicHolidays
+            .Where(h => h.IsActive)
+            .OrderBy(h => h.Date)
+            .ToListAsync();
+
+        CurrentSemester = await _db.Semesters
+            .FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
     }
 
     public async Task<IActionResult> OnPostCreateOptionAsync(
         string category,
         string value,
-        string? parentValue,
-        int sortOrder = 1,
-        bool autoCreateDefaultClasses = true)
+        int sortOrder = 1)
     {
         if (string.IsNullOrWhiteSpace(category) || string.IsNullOrWhiteSpace(value))
         {
@@ -82,18 +94,10 @@ public class IndexModel : PageModel
 
         var trimmedCat = category.Trim();
         var trimmedVal = value.Trim();
-        var trimmedParent = string.IsNullOrWhiteSpace(parentValue) ? null : parentValue.Trim();
-
-        if (trimmedCat == FieldCategories.Class && string.IsNullOrWhiteSpace(trimmedParent))
-        {
-            TempData["ErrorMessage"] = "新增「班級」選項時，請選擇所屬連動學校。";
-            return RedirectToPage();
-        }
 
         var exists = await _db.FieldOptions.AnyAsync(o =>
             o.Category == trimmedCat &&
-            o.Value == trimmedVal &&
-            o.ParentValue == trimmedParent);
+            o.Value == trimmedVal);
 
         if (exists)
         {
@@ -104,7 +108,7 @@ public class IndexModel : PageModel
         if (sortOrder <= 0)
         {
             var maxSort = await _db.FieldOptions
-                .Where(o => o.Category == trimmedCat && o.ParentValue == trimmedParent)
+                .Where(o => o.Category == trimmedCat)
                 .Select(o => (int?)o.SortOrder)
                 .MaxAsync() ?? 0;
             sortOrder = maxSort + 1;
@@ -114,35 +118,10 @@ public class IndexModel : PageModel
         {
             Category = trimmedCat,
             Value = trimmedVal,
-            ParentValue = trimmedParent,
+            ParentValue = null,
             SortOrder = sortOrder,
             IsActive = true
         });
-
-        // 若新增的是學校且勾選自動建立預設連動班級 (A班、B班、C班)
-        if (trimmedCat == FieldCategories.School && autoCreateDefaultClasses)
-        {
-            var defaultClasses = new[] { "A班", "B班", "C班" };
-            for (var i = 0; i < defaultClasses.Length; i++)
-            {
-                var cls = defaultClasses[i];
-                var clsExists = await _db.FieldOptions.AnyAsync(o =>
-                    o.Category == FieldCategories.Class &&
-                    o.ParentValue == trimmedVal &&
-                    o.Value == cls);
-                if (!clsExists)
-                {
-                    _db.FieldOptions.Add(new FieldOption
-                    {
-                        Category = FieldCategories.Class,
-                        Value = cls,
-                        ParentValue = trimmedVal,
-                        SortOrder = i + 1,
-                        IsActive = true
-                    });
-                }
-            }
-        }
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已新增欄位選項：{GetCategoryDisplayName(trimmedCat)} － {trimmedVal}";
@@ -152,7 +131,6 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostUpdateOptionAsync(
         int optionId,
         string value,
-        string? parentValue,
         int sortOrder = 1)
     {
         var opt = await _db.FieldOptions.FindAsync(optionId);
@@ -168,28 +146,9 @@ public class IndexModel : PageModel
             return RedirectToPage();
         }
 
-        var oldVal = opt.Value;
-        var trimmedVal = value.Trim();
-        var trimmedParent = string.IsNullOrWhiteSpace(parentValue) ? null : parentValue.Trim();
-
-        opt.Value = trimmedVal;
-        if (opt.Category == FieldCategories.Class)
-        {
-            opt.ParentValue = trimmedParent;
-        }
+        opt.Value = value.Trim();
+        opt.ParentValue = null;
         opt.SortOrder = sortOrder > 0 ? sortOrder : 1;
-
-        // 若修改了學校名稱，同步更新該學校連動的班級 ParentValue
-        if (opt.Category == FieldCategories.School && !string.Equals(oldVal, trimmedVal, StringComparison.Ordinal))
-        {
-            var linkedClasses = await _db.FieldOptions
-                .Where(o => o.Category == FieldCategories.Class && o.ParentValue == oldVal)
-                .ToListAsync();
-            foreach (var cls in linkedClasses)
-            {
-                cls.ParentValue = trimmedVal;
-            }
-        }
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已更新欄位選項：{GetCategoryDisplayName(opt.Category)} － {opt.Value}";
@@ -206,22 +165,161 @@ public class IndexModel : PageModel
         }
 
         var label = $"{GetCategoryDisplayName(opt.Category)} － {opt.Value}";
-
-        // 若刪除學校，一併刪除其連動的班級選項
-        if (opt.Category == FieldCategories.School)
-        {
-            var linkedClasses = await _db.FieldOptions
-                .Where(o => o.Category == FieldCategories.Class && o.ParentValue == opt.Value)
-                .ToListAsync();
-            if (linkedClasses.Count > 0)
-            {
-                _db.FieldOptions.RemoveRange(linkedClasses);
-            }
-        }
-
         _db.FieldOptions.Remove(opt);
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"已刪除欄位選項：{label}";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostCreatePurposeAsync(string name, string? description, int sortOrder = 1)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            TempData["ErrorMessage"] = "到班目的名稱不可為空白。";
+            return RedirectToPage();
+        }
+
+        var trimmedName = name.Trim();
+        var exists = await _db.AttendancePurposeOptions.AnyAsync(p => p.Name == trimmedName);
+        if (exists)
+        {
+            TempData["ErrorMessage"] = $"已存在相同的到班目的「{trimmedName}」。";
+            return RedirectToPage();
+        }
+
+        if (sortOrder <= 0)
+        {
+            var maxSort = await _db.AttendancePurposeOptions.MaxAsync(p => (int?)p.SortOrder) ?? 0;
+            sortOrder = maxSort + 1;
+        }
+
+        _db.AttendancePurposeOptions.Add(new AttendancePurposeOption
+        {
+            Name = trimmedName,
+            SortOrder = sortOrder,
+            IsActive = true
+        });
+
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已新增到班目的：{trimmedName}";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostUpdatePurposeAsync(int id, string name, int sortOrder = 1)
+    {
+        var purpose = await _db.AttendancePurposeOptions.FindAsync(id);
+        if (purpose == null)
+        {
+            TempData["ErrorMessage"] = "找不到指定的到班目的。";
+            return RedirectToPage();
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            TempData["ErrorMessage"] = "到班目的名稱不可為空白。";
+            return RedirectToPage();
+        }
+
+        purpose.Name = name.Trim();
+        purpose.SortOrder = sortOrder > 0 ? sortOrder : 1;
+
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已更新到班目的：{purpose.Name}";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeletePurposeAsync(int id)
+    {
+        var purpose = await _db.AttendancePurposeOptions.FindAsync(id);
+        if (purpose == null)
+        {
+            TempData["ErrorMessage"] = "找不到指定的到班目的。";
+            return RedirectToPage();
+        }
+
+        var name = purpose.Name;
+        _db.AttendancePurposeOptions.Remove(purpose);
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已刪除到班目的：{name}";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostSaveSemesterAsync(string? name, DateTime startDate, DateTime endDate)
+    {
+        if (endDate <= startDate)
+        {
+            TempData["ErrorMessage"] = "學期結束日期必須晚於開始日期。";
+            return RedirectToPage();
+        }
+
+        var startOnly = DateOnly.FromDateTime(startDate);
+        var endOnly = DateOnly.FromDateTime(endDate);
+
+        var semester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+                       ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+
+        if (semester == null)
+        {
+            semester = new Semester
+            {
+                Name = string.IsNullOrWhiteSpace(name) ? $"{startDate:yyyy} 學年度" : name.Trim(),
+                StartDate = startOnly,
+                EndDate = endOnly,
+                IsCurrent = true
+            };
+            _db.Semesters.Add(semester);
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(name)) semester.Name = name.Trim();
+            semester.StartDate = startOnly;
+            semester.EndDate = endOnly;
+            semester.IsCurrent = true;
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已儲存學期期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostCreateHolidayAsync(DateTime date, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            TempData["ErrorMessage"] = "請輸入休假日名稱。";
+            return RedirectToPage();
+        }
+
+        var holidayDate = DateOnly.FromDateTime(date);
+        var exists = await _db.AcademicHolidays.AnyAsync(h => h.Date == holidayDate && h.IsActive);
+        if (exists)
+        {
+            TempData["ErrorMessage"] = $"{holidayDate:yyyy-MM-dd} 已經設定為休假日。";
+            return RedirectToPage();
+        }
+
+        _db.AcademicHolidays.Add(new AcademicHoliday
+        {
+            Date = holidayDate,
+            Name = name.Trim(),
+            IsActive = true,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已新增休假日：{holidayDate:yyyy-MM-dd} ({name.Trim()})";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteHolidayAsync(int id)
+    {
+        var holiday = await _db.AcademicHolidays.FindAsync(id);
+        if (holiday != null)
+        {
+            holiday.IsActive = false;
+            await _db.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"已刪除休假日：{holiday.Date:yyyy-MM-dd} ({holiday.Name})";
+        }
         return RedirectToPage();
     }
 
@@ -229,8 +327,7 @@ public class IndexModel : PageModel
     {
         FieldCategories.School => "學校",
         FieldCategories.Grade => "年別",
-        FieldCategories.Class => "班級（連動學校）",
-        FieldCategories.Relationship => "關係稱謂",
+        FieldCategories.Class => "班別",
         FieldCategories.Subject => "任教科目",
         _ => category
     };

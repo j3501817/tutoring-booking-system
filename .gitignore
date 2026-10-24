@@ -20,6 +20,8 @@ obj/
 .DS_Store
 .vscode/
 *.log
+.local/
+**/.local/
 
 # ==============================================================================
 # Agentic Project - 強制保留的 AI 核心設定與動態工作單 (Do NOT ignore these)

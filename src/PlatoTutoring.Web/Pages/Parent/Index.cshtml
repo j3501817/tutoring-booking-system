@@ -273,12 +273,15 @@
                         </div>
                     </div>
 
-                    <!-- 圖例說明 (Legend) -->
+                    <!-- 週期預約按鈕與圖例說明 -->
                     <div class="d-flex align-items-center gap-2 flex-wrap small">
-                        <span class="text-secondary me-1">標示說明：</span>
+                        <button type="button" class="btn btn-sm btn-primary fw-bold" onclick="openRecurringBookingModal()">
+                            <i class="bi bi-arrow-repeat me-1"></i>週期預約
+                        </button>
+                        <span class="text-secondary ms-2 me-1">標示說明：</span>
                         <span class="badge badge-slot-small"><i class="bi bi-people-fill me-1"></i>小組指導</span>
                         <span class="badge badge-slot-group"><i class="bi bi-collection-fill me-1"></i>團體輔導</span>
-                        <span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-1"></i>已預約</span>
+                        <span class="badge bg-secondary"><i class="bi bi-moon-stars-fill me-1"></i>休假日</span>
                     </div>
                 </div>
 
@@ -306,24 +309,36 @@
                         var cellDate = new DateOnly(Model.CalendarYear, Model.CalendarMonth, day);
                         var cellDateStr = cellDate.ToString("yyyy-MM-dd");
                         var cellDateDisplayZh = $"{cellDate:yyyy/MM/dd}（週{"日一二三四五六"[(int)cellDate.DayOfWeek]}）";
-                        var hasSlots = Model.CalendarDaysSummary.TryGetValue(cellDate, out var summary) && summary.TotalSlots > 0;
+                        var isHoliday = Model.HolidayDates.Contains(cellDate);
+                        var holidayName = isHoliday && Model.HolidayNames.TryGetValue(cellDate, out var hn) ? hn : null;
+                        CalendarDaySummary? summary = null;
+                        var hasSlots = !isHoliday && Model.CalendarDaysSummary.TryGetValue(cellDate, out summary) && summary.TotalSlots > 0;
                         var isSelected = Model.SelectedDate.HasValue && Model.SelectedDate.Value == cellDate;
                         var isToday = cellDate == DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
 
-                        <div class="calendar-month-cell @(hasSlots ? "has-slots" : "no-slots") @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
+                        <div class="calendar-month-cell @(isHoliday ? "bg-secondary bg-opacity-10 border-secondary opacity-75" : hasSlots ? "has-slots" : "no-slots") @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
                              data-date="@cellDateStr"
                              data-date-zh="@cellDateDisplayZh"
+                             data-holiday="@(isHoliday ? "true" : "false")"
                              role="@(hasSlots ? "button" : "presentation")"
                              tabindex="@(hasSlots ? "0" : "-1")"
-                             aria-label="@(hasSlots ? $"{cellDateDisplayZh} 有課堂可預約，點擊展開時段列表" : cellDateDisplayZh)"
+                             aria-label="@(isHoliday ? $"{cellDateDisplayZh} 為機構休假日（{holidayName}）不開放預約" : hasSlots ? $"{cellDateDisplayZh} 有課堂可預約，點擊展開時段列表" : cellDateDisplayZh)"
                              @(hasSlots ? "onclick=\"selectCalendarDate(this.dataset.date, this.dataset.dateZh)\"" : "")>
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : "")">
+                                <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : isHoliday ? "text-secondary" : "")">
                                     @day
                                 </span>
                             </div>
 
-                            @if (hasSlots && summary != null)
+                            @if (isHoliday)
+                            {
+                                <div class="calendar-cell-badges d-flex flex-column gap-1">
+                                    <span class="badge bg-secondary text-white text-truncate" title="休假：@holidayName">
+                                        <i class="bi bi-moon-stars me-1"></i>@(holidayName ?? "休假")
+                                    </span>
+                                </div>
+                            }
+                            else if (hasSlots && summary != null)
                             {
                                 <div class="calendar-cell-badges d-flex flex-column gap-1">
                                     @if (summary.SmallGroupCount > 0)
@@ -487,40 +502,64 @@
                                     }
                                     else if (!isFull)
                                     {
-                                        <form method="post" asp-page-handler="BookSlot" class="w-100">
-                                            <input type="hidden" name="studentId" value="@student.Id" />
-                                            <input type="hidden" name="slotId" value="@slot.Id" />
-                                            <div class="d-flex flex-column flex-sm-row gap-2">
-                                                <select name="purposeName" class="form-select form-select-sm" aria-label="選擇五種到班目的" required>
-                                                    @foreach (var p in Model.PurposeOptions)
-                                                    {
-                                                        <option value="@p.Name">目的：@p.Name</option>
-                                                    }
-                                                </select>
-                                                <button type="submit" class="btn btn-accent btn-sm text-nowrap px-3"
-                                                        onclick="return confirm('確認要為 @student.FullName 預約此時段嗎？');">
-                                                    <i class="bi bi-check2 me-1"></i>確認預約
+                                        var isCutoff = slot.StartsAtUtc <= DateTime.UtcNow.AddMinutes(30);
+                                        if (isCutoff)
+                                        {
+                                            <div class="text-md-end w-100 bg-light p-2 rounded-2 border">
+                                                <button class="btn btn-sm btn-secondary disabled w-100 py-1">
+                                                    <i class="bi bi-slash-circle me-1"></i>已截止預約（開課前 30 分鐘截止）
                                                 </button>
                                             </div>
-                                        </form>
+                                        }
+                                        else
+                                        {
+                                            <form method="post" asp-page-handler="BookSlot" class="w-100">
+                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                <input type="hidden" name="slotId" value="@slot.Id" />
+                                                <div class="d-flex flex-column flex-sm-row gap-2">
+                                                    <select name="purposeName" class="form-select form-select-sm" aria-label="選擇到班目的" required>
+                                                        @foreach (var p in Model.PurposeOptions)
+                                                        {
+                                                            <option value="@p.Name">目的：@p.Name</option>
+                                                        }
+                                                    </select>
+                                                    <button type="submit" class="btn btn-accent btn-sm text-nowrap px-3"
+                                                            onclick="return confirm('確認要為 @student.FullName 預約此時段嗎？');">
+                                                        <i class="bi bi-check2 me-1"></i>確認預約
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        }
                                     }
                                     else
                                     {
-                                        <form method="post" asp-page-handler="JoinWaitlist" class="w-100">
-                                            <input type="hidden" name="studentId" value="@student.Id" />
-                                            <input type="hidden" name="slotId" value="@slot.Id" />
-                                            <div class="d-flex flex-column flex-sm-row gap-2">
-                                                <select name="purposeName" class="form-select form-select-sm" aria-label="選擇候補到班目的" required>
-                                                    @foreach (var p in Model.PurposeOptions)
-                                                    {
-                                                        <option value="@p.Name">目的：@p.Name</option>
-                                                    }
-                                                </select>
-                                                <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap px-3 fw-semibold">
-                                                    <i class="bi bi-clock-history me-1"></i>登記候補
+                                        var isCutoff = slot.StartsAtUtc <= DateTime.UtcNow.AddMinutes(30);
+                                        if (isCutoff)
+                                        {
+                                            <div class="text-md-end w-100 bg-light p-2 rounded-2 border">
+                                                <button class="btn btn-sm btn-secondary disabled w-100 py-1">
+                                                    <i class="bi bi-slash-circle me-1"></i>已截止預約與候補
                                                 </button>
                                             </div>
-                                        </form>
+                                        }
+                                        else
+                                        {
+                                            <form method="post" asp-page-handler="JoinWaitlist" class="w-100">
+                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                <input type="hidden" name="slotId" value="@slot.Id" />
+                                                <div class="d-flex flex-column flex-sm-row gap-2">
+                                                    <select name="purposeName" class="form-select form-select-sm" aria-label="選擇候補到班目的" required>
+                                                        @foreach (var p in Model.PurposeOptions)
+                                                        {
+                                                            <option value="@p.Name">目的：@p.Name</option>
+                                                        }
+                                                    </select>
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap px-3 fw-semibold">
+                                                        <i class="bi bi-clock-history me-1"></i>登記候補
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        }
                                     }
                                 </div>
                             </div>
@@ -590,11 +629,13 @@
                                             var sTpe = BookingService.ToTaipeiTime(b.TutoringSlot!.StartsAtUtc);
                                             var dayZh = "日一二三四五六"[(int)sTpe.DayOfWeek];
                                             var hoursLeft = (b.TutoringSlot.StartsAtUtc - DateTime.UtcNow).TotalHours;
-                                            var sameProgressTargets = Model.AvailableSlots
+                                            var sameProgressTargets = Model.AllCurrentSlots
                                                 .Where(s => s.CourseProgressId == b.TutoringSlot.CourseProgressId
                                                             && s.Id != b.TutoringSlotId
                                                             && s.RemainingSeats > 0
-                                                            && s.SlotType == b.TutoringSlot.SlotType)
+                                                            && s.SlotType == b.TutoringSlot.SlotType
+                                                            && s.StartsAtUtc > DateTime.UtcNow.AddMinutes(30))
+                                                .OrderBy(s => s.StartsAtUtc)
                                                 .ToList();
                                             var attendanceZh = b.AttendanceStatus switch {
                                                 AttendanceStatus.Pending => "待點名",
@@ -603,7 +644,6 @@
                                                 AttendanceStatus.NoShow => "曠課",
                                                 _ => b.AttendanceStatus.ToString()
                                             };
-
 
                                             <tr>
                                                 <td data-label="時段與進度">
@@ -634,46 +674,60 @@
                                                 </td>
                                                 <td data-label="狀態 / 點名">
                                                     <div>
-                                                        <span class="badge @(b.Status == BookingStatus.Confirmed ? "bg-success" : "bg-secondary")">
-                                                            @(b.Status == BookingStatus.Confirmed ? "已預約" : "已取消")
+                                                        <span class="badge bg-success">
+                                                            已預約
                                                         </span>
                                                         <span class="badge bg-light text-dark border ms-1">點名：@attendanceZh</span>
                                                     </div>
                                                 </td>
-                                                <td data-label="操作">
-                                                    @if (b.Status == BookingStatus.Confirmed)
-                                                    {
-                                                        <div class="d-flex flex-column gap-1">
-                                                            @if (sameProgressTargets.Any() && hoursLeft >= 24)
+                                                <td data-label="改期或取消操作">
+                                                    <div class="d-flex flex-column gap-2">
+                                                        <!-- 改期區塊 -->
+                                                        <div class="p-2 rounded bg-light border">
+                                                            <div class="small fw-semibold text-dark mb-1">
+                                                                <i class="bi bi-arrow-left-right me-1 text-primary"></i>改期至同進度其他時段：
+                                                            </div>
+                                                            @if (hoursLeft < 24)
+                                                            {
+                                                                <div class="small text-muted" style="font-size: 0.74rem;">
+                                                                    開課前 24 小時內不可改期
+                                                                </div>
+                                                            }
+                                                            else if (!sameProgressTargets.Any())
+                                                            {
+                                                                <div class="small text-muted" style="font-size: 0.74rem;">
+                                                                    此進度目前無其他可改期空位時段
+                                                                </div>
+                                                            }
+                                                            else
                                                             {
                                                                 <form method="post" asp-page-handler="Reschedule" class="d-flex gap-1">
                                                                     <input type="hidden" name="studentId" value="@student.Id" />
                                                                     <input type="hidden" name="existingBookingId" value="@b.Id" />
-                                                                    <select name="targetSlotId" class="form-select form-select-sm" aria-label="選擇改期目標時段">
+                                                                    <select name="targetSlotId" class="form-select form-select-sm" aria-label="選擇改期目標時段" required>
                                                                         @foreach (var tgt in sameProgressTargets)
                                                                         {
                                                                             var tStart = BookingService.ToTaipeiTime(tgt.StartsAtUtc);
                                                                             var tDayZh = "日一二三四五六"[(int)tStart.DayOfWeek];
-                                                                            <option value="@tgt.Id">改至 @tStart.ToString("MM/dd") (@tDayZh) @tStart.ToString("HH:mm")</option>
+                                                                            <option value="@tgt.Id">@tStart.ToString("MM/dd") (@tDayZh) @tStart.ToString("HH:mm") (餘 @tgt.RemainingSeats 名)</option>
                                                                         }
                                                                     </select>
-                                                                    <button type="submit" class="btn btn-outline-dark btn-sm text-nowrap">改期</button>
+                                                                    <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap fw-bold"
+                                                                            onclick="return confirm('確定要更換至所選的新時段嗎？');">改期</button>
                                                                 </form>
                                                             }
-                                                            <form method="post" asp-page-handler="CancelBooking">
-                                                                <input type="hidden" name="studentId" value="@student.Id" />
-                                                                <input type="hidden" name="bookingId" value="@b.Id" />
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm w-100"
-                                                                        onclick="return confirm('@(hoursLeft >= 24 ? "目前距離開課滿 24 小時，取消將全額退還原扣抵堂數。確定取消？" : "注意：距離開課已不足 24 小時，取消將不退還堂數！確定取消？")');">
-                                                                    取消預約 @(hoursLeft >= 24 ? "(滿24h退堂)" : "(逾時不退)")
-                                                                </button>
-                                                            </form>
                                                         </div>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="small text-muted">@b.CancelReason</span>
-                                                    }
+
+                                                        <!-- 取消預約按鈕 -->
+                                                        <form method="post" asp-page-handler="CancelBooking">
+                                                            <input type="hidden" name="studentId" value="@student.Id" />
+                                                            <input type="hidden" name="bookingId" value="@b.Id" />
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                                                                    onclick="return confirm('@(hoursLeft >= 24 ? "目前距離開課滿 24 小時，取消將全額退還原扣抵堂數。確定取消？" : "注意：距離開課已不足 24 小時，取消將不退還堂數！確定取消？")');">
+                                                                <i class="bi bi-x-circle me-1"></i>取消預約 @(hoursLeft >= 24 ? "(退還堂數)" : "(逾時不退)")
+                                                            </button>
+                                                        </form>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         }
@@ -730,6 +784,42 @@
                                 }
                             </ul>
                         }
+
+                        <!-- LINE 官方帳號通知綁定狀態與操作 -->
+                        <div class="p-3 mb-3 bg-light rounded-3 border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold small text-dark"><i class="bi bi-line text-success me-1"></i>LINE 官方帳號通知綁定</span>
+                                @if (!string.IsNullOrWhiteSpace(Model.CurrentUser.LineUserId))
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                        <i class="bi bi-check-circle-fill me-1"></i>已完成綁定
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                        <i class="bi bi-exclamation-circle me-1"></i>尚未綁定
+                                    </span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(Model.CurrentUser.LineUserId))
+                            {
+                                <div class="small text-muted mb-2">目前接收通知 ID：<code>@Model.CurrentUser.LineUserId</code>（支援 7 大條件即時推播）</div>
+                                <form method="post" asp-page-handler="UnbindLine" class="d-inline" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？');">
+                                    <input type="hidden" name="studentId" value="@student.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">解除綁定</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <div class="small text-secondary mb-2">綁定後即可接收堂數異動、預約成功、開課前48小時提醒與候補釋出等 7 大即時通知。</div>
+                                <form method="post" asp-page-handler="BindLine" class="d-flex gap-2">
+                                    <input type="hidden" name="studentId" value="@student.Id" />
+                                    <input type="text" name="lineUserId" class="form-control form-control-sm" placeholder="輸入 LINE User ID" required />
+                                    <button type="submit" class="btn btn-sm btn-success text-nowrap fw-bold">立即綁定</button>
+                                </form>
+                            }
+                        </div>
 
                         <div class="small fw-semibold text-secondary mb-2">最近收到的 LINE 通知：</div>
                         @if (!Model.RecentLineLogs.Any())
@@ -818,6 +908,163 @@
         </div>
     </div>
 }
+
+<!-- 週期預約 Modal -->
+<div class="modal fade" id="modalRecurringBooking" tabindex="-1" aria-labelledby="modalRecurringBookingLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title h6 fw-bold" id="modalRecurringBookingLabel">
+                    <i class="bi bi-arrow-repeat me-1"></i>週期預約（批次預約所選時段）
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            @if (Model.SelectedStudent != null)
+            {
+                <form method="post" asp-page-handler="RecurringBook">
+                    <div class="modal-body">
+                        <input type="hidden" name="studentId" value="@Model.SelectedStudent.Id" />
+                        
+                        <!-- 篩選條件：週一～週日 & 年別 -->
+                        <div class="p-3 bg-light rounded-3 mb-3 border">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-12 col-md-7">
+                                    <label class="form-label small fw-bold text-dark mb-1">星期篩選（週一至週日）：</label>
+                                    <div class="d-flex flex-wrap gap-1" id="recurringDayFilters">
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="1">週一</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="2">週二</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="3">週三</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="4">週四</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="5">週五</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="6">週六</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary active day-filter-btn" data-day="0">週日</button>
+                                        <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2" onclick="toggleAllDays(true)">全選</button>
+                                        <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-1 text-secondary" onclick="toggleAllDays(false)">清空</button>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label small fw-bold text-dark mb-1">年別篩選：</label>
+                                    <select class="form-select form-select-sm" id="recurringGradeFilter" onchange="filterRecurringSlots()">
+                                        <option value="">全部年別</option>
+                                        @foreach (var g in Model.GradeOptions)
+                                        {
+                                            <option value="@g">@g</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 到班目的設定 -->
+                        <div class="row g-2 mb-3 align-items-center">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-bold text-dark mb-1">統一到班目的：</label>
+                                <select name="purposeName" class="form-select form-select-sm" required>
+                                    @foreach (var p in Model.PurposeOptions)
+                                    {
+                                        <option value="@p.Name">目的：@p.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6 d-flex align-items-end justify-content-md-end gap-2 pt-2 pt-md-0">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllVisibleSlots(true)">勾選所有符合時段</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllVisibleSlots(false)">全取消</button>
+                            </div>
+                        </div>
+
+                        <!-- 可預約時段清單 -->
+                        <div class="table-responsive border rounded-3" style="max-height: 380px;">
+                            <table class="table table-hover table-sm align-middle mb-0" id="recurringSlotsTable">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 40px;" class="text-center">選取</th>
+                                        <th>日期時間 (台北)</th>
+                                        <th>類型</th>
+                                        <th>進度與年別</th>
+                                        <th>剩餘名額</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (!Model.AllCurrentSlots.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-4">目前沒有開放預約的未來時段。</td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var slot in Model.AllCurrentSlots.OrderBy(s => s.StartsAtUtc))
+                                        {
+                                            var slotTpe = BookingService.ToTaipeiTime(slot.StartsAtUtc);
+                                            var dayOfWeekInt = (int)slotTpe.DayOfWeek;
+                                            var dayOfWeekZh = "日一二三四五六"[dayOfWeekInt];
+                                            var isMyBooked = Model.StudentBookings.Any(b => b.TutoringSlotId == slot.Id);
+                                            var isCutoff = slot.StartsAtUtc <= DateTime.UtcNow.AddMinutes(30);
+                                            var isFull = slot.RemainingSeats <= 0;
+                                            var isDisabled = isMyBooked || isCutoff || isFull;
+
+                                            <tr class="recurring-slot-row"
+                                                data-day-of-week="@dayOfWeekInt"
+                                                data-grade="@slot.GradeClass">
+                                                <td class="text-center">
+                                                    @if (isDisabled)
+                                                    {
+                                                        <input type="checkbox" class="form-check-input" disabled />
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="checkbox" name="slotIds" value="@slot.Id" class="form-check-input recurring-slot-checkbox" />
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <div class="fw-bold">@slotTpe.ToString("yyyy/MM/dd") (週@dayOfWeekZh)</div>
+                                                    <div class="small text-muted">@slotTpe.ToString("HH:mm") ~ @BookingService.ToTaipeiTime(slot.EndsAtUtc).ToString("HH:mm")</div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge @(slot.SlotType == SlotType.GroupCounseling ? "bg-info-subtle text-info border border-info-subtle" : "bg-primary-subtle text-primary border border-primary-subtle")">
+                                                        @(slot.SlotType == SlotType.GroupCounseling ? "團體輔導" : "小組指導")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="fw-semibold">@slot.CourseProgress?.Code @slot.CourseProgress?.Title</div>
+                                                    <div class="small text-muted">年別：@slot.GradeClass ｜ 師資：@slot.TeacherUser?.DisplayName</div>
+                                                </td>
+                                                <td>
+                                                    @if (isMyBooked)
+                                                    {
+                                                        <span class="badge bg-success-subtle text-success">已預約</span>
+                                                    }
+                                                    else if (isCutoff)
+                                                    {
+                                                        <span class="badge bg-secondary">已截止</span>
+                                                    }
+                                                    else if (isFull)
+                                                    {
+                                                        <span class="badge bg-danger-subtle text-danger">已額滿</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-success">餘 @slot.RemainingSeats 位</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold" onclick="return confirmRecurringSubmit();">
+                            <i class="bi bi-check-all me-1"></i>一次預約所選時段
+                        </button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -977,7 +1224,81 @@
                     selectCalendarDate(dateParam, dateZh);
                 }
             }
+
+            // 初始化週期預約星期按鈕監聽
+            document.querySelectorAll('#recurringDayFilters .day-filter-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    this.classList.toggle('active');
+                    if (this.classList.contains('active')) {
+                        this.classList.remove('btn-outline-primary');
+                        this.classList.add('btn-primary');
+                    } else {
+                        this.classList.add('btn-outline-primary');
+                        this.classList.remove('btn-primary');
+                    }
+                    filterRecurringSlots();
+                });
+            });
         });
+
+        function filterRecurringSlots() {
+            // 取得選取的星期集合
+            const activeDays = new Set();
+            document.querySelectorAll('#recurringDayFilters .day-filter-btn.active').forEach(btn => {
+                activeDays.add(btn.getAttribute('data-day'));
+            });
+
+            const gradeFilter = document.getElementById('recurringGradeFilter')?.value || '';
+
+            document.querySelectorAll('.recurring-slot-row').forEach(row => {
+                const day = row.getAttribute('data-day-of-week');
+                const grade = row.getAttribute('data-grade') || '';
+
+                const matchesDay = activeDays.has(day);
+                const matchesGrade = !gradeFilter || grade === gradeFilter;
+
+                if (matchesDay && matchesGrade) {
+                    row.classList.remove('d-none');
+                } else {
+                    row.classList.add('d-none');
+                    // 隱藏時取消勾選避免誤提交
+                    const chk = row.querySelector('.recurring-slot-checkbox');
+                    if (chk) chk.checked = false;
+                }
+            });
+        }
+
+        function toggleAllDays(select) {
+            document.querySelectorAll('#recurringDayFilters .day-filter-btn').forEach(btn => {
+                if (select) {
+                    btn.classList.add('active');
+                    btn.classList.remove('btn-outline-primary');
+                    btn.classList.add('btn-primary');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('btn-outline-primary');
+                    btn.classList.remove('btn-primary');
+                }
+            });
+            filterRecurringSlots();
+        }
+
+        function selectAllVisibleSlots(checked) {
+            document.querySelectorAll('.recurring-slot-row:not(.d-none) .recurring-slot-checkbox').forEach(chk => {
+                if (!chk.disabled) {
+                    chk.checked = checked;
+                }
+            });
+        }
+
+        function confirmRecurringSubmit() {
+            const checkedBoxes = document.querySelectorAll('.recurring-slot-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('請至少勾選一個欲預約的時段！');
+                return false;
+            }
+            return confirm(`確認要一次批次預約所勾選的 ${checkedBoxes.length} 個時段嗎？`);
+        }
     </script>
 }
 

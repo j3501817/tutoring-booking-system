@@ -39,6 +39,7 @@ public class IndexModel : PageModel
     public Student? SelectedStudent { get; set; }
     public CourseProgress? CurrentProgress { get; set; }
     public List<AttendancePurposeOption> PurposeOptions { get; set; } = new();
+    public List<FieldOption> GradeOptions { get; set; } = new();
     public List<TutoringSlot> AvailableSlots { get; set; } = new();
     public List<TutoringSlot> AllCurrentSlots { get; set; } = new();
     public List<DateOnly> SlotDates { get; set; } = new();
@@ -48,6 +49,8 @@ public class IndexModel : PageModel
     public List<CreditLedgerEntry> StudentLedgerEntries { get; set; } = new();
     public List<HomeworkWatchItem> OpenHomeworkItems { get; set; } = new();
     public List<LineNotificationLog> RecentLineLogs { get; set; } = new();
+    public HashSet<DateOnly> HolidayDates { get; set; } = new();
+    public Dictionary<DateOnly, string> HolidayNames { get; set; } = new();
 
     public Dictionary<DateOnly, CalendarDaySummary> CalendarDaysSummary { get; set; } = new();
     public int CalendarYear { get; set; }
@@ -69,6 +72,17 @@ public class IndexModel : PageModel
             return RedirectToPage("/Account/Login");
 
         CurrentUser = user;
+
+        var holidays = await _db.AcademicHolidays
+            .Where(h => h.IsActive)
+            .ToListAsync();
+        HolidayDates = holidays.Select(h => h.Date).ToHashSet();
+        HolidayNames = holidays.ToDictionary(h => h.Date, h => h.Name);
+
+        GradeOptions = await _db.FieldOptions
+            .Where(f => f.Category == FieldCategories.Grade && f.IsActive)
+            .OrderBy(f => f.SortOrder)
+            .ToListAsync();
 
         if (user.Role == UserRole.Admin)
         {
@@ -101,12 +115,13 @@ public class IndexModel : PageModel
 
         if (SelectedStudent != null)
         {
+            // 已取消不要顯示，只顯示已確認預約 (Confirmed)
             StudentBookings = await _db.Bookings
                 .Include(b => b.TutoringSlot)
                 .ThenInclude(s => s!.CourseProgress)
                 .Include(b => b.TutoringSlot)
                 .ThenInclude(s => s!.TeacherUser)
-                .Where(b => b.StudentId == SelectedStudent.Id)
+                .Where(b => b.StudentId == SelectedStudent.Id && b.Status == BookingStatus.Confirmed)
                 .OrderByDescending(b => b.CreatedAtUtc)
                 .ToListAsync();
 
@@ -241,6 +256,46 @@ public class IndexModel : PageModel
         catch (Exception ex)
         {
             TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToPage(new { studentId });
+    }
+
+    public async Task<IActionResult> OnPostRecurringBookAsync(int studentId, List<int> slotIds, string purposeName)
+    {
+        var user = await GetCurrentParentOrAdminAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        if (slotIds == null || slotIds.Count == 0)
+        {
+            TempData["ErrorMessage"] = "請至少勾選一個週期預約時段。";
+            return RedirectToPage(new { studentId });
+        }
+
+        var successCount = 0;
+        var failMessages = new List<string>();
+
+        foreach (var slotId in slotIds)
+        {
+            try
+            {
+                await _bookingService.CreateBookingAsync(slotId, studentId, user.Id, purposeName);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                failMessages.Add(ex.Message);
+            }
+        }
+
+        if (successCount > 0)
+        {
+            var note = failMessages.Count > 0 ? $"（其餘 {failMessages.Count} 筆失敗：{failMessages.First()}）" : "";
+            TempData["SuccessMessage"] = $"已成功批次預約 {successCount} 堂課{note}！";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = $"批次預約失敗：{string.Join("；", failMessages.Distinct())}";
         }
 
         return RedirectToPage(new { studentId });

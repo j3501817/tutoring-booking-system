@@ -83,13 +83,14 @@ public static class DbInitializer
             new SystemSetting { Key = "GroupNoShowPenaltyEnabled", Value = "false", Description = "團體課 30 天內爽約 3 次停權 14 天開關（預設關閉）" }
         );
 
-        // 2. 五種到班目的 (AttendancePurposeOptions)
+        // 2. 到班目的 (AttendancePurposeOptions)
         db.AttendancePurposeOptions.AddRange(
-            new AttendancePurposeOption { Name = "課業提問", SortOrder = 1, IsActive = true },
-            new AttendancePurposeOption { Name = "作業輔導", SortOrder = 2, IsActive = true },
-            new AttendancePurposeOption { Name = "考前複習", SortOrder = 3, IsActive = true },
-            new AttendancePurposeOption { Name = "進度補課", SortOrder = 4, IsActive = true },
-            new AttendancePurposeOption { Name = "錯題訂正", SortOrder = 5, IsActive = true }
+            new AttendancePurposeOption { Name = "作業補正", SortOrder = 1, IsActive = true },
+            new AttendancePurposeOption { Name = "輔導未完", SortOrder = 2, IsActive = true },
+            new AttendancePurposeOption { Name = "進度落差", SortOrder = 3, IsActive = true },
+            new AttendancePurposeOption { Name = "補課確認", SortOrder = 4, IsActive = true },
+            new AttendancePurposeOption { Name = "紮根陪伴", SortOrder = 5, IsActive = true },
+            new AttendancePurposeOption { Name = "考前救急", SortOrder = 6, IsActive = true }
         );
 
         var defaultPasswordHash = PasswordHelper.HashPassword(
@@ -322,6 +323,12 @@ BEGIN
         ALTER TABLE [BK_Students] ADD [Grade] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_Grade] DEFAULT N'';
     IF COL_LENGTH('BK_Students', 'ClassName') IS NULL
         ALTER TABLE [BK_Students] ADD [ClassName] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_ClassName] DEFAULT N'';
+    IF COL_LENGTH('BK_Students', 'Phone1') IS NULL
+        ALTER TABLE [BK_Students] ADD [Phone1] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone1] DEFAULT N'';
+    IF COL_LENGTH('BK_Students', 'Phone2') IS NULL
+        ALTER TABLE [BK_Students] ADD [Phone2] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone2] DEFAULT N'';
+    IF COL_LENGTH('BK_Students', 'Phone3') IS NULL
+        ALTER TABLE [BK_Students] ADD [Phone3] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone3] DEFAULT N'';
 END
 IF OBJECT_ID(N'[BK_Users]', N'U') IS NOT NULL
 BEGIN
@@ -342,6 +349,17 @@ BEGIN
         CONSTRAINT [PK_BK_FieldOptions] PRIMARY KEY ([Id])
     );
     CREATE INDEX [IX_BK_FieldOptions_Category] ON [BK_FieldOptions] ([Category]);
+END
+IF OBJECT_ID(N'[BK_AcademicHolidays]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [BK_AcademicHolidays] (
+        [Id] int NOT NULL IDENTITY(1,1),
+        [Date] date NOT NULL,
+        [Name] nvarchar(80) NOT NULL,
+        [IsActive] bit NOT NULL CONSTRAINT [DF_BK_AcademicHolidays_IsActive] DEFAULT 1,
+        [CreatedAtUtc] datetime2 NOT NULL CONSTRAINT [DF_BK_AcademicHolidays_CreatedAtUtc] DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_BK_AcademicHolidays] PRIMARY KEY ([Id])
+    );
 END";
             try { await db.Database.ExecuteSqlRawAsync(sql); } catch { }
         }
@@ -350,6 +368,9 @@ END";
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN School TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Grade TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN ClassName TEXT NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Phone1 TEXT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Phone2 TEXT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Phone3 TEXT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN Subjects TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN IsProxyAdmin INTEGER NOT NULL DEFAULT 0;"); } catch { }
             try
@@ -365,12 +386,27 @@ CREATE TABLE IF NOT EXISTS BK_FieldOptions (
 );");
             }
             catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS BK_AcademicHolidays (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Date TEXT NOT NULL,
+    Name TEXT NOT NULL,
+    IsActive INTEGER NOT NULL DEFAULT 1,
+    CreatedAtUtc TEXT NOT NULL
+);");
+            }
+            catch { }
         }
         else if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
         {
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"School\" varchar(80) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Grade\" varchar(40) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"ClassName\" varchar(40) NOT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Phone1\" varchar(40) NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Phone2\" varchar(40) NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Phone3\" varchar(40) NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"Subjects\" varchar(200) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"IsProxyAdmin\" boolean NOT NULL DEFAULT false;"); } catch { }
             try
@@ -386,6 +422,18 @@ CREATE TABLE IF NOT EXISTS ""BK_FieldOptions"" (
 );");
             }
             catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS ""BK_AcademicHolidays"" (
+    ""Id"" SERIAL PRIMARY KEY,
+    ""Date"" date NOT NULL,
+    ""Name"" varchar(80) NOT NULL,
+    ""IsActive"" boolean NOT NULL DEFAULT true,
+    ""CreatedAtUtc"" timestamptz NOT NULL DEFAULT now()
+);");
+            }
+            catch { }
         }
     }
 
@@ -393,44 +441,72 @@ CREATE TABLE IF NOT EXISTS ""BK_FieldOptions"" (
     {
         try
         {
+            var defaultPurposes = new[] { "作業補正", "輔導未完", "進度落差", "補課確認", "紮根陪伴", "考前救急" };
+            foreach (var (pName, idx) in defaultPurposes.Select((name, i) => (name, i + 1)))
+            {
+                var existing = await db.AttendancePurposeOptions.FirstOrDefaultAsync(p => p.Name == pName);
+                if (existing == null)
+                {
+                    db.AttendancePurposeOptions.Add(new AttendancePurposeOption
+                    {
+                        Name = pName,
+                        SortOrder = idx,
+                        IsActive = true
+                    });
+                }
+            }
+
+            // 確保班別有 資優班、精英班、通識
+            var defaultClasses = new[] { "資優班", "精英班", "通識" };
+            foreach (var (cName, idx) in defaultClasses.Select((name, i) => (name, i + 1)))
+            {
+                var existing = await db.FieldOptions.FirstOrDefaultAsync(o => o.Category == FieldCategories.Class && o.Value == cName);
+                if (existing == null)
+                {
+                    db.FieldOptions.Add(new FieldOption
+                    {
+                        Category = FieldCategories.Class,
+                        Value = cName,
+                        ParentValue = null,
+                        SortOrder = idx,
+                        IsActive = true
+                    });
+                }
+            }
+
             if (await db.FieldOptions.AnyAsync())
             {
+                await db.SaveChangesAsync();
                 return;
             }
 
             var schools = new[] { "三民", "培英", "光華", "竹光", "育賢", "私校" };
             var grades = new[] { "國一", "國二", "國三" };
-            var relationships = new[] { "爸爸", "媽媽" };
-            var classes = new[] { "A班", "B班", "C班" };
+            var classes = new[] { "資優班", "精英班", "通識" };
             var subjects = new[] { "國文", "英文", "數學", "理化", "社會" };
 
             var items = new List<FieldOption>();
 
             for (var i = 0; i < schools.Length; i++)
             {
-                var school = schools[i];
-                items.Add(new FieldOption { Category = FieldCategories.School, Value = school, SortOrder = i + 1, IsActive = true });
-                for (var c = 0; c < classes.Length; c++)
+                items.Add(new FieldOption { Category = FieldCategories.School, Value = schools[i], SortOrder = i + 1, IsActive = true });
+            }
+
+            for (var i = 0; i < classes.Length; i++)
+            {
+                items.Add(new FieldOption
                 {
-                    items.Add(new FieldOption
-                    {
-                        Category = FieldCategories.Class,
-                        Value = classes[c],
-                        ParentValue = school,
-                        SortOrder = c + 1,
-                        IsActive = true
-                    });
-                }
+                    Category = FieldCategories.Class,
+                    Value = classes[i],
+                    ParentValue = null,
+                    SortOrder = i + 1,
+                    IsActive = true
+                });
             }
 
             for (var i = 0; i < grades.Length; i++)
             {
                 items.Add(new FieldOption { Category = FieldCategories.Grade, Value = grades[i], SortOrder = i + 1, IsActive = true });
-            }
-
-            for (var i = 0; i < relationships.Length; i++)
-            {
-                items.Add(new FieldOption { Category = FieldCategories.Relationship, Value = relationships[i], SortOrder = i + 1, IsActive = true });
             }
 
             for (var i = 0; i < subjects.Length; i++)
