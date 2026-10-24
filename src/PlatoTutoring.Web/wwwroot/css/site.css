@@ -683,3 +683,137 @@ html, body {
   background: #fdfaf7 !important;
 }
 
+/* 家長端月曆式課堂預約版面 */
+.booking-month-calendar {
+  background: #ffffff;
+  border: 1px solid var(--plato-border);
+  border-radius: 0.85rem;
+}
+
+.calendar-month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--plato-border);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.calendar-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.calendar-weekday-cell {
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+  color: var(--plato-muted);
+  background: #f8f9fa;
+  border-radius: 0.4rem;
+}
+
+.calendar-weekday-cell.weekend {
+  color: var(--plato-terracotta-dark);
+}
+
+.calendar-month-cell {
+  min-height: 88px;
+  border: 1px solid #eef0f2;
+  border-radius: 0.55rem;
+  padding: 0.45rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+}
+
+.calendar-month-cell.empty-cell {
+  background: #fafbfc;
+  border-color: transparent;
+}
+
+.calendar-month-cell.no-slots {
+  background: #fdfdfd;
+  opacity: 0.75;
+}
+
+.calendar-month-cell.has-slots {
+  cursor: pointer;
+  background: #ffffff;
+  border-color: #dbe4ee;
+}
+
+.calendar-month-cell.has-slots:hover {
+  border-color: var(--plato-terracotta);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(200, 125, 75, 0.15);
+}
+
+.calendar-month-cell.selected-day {
+  border: 2px solid var(--plato-terracotta) !important;
+  background: #fdf6f0 !important;
+  box-shadow: 0 4px 14px rgba(200, 125, 75, 0.25) !important;
+}
+
+.calendar-month-cell.today-cell {
+  background: #f0f7ff;
+}
+
+.calendar-day-number {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--plato-ink);
+}
+
+.badge-slot-small {
+  background: #e7f1ff;
+  color: #0b5ed7;
+  border: 1px solid #b6d4fe;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.3rem;
+  text-align: center;
+}
+
+.badge-slot-group {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #c8e6c9;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.3rem;
+  text-align: center;
+}
+
+.slot-seats-note {
+  font-size: 0.7rem;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .calendar-month-grid {
+    gap: 0.25rem;
+  }
+  .calendar-month-cell {
+    min-height: 70px;
+    padding: 0.25rem;
+  }
+  .calendar-day-number {
+    font-size: 0.8rem;
+  }
+  .badge-slot-small, .badge-slot-group {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.2rem;
+  }
+}
+
