@@ -86,7 +86,7 @@ public class CallbackModel : PageModel
             var redirectUri = Url.Page("/LineAuth/Callback", null, null, Request.Scheme)
                               ?? $"{Request.Scheme}://{Request.Host}/LineAuth/Callback";
 
-            var profile = await _lineAuth.ExchangeCodeForProfileAsync(code, redirectUri);
+            var profile = await _lineAuth.ExchangeCodeForProfileAsync(code, redirectUri, _db);
             if (profile == null || string.IsNullOrWhiteSpace(profile.UserId))
             {
                 TempData["ErrorMessage"] = "LINE 授權成功但無法取得您的 LINE User ID，請重新嘗試。";

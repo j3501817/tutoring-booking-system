@@ -46,40 +46,149 @@
     </div>
     <div class="card-body">
         <div class="row g-4">
-            <!-- 左側：學期起訖時間設定 -->
-            <div class="col-lg-4 border-end-lg">
-                <h6 class="fw-bold mb-3"><i class="bi bi-sliders2 me-2 text-primary"></i>學期期間設定</h6>
-                <form method="post" asp-page-handler="SaveSemester" class="bg-light p-3 rounded-3 mb-3 border">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small">學期名稱</label>
-                        <input type="text" name="name" class="form-control form-control-sm"
-                               value="@(Model.CurrentSemester?.Name ?? $"{DateTime.Today.Year} 學年度")" required />
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-semibold small">學期開始日期</label>
-                            <input type="date" name="startDate" class="form-control form-control-sm"
-                                   value="@(Model.CurrentSemester?.StartDate.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"))" required />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold small">學期結束日期</label>
-                            <input type="date" name="endDate" class="form-control form-control-sm"
-                                   value="@(Model.CurrentSemester?.EndDate.ToString("yyyy-MM-dd") ?? DateTime.Today.AddMonths(6).ToString("yyyy-MM-dd"))" required />
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
-                        <i class="bi bi-save me-1"></i>儲存學期期間
+            <!-- 左側：學期列表與起訖時間設定 -->
+            <div class="col-lg-5 border-end-lg">
+                <!-- 1. 學期功能列表（支援多學期：目前學期與下學期等） -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-calendar2-week me-2 text-primary"></i>學期清單功能列表 (@Model.AllSemesters.Count)
+                    </h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fw-semibold" onclick="prepareNewSemester()">
+                        <i class="bi bi-plus-lg me-1"></i>新增學期
                     </button>
-                </form>
+                </div>
+                
+                <div class="table-responsive border rounded-3 bg-white mb-3" style="max-height: 200px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>學期名稱</th>
+                                <th>起訖期間</th>
+                                <th>狀態</th>
+                                <th class="text-end">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.AllSemesters.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-2">尚未建立任何學期。</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var sem in Model.AllSemesters)
+                                {
+                                    var isViewing = sem.Id == Model.ViewingSemester?.Id;
+                                    <tr class="@(isViewing ? "table-primary bg-opacity-25" : "")">
+                                        <td>
+                                            <a asp-page="./Index" asp-route-semesterId="@sem.Id" class="fw-bold text-decoration-none text-dark">
+                                                @sem.Name
+                                            </a>
+                                            @if (isViewing)
+                                            {
+                                                <span class="badge bg-primary text-white ms-1" style="font-size: 0.65rem;">檢視中</span>
+                                            }
+                                        </td>
+                                        <td class="text-nowrap text-secondary small">
+                                            @sem.StartDate.ToString("yyyy/MM/dd") ～ @sem.EndDate.ToString("yyyy/MM/dd")
+                                        </td>
+                                        <td>
+                                            @if (sem.IsCurrent)
+                                            {
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">目前學期</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-muted border">非目前</span>
+                                            }
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            @if (!sem.IsCurrent)
+                                            {
+                                                <form method="post" asp-page-handler="SwitchSemester" class="d-inline"
+                                                      onsubmit="return confirm('確定要切換至「@sem.Name」為目前學期嗎？\n\n【注意】依系統規定：贈送堂數一換學期即歸零，系統將自動結算前學期之剩餘贈送堂數！');">
+                                                    <input type="hidden" name="semesterId" value="@sem.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-link text-success p-0 me-2 text-decoration-none fw-bold" title="啟用為目前學期並歸零前學期贈送堂數">
+                                                        啟用
+                                                    </button>
+                                                </form>
+                                            }
+                                            <button type="button" class="btn btn-sm btn-link text-primary p-0 me-2 text-decoration-none"
+                                                    onclick="loadSemesterForEdit(@sem.Id, '@Html.Raw(sem.Name)', '@sem.StartDate.ToString("yyyy-MM-dd")', '@sem.EndDate.ToString("yyyy-MM-dd")', @(sem.IsCurrent ? "true" : "false"))"
+                                                    title="編輯此學期">
+                                                編輯
+                                            </button>
+                                            @if (!sem.IsCurrent)
+                                            {
+                                                <form method="post" asp-page-handler="DeleteSemester" class="d-inline"
+                                                      onsubmit="return confirm('確定要刪除學期「@sem.Name」嗎？');">
+                                                    <input type="hidden" name="semesterId" value="@sem.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" title="刪除此學期">
+                                                        刪除
+                                                    </button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
 
-                <!-- 休假日快速列表 -->
+                <!-- 2. 學期起訖時間設定與編輯表單 -->
+                <div class="bg-light p-3 rounded-3 mb-3 border">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold small text-dark" id="semesterFormTitle">
+                            <i class="bi bi-pencil-square me-1 text-primary"></i>編輯學期期間
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary" id="semesterFormMode">編輯現有學期</span>
+                    </div>
+                    <form method="post" asp-page-handler="SaveSemester" id="formSemester">
+                        <input type="hidden" name="semesterId" id="semIdInput" value="@(Model.ViewingSemester?.Id ?? 0)" />
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold small mb-1">學期名稱</label>
+                            <input type="text" name="name" id="semNameInput" class="form-control form-control-sm"
+                                   value="@(Model.ViewingSemester?.Name ?? $"{DateTime.Today.Year} 學年度")" required />
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small mb-1">開始日期</label>
+                                <input type="date" name="startDate" id="semStartInput" class="form-control form-control-sm"
+                                       value="@(Model.ViewingSemester?.StartDate.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"))" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small mb-1">結束日期</label>
+                                <input type="date" name="endDate" id="semEndInput" class="form-control form-control-sm"
+                                       value="@(Model.ViewingSemester?.EndDate.ToString("yyyy-MM-dd") ?? DateTime.Today.AddMonths(6).ToString("yyyy-MM-dd"))" required />
+                            </div>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="setAsCurrent" value="true" id="semIsCurrentInput" @(Model.ViewingSemester?.IsCurrent == true ? "checked" : "") />
+                            <label class="form-check-label small text-secondary" for="semIsCurrentInput">
+                                設為目前進行中學期（若切換將歸零舊學期贈送堂數）
+                            </label>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary flex-fill fw-bold" id="semSubmitBtn">
+                                <i class="bi bi-save me-1"></i>儲存學期期間
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="prepareNewSemester()">
+                                清空填寫新學期
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 3. 休假日快速列表 -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-bold small text-secondary">已排定休假日清單 (@Model.AcademicHolidays.Count 天)</span>
                     <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="openCreateHolidayModal()">
                         <i class="bi bi-plus me-1"></i>排休
                     </button>
                 </div>
-                <div class="table-responsive border rounded-3 bg-white" style="max-height: 230px; overflow-y: auto;">
+                <div class="table-responsive border rounded-3 bg-white" style="max-height: 180px; overflow-y: auto;">
                     <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
                         <thead class="table-light sticky-top">
                             <tr>
@@ -118,21 +227,32 @@
             </div>
 
             <!-- 右側：學期與休假日「月曆檢視」 -->
-            <div class="col-lg-8">
+            <div class="col-lg-7">
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-calendar-month me-2 text-primary"></i>學期行事曆月曆視圖</h6>
-                        <span class="badge bg-secondary-subtle text-secondary border">點擊日期格可快速新增休假</span>
+                        @if (Model.ViewingSemester != null)
+                        {
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                                目前檢視：@Model.ViewingSemester.Name
+                            </span>
+                        }
                     </div>
                     <div class="d-flex align-items-center gap-1">
-                        <a asp-page="./Index" asp-route-year="@Model.PrevYear" asp-route-month="@Model.PrevMonth"
+                        <a asp-page="./Index" asp-route-year="@Model.PrevYear" asp-route-month="@Model.PrevMonth" asp-route-semesterId="@Model.SelectedSemesterId"
                            class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-chevron-left"></i>
                         </a>
-                        <span class="fw-bold px-2 text-nowrap" style="min-width: 140px; text-align: center;">
+                        <span class="fw-bold px-2 text-nowrap" style="min-width: 130px; text-align: center;">
                             @Model.CalendarYear 年 @Model.CalendarMonth 月
                         </span>
-                        <a asp-page="./Index" asp-route-year="@Model.NextYear" asp-route-month="@Model.NextMonth"
+                        <a asp-page="./Index" asp-route-year="@Model.NextYear" asp-route-month="@Model.NextMonth" asp-route-semesterId="@Model.SelectedSemesterId"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                        <a asp-page="./Index" asp-route-semesterId="@Model.SelectedSemesterId" class="btn btn-sm btn-outline-primary ms-1">本月</a>
+                    </div>
+                </div>
                            class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-chevron-right"></i>
                         </a>
@@ -167,9 +287,10 @@
                             var cellDate = new DateOnly(Model.CalendarYear, Model.CalendarMonth, day);
                             var cellDateStr = cellDate.ToString("yyyy-MM-dd");
                             var isHoliday = Model.HolidayMap.TryGetValue(cellDate, out var holiday);
-                            var isInSemester = Model.CurrentSemester != null
-                                               && cellDate >= Model.CurrentSemester.StartDate
-                                               && cellDate <= Model.CurrentSemester.EndDate;
+                            var activeSem = Model.ViewingSemester ?? Model.CurrentSemester;
+                            var isInSemester = activeSem != null
+                                               && cellDate >= activeSem.StartDate
+                                               && cellDate <= activeSem.EndDate;
                             var isToday = cellDate == DateOnly.FromDateTime(DateTime.Today);
 
                             <div style="width: 14.285%; padding: 2px;">
@@ -283,12 +404,13 @@
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder, 'tab-school')">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
                                                   onsubmit="return confirm('確定要刪除學校「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
+                                                <input type="hidden" name="activeTab" value="tab-school" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
                                         </div>
@@ -307,7 +429,7 @@
                         <h6 class="fw-bold mb-0"><i class="bi bi-layers text-success me-2"></i>學生年別下拉選單</h6>
                         <div class="text-muted small">國一、國二、國三、高一等年別選項</div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-success" onclick="openCreateOptionModal('@FieldCategories.Grade')">
+                    <button type="button" class="btn btn-sm btn-success" onclick="openCreateOptionModal('@FieldCategories.Grade', 'tab-grade')">
                         <i class="bi bi-plus-lg me-1"></i>新增年別
                     </button>
                 </div>
@@ -329,12 +451,13 @@
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder, 'tab-grade')">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
                                                   onsubmit="return confirm('確定要刪除年別「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
+                                                <input type="hidden" name="activeTab" value="tab-grade" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
                                         </div>
@@ -351,9 +474,9 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
                         <h6 class="fw-bold mb-0"><i class="bi bi-diagram-3 text-warning-emphasis me-2"></i>學生班別選項（不需連動學校）</h6>
-                        <div class="text-muted small">資優班、精英班、通識等班別選項</div>
+                        <div class="text-muted small">資優班、精英班等班別選項</div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-warning fw-bold text-dark" onclick="openCreateOptionModal('@FieldCategories.Class')">
+                    <button type="button" class="btn btn-sm btn-warning fw-bold text-dark" onclick="openCreateOptionModal('@FieldCategories.Class', 'tab-class')">
                         <i class="bi bi-plus-lg me-1"></i>新增班別
                     </button>
                 </div>
@@ -375,12 +498,13 @@
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder, 'tab-class')">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
                                                   onsubmit="return confirm('確定要刪除班別「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
+                                                <input type="hidden" name="activeTab" value="tab-class" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
                                         </div>
@@ -427,6 +551,7 @@
                                             <form method="post" asp-page-handler="DeletePurpose"
                                                   onsubmit="return confirm('確定要刪除到班目的「@item.Name」嗎？');">
                                                 <input type="hidden" name="id" value="@item.Id" />
+                                                <input type="hidden" name="activeTab" value="tab-purpose" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
                                         </div>
@@ -445,7 +570,7 @@
                         <h6 class="fw-bold mb-0"><i class="bi bi-book text-info me-2"></i>老師任教科目選項</h6>
                         <div class="text-muted small">數學、理化、英文等老師任教科目標籤</div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-info text-white" onclick="openCreateOptionModal('@FieldCategories.Subject')">
+                    <button type="button" class="btn btn-sm btn-info text-white" onclick="openCreateOptionModal('@FieldCategories.Subject', 'tab-subject')">
                         <i class="bi bi-plus-lg me-1"></i>新增科目
                     </button>
                 </div>
@@ -467,12 +592,13 @@
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder)">
+                                                    onclick="openEditOptionModal(@item.Id, '@item.Category', '@Html.Raw(item.Value)', @item.SortOrder, 'tab-subject')">
                                                 修改
                                             </button>
                                             <form method="post" asp-page-handler="DeleteOption"
                                                   onsubmit="return confirm('確定要刪除科目「@item.Value」嗎？');">
                                                 <input type="hidden" name="optionId" value="@item.Id" />
+                                                <input type="hidden" name="activeTab" value="tab-subject" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">刪除</button>
                                             </form>
                                         </div>
@@ -493,6 +619,7 @@
         <div class="modal-content border-0 shadow">
             <form method="post" asp-page-handler="CreateOption">
                 <input type="hidden" name="category" id="createOptionCategory" />
+                <input type="hidden" name="activeTab" id="createOptionActiveTab" value="tab-school" />
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold" id="createOptionTitle"><i class="bi bi-plus-circle me-2"></i>新增下拉選項</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
@@ -522,7 +649,8 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <form method="post" asp-page-handler="UpdateOption">
-                <input type="hidden" name="id" id="editOptionId" />
+                <input type="hidden" name="optionId" id="editOptionId" />
+                <input type="hidden" name="activeTab" id="editOptionActiveTab" value="tab-school" />
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>修改下拉選項</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
@@ -552,6 +680,7 @@
         <div class="modal-content border-0 shadow">
             <form method="post" id="formPurpose" asp-page-handler="CreatePurpose">
                 <input type="hidden" name="id" id="purposeId" />
+                <input type="hidden" name="activeTab" value="tab-purpose" />
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold" id="purposeModalTitle"><i class="bi bi-check2-circle me-2"></i>新增到班目的</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
@@ -605,16 +734,41 @@
 
 @section Scripts {
     <script>
-        function openCreateOptionModal(category) {
+        function prepareNewSemester() {
+            document.getElementById('semIdInput').value = '0';
+            document.getElementById('semNameInput').value = '';
+            document.getElementById('semStartInput').value = '@DateTime.Today.ToString("yyyy-MM-dd")';
+            document.getElementById('semEndInput').value = '@DateTime.Today.AddMonths(6).ToString("yyyy-MM-dd")';
+            document.getElementById('semIsCurrentInput').checked = false;
+            document.getElementById('semesterFormTitle').innerHTML = '<i class="bi bi-plus-circle me-1 text-primary"></i>新增學期期間';
+            document.getElementById('semesterFormMode').textContent = '新增模式';
+            document.getElementById('semSubmitBtn').innerHTML = '<i class="bi bi-plus-lg me-1"></i>確認新增學期';
+            document.getElementById('semNameInput').focus();
+        }
+
+        function loadSemesterForEdit(id, name, start, end, isCurrent) {
+            document.getElementById('semIdInput').value = id;
+            document.getElementById('semNameInput').value = name;
+            document.getElementById('semStartInput').value = start;
+            document.getElementById('semEndInput').value = end;
+            document.getElementById('semIsCurrentInput').checked = isCurrent;
+            document.getElementById('semesterFormTitle').innerHTML = '<i class="bi bi-pencil-square me-1 text-primary"></i>編輯學期期間';
+            document.getElementById('semesterFormMode').textContent = '編輯現有學期';
+            document.getElementById('semSubmitBtn').innerHTML = '<i class="bi bi-save me-1"></i>儲存學期期間';
+        }
+
+        function openCreateOptionModal(category, tabName) {
             document.getElementById('createOptionCategory').value = category || 'School';
             document.getElementById('createOptionValue').value = '';
+            document.getElementById('createOptionActiveTab').value = tabName || ('tab-' + (category || 'school').toLowerCase());
             new bootstrap.Modal(document.getElementById('modalCreateOption')).show();
         }
 
-        function openEditOptionModal(id, category, value, sortOrder) {
+        function openEditOptionModal(id, category, value, sortOrder, tabName) {
             document.getElementById('editOptionId').value = id;
             document.getElementById('editOptionValue').value = value;
             document.getElementById('editOptionSortOrder').value = sortOrder;
+            document.getElementById('editOptionActiveTab').value = tabName || ('tab-' + (category || 'school').toLowerCase());
             new bootstrap.Modal(document.getElementById('modalEditOption')).show();
         }
 
@@ -653,11 +807,16 @@
             new bootstrap.Modal(document.getElementById('modalCreateHoliday')).show();
         }
 
-        // 保存目前切換的 Tab 分頁到 hash
+        // 保存目前切換的 Tab 分頁到 hash 與 localStorage
         document.addEventListener('DOMContentLoaded', function () {
-            const hash = window.location.hash;
-            if (hash) {
-                const targetBtn = document.querySelector(`#adminFieldTabs button[data-bs-target="${hash}"]`);
+            let activeHash = window.location.hash;
+            if (!activeHash) {
+                const saved = localStorage.getItem('plato_admin_tab');
+                if (saved) activeHash = saved;
+            }
+            if (activeHash) {
+                if (!activeHash.startsWith('#')) activeHash = '#' + activeHash;
+                const targetBtn = document.querySelector(`#adminFieldTabs button[data-bs-target="${activeHash}"]`);
                 if (targetBtn) {
                     const tab = new bootstrap.Tab(targetBtn);
                     tab.show();
@@ -670,6 +829,7 @@
                     const target = e.target.getAttribute('data-bs-target');
                     if (target) {
                         history.replaceState(null, null, target);
+                        localStorage.setItem('plato_admin_tab', target);
                     }
                 });
             });

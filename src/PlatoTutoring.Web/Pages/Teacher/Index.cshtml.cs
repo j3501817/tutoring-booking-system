@@ -65,6 +65,19 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int? SelectedSlotId { get; set; }
 
+    // 儲值列表篩選條件（學校、年別、班別、匯款日）
+    [BindProperty(SupportsGet = true)]
+    public string? FilterSchool { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? FilterGrade { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? FilterClass { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? FilterRemittanceDate { get; set; }
+
     public List<TutoringSlot> TodaySlots { get; set; } = new();
     public List<Booking> TodayBookings { get; set; } = new();
     public TutoringSlot? ActiveRollcallSlot { get; set; }
@@ -125,12 +138,32 @@ public class IndexModel : PageModel
             .OrderBy(b => b.TutoringSlot!.StartsAtUtc)
             .ToListAsync();
 
-        RecentTopUps = await _db.TopUpBatches
+        var topUpQuery = _db.TopUpBatches
             .Include(t => t.Student)
             .Include(t => t.RecordedByTeacher)
             .Include(t => t.Attachment)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(FilterSchool))
+        {
+            topUpQuery = topUpQuery.Where(t => t.Student != null && t.Student.School == FilterSchool);
+        }
+        if (!string.IsNullOrWhiteSpace(FilterGrade))
+        {
+            topUpQuery = topUpQuery.Where(t => t.Student != null && t.Student.Grade == FilterGrade);
+        }
+        if (!string.IsNullOrWhiteSpace(FilterClass))
+        {
+            topUpQuery = topUpQuery.Where(t => t.Student != null && t.Student.ClassName == FilterClass);
+        }
+        if (!string.IsNullOrWhiteSpace(FilterRemittanceDate) && DateOnly.TryParse(FilterRemittanceDate, out var parsedRemitDate))
+        {
+            topUpQuery = topUpQuery.Where(t => t.RemittanceDate == parsedRemitDate);
+        }
+
+        RecentTopUps = await topUpQuery
             .OrderByDescending(t => t.CreatedAtUtc)
-            .Take(10)
+            .Take(50)
             .ToListAsync();
 
         HomeworkItems = await _db.HomeworkWatchItems
