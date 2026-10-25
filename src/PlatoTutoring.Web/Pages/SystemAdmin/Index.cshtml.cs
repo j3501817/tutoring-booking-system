@@ -403,15 +403,25 @@ public class IndexModel : PageModel
         {
             var admin = await GetCurrentAuthorizedUserAsync();
             var oldCurrent = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent && (!semesterId.HasValue || s.Id != semesterId.Value));
+            var expiredMsg = "";
             if (oldCurrent != null && admin != null)
             {
                 var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
-                TempData["SuccessMessage"] = $"已設定「{semester!.Name}」為目前學期！前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
+                expiredMsg = $"前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
             }
             foreach (var s in await _db.Semesters.ToListAsync())
             {
                 if (s != semester) s.IsCurrent = false;
             }
+            await _db.SaveChangesAsync();
+
+            // 新學期生效時，全體在籍學生自動補發贈送堂數
+            var opId = admin?.Id ?? 1;
+            var grantedCount = await _ledgerService.GrantSemesterBonusToActiveStudentsAsync(semester!.Id, opId);
+            var grantedMsg = grantedCount > 0 ? $"並已為全體在籍學生（共 {grantedCount} 位）自動核發新學期贈送堂數！" : "";
+
+            TempData["SuccessMessage"] = $"已設定「{semester!.Name}」為目前生效學期！{expiredMsg}{grantedMsg}";
+            return RedirectToPage(new { semesterId = semester.Id });
         }
 
         await _db.SaveChangesAsync();
@@ -430,15 +440,12 @@ public class IndexModel : PageModel
 
         var admin = await GetCurrentAuthorizedUserAsync();
         var oldCurrent = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent && s.Id != semesterId);
+        var expiredMsg = "";
         if (oldCurrent != null && admin != null)
         {
             // 換學期：將前學期贈送堂數歸 0
             var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
-            TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期！已將前學期（{oldCurrent.Name}）之贈送堂數全數結算歸零（共 {expiredCount} 位學生調整）。";
-        }
-        else
-        {
-            TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期。";
+            expiredMsg = $"已將前學期（{oldCurrent.Name}）之贈送堂數全數結算歸零（共 {expiredCount} 位學生調整）。";
         }
 
         foreach (var s in await _db.Semesters.ToListAsync())
@@ -447,6 +454,12 @@ public class IndexModel : PageModel
         }
         await _db.SaveChangesAsync();
 
+        // 新學期生效時，全體在籍學生自動補發贈送堂數
+        var opId = admin?.Id ?? 1;
+        var grantedCount = await _ledgerService.GrantSemesterBonusToActiveStudentsAsync(targetSemester.Id, opId);
+        var grantedMsg = grantedCount > 0 ? $"並已為全體在籍學生（共 {grantedCount} 位）自動補發新學期贈送堂數！" : "";
+
+        TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期！{expiredMsg}{grantedMsg}";
         return RedirectToPage(new { semesterId });
     }
 

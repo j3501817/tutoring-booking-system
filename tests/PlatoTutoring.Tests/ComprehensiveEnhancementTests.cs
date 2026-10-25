@@ -338,4 +338,129 @@ public class ComprehensiveEnhancementTests
         Assert.Equal(3, recentLogs.Count); // 最多只保留近 3 筆
         Assert.Equal("測試執行 3", recentLogs[0].Message);
     }
+
+    [Fact]
+    public async Task StudentLifecycle_UnrenewedAndRenew_GrantsBonusAndLogsHistory()
+    {
+        var (db, ledger, _, _, _, _) = CreateServices();
+
+        var admin = new AppUser { Username = "admin_test", DisplayName = "主任", Role = UserRole.Admin };
+        db.Users.Add(admin);
+
+        var sem = new Semester
+        {
+            Name = "115下學期",
+            StartDate = new DateOnly(2026, 2, 1),
+            EndDate = new DateOnly(2026, 6, 30),
+            IsCurrent = true,
+            DefaultBonusCredits = 3
+        };
+        db.Semesters.Add(sem);
+
+        var student = new Student
+        {
+            FullName = "林小明",
+            GradeClass = "國二A班",
+            EnrollmentDate = new DateOnly(2026, 1, 15),
+            EnrollmentStatus = StudentEnrollmentStatus.Enrolled,
+            PaidCredits = 10,
+            BonusCredits = 0
+        };
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        // 1. 標為未續報
+        await ledger.MarkStudentUnrenewedAsync(student.Id, admin.Id, "家長評估中");
+        Assert.Equal(StudentEnrollmentStatus.Unrenewed, student.EnrollmentStatus);
+        Assert.Equal(10, student.PaidCredits); // 堂數保留
+
+        // 檢查歷程紀錄
+        var log1 = await db.StudentStatusLogs.FirstOrDefaultAsync(l => l.StudentId == student.Id);
+        Assert.NotNull(log1);
+        Assert.Equal(StudentEnrollmentStatus.Enrolled, log1.FromStatus);
+        Assert.Equal(StudentEnrollmentStatus.Unrenewed, log1.ToStatus);
+        Assert.Equal("家長評估中", log1.Note);
+
+        // 2. 辦理續報（恢復在學，並自動補發本期贈堂）
+        var (renewedStudent, bonusGranted) = await ledger.RenewStudentAsync(student.Id, admin.Id, "家長確認續報");
+        Assert.Equal(StudentEnrollmentStatus.Enrolled, renewedStudent.EnrollmentStatus);
+        Assert.Equal(3, bonusGranted);
+        Assert.Equal(3, renewedStudent.BonusCredits);
+
+        // 檢查第二次續報不會重複補發（防呆去重）
+        var (_, bonusSecond) = await ledger.RenewStudentAsync(student.Id, admin.Id, "再次確認");
+        Assert.Equal(0, bonusSecond);
+        Assert.Equal(3, renewedStudent.BonusCredits);
+    }
+
+    [Fact]
+    public async Task BookingService_BlocksUnrenewedOrDroppedOutStudents()
+    {
+        var (db, ledger, booking, _, _, _) = CreateServices();
+
+        var teacher = new AppUser { Username = "t1", DisplayName = "張老師", Role = UserRole.Teacher };
+        db.Users.Add(teacher);
+
+        var sem = new Semester { Name = "115下", StartDate = new DateOnly(2026, 2, 1), EndDate = new DateOnly(2026, 6, 30), IsCurrent = true };
+        db.Semesters.Add(sem);
+
+        var progress = new CourseProgress { SemesterId = sem.Id, Code = "P1", Title = "第一單元", GradeClass = "國二A班", IsCurrentProgress = true };
+        db.CourseProgresses.Add(progress);
+        await db.SaveChangesAsync();
+
+        var slot = await booking.CreateSlotAsync(teacher.Id, progress.Id, "國二A班", SlotType.SmallGroup,
+            DateTime.UtcNow.AddDays(2), DateTime.UtcNow.AddDays(2).AddHours(1), 3, false, "課表");
+
+        var student = new Student
+        {
+            FullName = "王大寶",
+            GradeClass = "國二A班",
+            EnrollmentDate = new DateOnly(2026, 2, 1),
+            EnrollmentStatus = StudentEnrollmentStatus.Unrenewed,
+            PaidCredits = 5,
+            BonusCredits = 0
+        };
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        // 未續報學生預約應被阻擋
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            booking.CreateBookingAsync(slot.Id, student.Id, teacher.Id, "作業補正"));
+        Assert.Contains("尚未完成續報", ex.Message);
+
+        // 未續報學生候補也應被阻擋
+        var exWait = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            booking.JoinWaitlistAsync(slot.Id, student.Id, teacher.Id, "作業補正"));
+        Assert.Contains("尚未完成續報", exWait.Message);
+    }
+
+    [Fact]
+    public async Task SemesterSwitch_GrantsBonusToActiveEnrolledStudentsOnly()
+    {
+        var (db, ledger, _, _, _, _) = CreateServices();
+        var admin = new AppUser { Username = "admin2", DisplayName = "蘇主任", Role = UserRole.Admin };
+        db.Users.Add(admin);
+
+        var sem1 = new Semester { Name = "114下學期", StartDate = new DateOnly(2025, 2, 1), EndDate = new DateOnly(2025, 6, 30), IsCurrent = false, DefaultBonusCredits = 3 };
+        var sem2 = new Semester { Name = "115上學期", StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 1, 20), IsCurrent = true, DefaultBonusCredits = 4 };
+        db.Semesters.AddRange(sem1, sem2);
+
+        // 學生 A: 在學
+        var stuActive = new Student { FullName = "在學同學", GradeClass = "國二", EnrollmentDate = new DateOnly(2025, 1, 1), EnrollmentStatus = StudentEnrollmentStatus.Enrolled, BonusCredits = 0 };
+        // 學生 B: 未續報
+        var stuUnrenewed = new Student { FullName = "未續報同學", GradeClass = "國二", EnrollmentDate = new DateOnly(2025, 1, 1), EnrollmentStatus = StudentEnrollmentStatus.Unrenewed, BonusCredits = 0 };
+        // 學生 C: 退班
+        var stuDropped = new Student { FullName = "退班同學", GradeClass = "國二", EnrollmentDate = new DateOnly(2025, 1, 1), EnrollmentStatus = StudentEnrollmentStatus.DroppedOut, IsDroppedOut = true, BonusCredits = 0 };
+
+        db.Students.AddRange(stuActive, stuUnrenewed, stuDropped);
+        await db.SaveChangesAsync();
+
+        // 執行新學期全體在籍學生自動補發
+        var grantedCount = await ledger.GrantSemesterBonusToActiveStudentsAsync(sem2.Id, admin.Id);
+
+        Assert.Equal(1, grantedCount);
+        Assert.Equal(4, stuActive.BonusCredits);
+        Assert.Equal(0, stuUnrenewed.BonusCredits);
+        Assert.Equal(0, stuDropped.BonusCredits);
+    }
 }

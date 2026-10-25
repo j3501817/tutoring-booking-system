@@ -2,6 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace PlatoTutoring.Web.Models;
 
+public enum StudentEnrollmentStatus
+{
+    Enrolled = 1,   // 本學期在學
+    Unrenewed = 2,  // 未續報
+    DroppedOut = 3  // 退班
+}
+
 public enum UserRole
 {
     Parent,
@@ -125,6 +132,7 @@ public class Student
     public DateOnly EnrollmentDate { get; set; }
     public int PaidCredits { get; set; }
     public int BonusCredits { get; set; }
+    public StudentEnrollmentStatus EnrollmentStatus { get; set; } = StudentEnrollmentStatus.Enrolled;
     public bool IsDroppedOut { get; set; }
     public DateTime? DroppedOutAtUtc { get; set; }
     public DateTime? GroupBookingSuspendedUntilUtc { get; set; }
@@ -407,3 +415,20 @@ public class AcademicHoliday
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+public class StudentStatusLog
+{
+    public int Id { get; set; }
+    public int StudentId { get; set; }
+    public Student? Student { get; set; }
+    public StudentEnrollmentStatus FromStatus { get; set; }
+    public StudentEnrollmentStatus ToStatus { get; set; }
+    public int? SemesterId { get; set; }
+    public Semester? Semester { get; set; }
+    [MaxLength(250)]
+    public string Note { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string OperatorName { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+

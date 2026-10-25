@@ -171,8 +171,8 @@ public class BookingService
         var op = await _db.Users.FindAsync(operatorUserId)
             ?? throw new InvalidOperationException("找不到操作人帳號。");
 
-        if (student.IsDroppedOut)
-            throw new InvalidOperationException("該學生已退班，無法進行預約。");
+        if (student.IsDroppedOut || student.EnrollmentStatus != StudentEnrollmentStatus.Enrolled)
+            throw new InvalidOperationException("該學生本學期尚未完成續報（或已退班），不可預約課堂；請先於學生管理辦理續報。");
 
         if (op.Role == UserRole.Parent)
         {
@@ -436,6 +436,11 @@ public class BookingService
             .Include(s => s.CourseProgress)
             .FirstOrDefaultAsync(s => s.Id == slotId)
             ?? throw new InvalidOperationException("找不到指定的輔導時段。");
+
+        var student = await _db.Students.FindAsync(studentId)
+            ?? throw new InvalidOperationException("找不到學生資料。");
+        if (student.IsDroppedOut || student.EnrollmentStatus != StudentEnrollmentStatus.Enrolled)
+            throw new InvalidOperationException("該學生本學期尚未完成續報（或已退班），不可登記候補；請先於學生管理辦理續報。");
 
         if (slot.RemainingSeats > 0)
             throw new InvalidOperationException("此時段尚有空位，請直接預約無須候補。");
