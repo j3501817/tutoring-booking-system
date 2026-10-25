@@ -62,7 +62,6 @@ public class IndexModel : PageModel
     public int HomeworkResolvedCount { get; set; }
     public int LineSentTotal { get; set; }
     public int LineFailedTotal { get; set; }
-    public bool IsGroupNoShowPenaltyEnabled { get; set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -140,9 +139,6 @@ public class IndexModel : PageModel
 
         LineSentTotal = await _db.LineNotificationLogs.CountAsync(l => l.Status == "Sent" || l.Status == "RetriedSuccess");
         LineFailedTotal = await _db.LineNotificationLogs.CountAsync(l => l.Status.StartsWith("Failed"));
-
-        var penaltySetting = await _db.SystemSettings.FirstOrDefaultAsync(s => s.Key == "GroupNoShowPenaltyEnabled");
-        IsGroupNoShowPenaltyEnabled = string.Equals(penaltySetting?.Value, "true", StringComparison.OrdinalIgnoreCase);
 
         return Page();
     }
@@ -409,18 +405,6 @@ public class IndexModel : PageModel
         }
 
         return Redirect("/Admin#tab-admin-dropout");
-    }
-
-    public async Task<IActionResult> OnPostToggleNoShowPenaltyAsync(bool enabled)
-    {
-        var setting = await _db.SystemSettings.FirstOrDefaultAsync(s => s.Key == "GroupNoShowPenaltyEnabled");
-        if (setting != null)
-        {
-            setting.Value = enabled ? "true" : "false";
-            await _db.SaveChangesAsync();
-        }
-        TempData["SuccessMessage"] = $"團體課爽約記點停權規則已設為：{(enabled ? "啟用（30天內爽約3次暫停預約14天）" : "關閉（預設）")}。";
-        return Redirect("/Admin#tab-admin-students");
     }
 
     public async Task<IActionResult> OnPostAddPurposeAsync(string purposeName)
