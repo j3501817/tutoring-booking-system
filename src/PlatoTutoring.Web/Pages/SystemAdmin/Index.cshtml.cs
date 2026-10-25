@@ -97,6 +97,9 @@ public class IndexModel : PageModel
 
         HolidayMap = AcademicHolidays.ToDictionary(h => h.Date, h => h);
 
+        await EnforceSingleCurrentSemesterAsync();
+        await _db.SaveChangesAsync();
+
         AllSemesters = await _db.Semesters
             .OrderBy(s => s.StartDate)
             .ToListAsync();
@@ -379,6 +382,13 @@ public class IndexModel : PageModel
         }
 
         var isNew = semester == null;
+        var totalSemesters = await _db.Semesters.CountAsync();
+        if (totalSemesters == 0)
+        {
+            // 系統首個學期強制設定為目前學期
+            setAsCurrent = true;
+        }
+
         if (isNew)
         {
             semester = new Semester
@@ -390,33 +400,49 @@ public class IndexModel : PageModel
                 DefaultBonusCredits = 3
             };
             _db.Semesters.Add(semester);
+            await _db.SaveChangesAsync();
         }
         else if (semester != null)
         {
             if (!string.IsNullOrWhiteSpace(name)) semester.Name = name.Trim();
             semester.StartDate = startOnly;
             semester.EndDate = endOnly;
-            if (setAsCurrent) semester.IsCurrent = true;
+
+            // 防呆：若取消勾選目前學期，但系統中並無其他進行中學期，則阻止並強制維持為目前學期
+            if (!setAsCurrent && semester.IsCurrent)
+            {
+                var otherCurrentExists = await _db.Semesters.AnyAsync(s => s.Id != semester.Id && s.IsCurrent);
+                if (!otherCurrentExists)
+                {
+                    if (TempData != null) TempData["ErrorMessage"] = "系統必須保留至少一個目前進行中之學期，不可直接取消。若欲更換，請直接將目標學期設為目前學期。";
+                    setAsCurrent = true;
+                }
+                else
+                {
+                    semester.IsCurrent = false;
+                }
+            }
         }
 
         if (setAsCurrent)
         {
             var admin = await GetCurrentAuthorizedUserAsync();
-            var oldCurrent = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent && (!semesterId.HasValue || s.Id != semesterId.Value));
+            var oldCurrent = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent && s.Id != semester!.Id);
             if (oldCurrent != null && admin != null)
             {
                 var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
-                TempData["SuccessMessage"] = $"已設定「{semester!.Name}」為目前學期！前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
+                if (TempData != null) TempData["SuccessMessage"] = $"已設定「{semester!.Name}」為目前學期！前學期（{oldCurrent.Name}）之贈送堂數已全數結算歸零（共 {expiredCount} 位學生調整）。";
             }
-            foreach (var s in await _db.Semesters.ToListAsync())
-            {
-                if (s != semester) s.IsCurrent = false;
-            }
+            await EnforceSingleCurrentSemesterAsync(semester!.Id);
+        }
+        else
+        {
+            await EnforceSingleCurrentSemesterAsync();
         }
 
         await _db.SaveChangesAsync();
-        TempData["SuccessMessage"] = $"已儲存學期「{semester!.Name}」期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
-        return RedirectToPage(new { semesterId = semester.Id });
+        if (TempData != null) TempData["SuccessMessage"] = $"已儲存學期「{semester!.Name}」期間：{semester.StartDate:yyyy-MM-dd} ～ {semester.EndDate:yyyy-MM-dd}";
+        return RedirectToPage(new { semesterId = semester?.Id });
     }
 
     public async Task<IActionResult> OnPostSwitchSemesterAsync(int semesterId)
@@ -424,7 +450,7 @@ public class IndexModel : PageModel
         var targetSemester = await _db.Semesters.FindAsync(semesterId);
         if (targetSemester == null)
         {
-            TempData["ErrorMessage"] = "找不到指定的學期。";
+            if (TempData != null) TempData["ErrorMessage"] = "找不到指定的學期。";
             return RedirectToPage();
         }
 
@@ -434,20 +460,53 @@ public class IndexModel : PageModel
         {
             // 換學期：將前學期贈送堂數歸 0
             var expiredCount = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(oldCurrent.Id, admin.Id);
-            TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期！已將前學期（{oldCurrent.Name}）之贈送堂數全數結算歸零（共 {expiredCount} 位學生調整）。";
+            if (TempData != null) TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期！已將前學期（{oldCurrent.Name}）之贈送堂數全數結算歸零（共 {expiredCount} 位學生調整）。";
         }
         else
         {
-            TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期。";
+            if (TempData != null) TempData["SuccessMessage"] = $"已切換至「{targetSemester.Name}」為目前學期。";
         }
 
-        foreach (var s in await _db.Semesters.ToListAsync())
-        {
-            s.IsCurrent = (s.Id == semesterId);
-        }
+        await EnforceSingleCurrentSemesterAsync(semesterId);
         await _db.SaveChangesAsync();
 
         return RedirectToPage(new { semesterId });
+    }
+
+    /// <summary>
+    /// 保障當前學期（IsCurrent）唯一性防呆機制：
+    /// 確保資料庫中永遠至多且至少有 1 個學期的 IsCurrent 為 true。
+    /// </summary>
+    private async Task EnforceSingleCurrentSemesterAsync(int? targetCurrentSemesterId = null)
+    {
+        var all = await _db.Semesters.ToListAsync();
+        if (!all.Any()) return;
+
+        if (targetCurrentSemesterId.HasValue)
+        {
+            foreach (var s in all)
+            {
+                s.IsCurrent = (s.Id == targetCurrentSemesterId.Value);
+            }
+        }
+        else
+        {
+            var currents = all.Where(s => s.IsCurrent).OrderByDescending(s => s.StartDate).ToList();
+            if (currents.Count > 1)
+            {
+                // 若有複數個學期同時為 true，只保留開始日最新的一筆為 true，其餘強制設為 false
+                var keep = currents.First();
+                foreach (var s in currents.Skip(1))
+                {
+                    s.IsCurrent = false;
+                }
+            }
+            else if (currents.Count == 0)
+            {
+                // 若皆無，預設最新學期為目前學期
+                all.OrderByDescending(s => s.StartDate).First().IsCurrent = true;
+            }
+        }
     }
 
     public async Task<IActionResult> OnPostDeleteSemesterAsync(int semesterId)
@@ -539,8 +598,11 @@ public class IndexModel : PageModel
 
     private async Task<AppUser?> GetCurrentAuthorizedUserAsync()
     {
-        var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(idStr, out var userId)) return null;
+        var idStr = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(idStr) || !int.TryParse(idStr, out var userId))
+        {
+            return await _db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
+        }
         var user = await _db.Users.FindAsync(userId);
         if (user == null) return null;
         if (user.Role == UserRole.Admin || (user.Role == UserRole.Teacher && user.IsProxyAdmin))

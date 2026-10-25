@@ -70,7 +70,8 @@ public class IndexModel : PageModel
         if (admin == null) return RedirectToPage("/Account/Login");
         CurrentUser = admin;
 
-        CurrentSemester = await _db.Semesters.OrderByDescending(s => s.Id).FirstOrDefaultAsync();
+        CurrentSemester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
         AllProgresses = await _db.CourseProgresses.OrderByDescending(p => p.Id).ToListAsync();
         AllStudents = await _db.Students.OrderBy(s => s.Id).ToListAsync();
         AllUsers = await _db.Users.OrderBy(u => u.Role).ThenBy(u => u.Id).ToListAsync();
@@ -343,7 +344,8 @@ public class IndexModel : PageModel
         DateOnly weekEndDate,
         bool setAsCurrent)
     {
-        var sem = await _db.Semesters.OrderByDescending(s => s.Id).FirstOrDefaultAsync();
+        var sem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
         if (sem == null)
         {
             TempData["ErrorMessage"] = "請先設定學期。";
@@ -377,7 +379,8 @@ public class IndexModel : PageModel
         var admin = await GetCurrentAdminAsync();
         if (admin == null) return RedirectToPage("/Account/Login");
 
-        var sem = await _db.Semesters.OrderByDescending(s => s.Id).FirstOrDefaultAsync();
+        var sem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
         if (sem == null) return Redirect("/Admin#tab-admin-semester");
 
         var count = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(sem.Id, admin.Id);
