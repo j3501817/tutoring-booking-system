@@ -235,13 +235,9 @@ public class BookingAndLedgerTests
     }
 
     [Fact]
-    public async Task Homework48HourReminder_AndGroupNoShowSuspension_WorkAsExpected()
+    public async Task Homework48HourReminder_WorksAsExpected_AndNoShowDoesNotSuspendStudent()
     {
         var (db, _, booking, line) = CreateTestServices();
-
-        // 啟用團體課爽約記點停權
-        var setting = await db.SystemSettings.FirstAsync(s => s.Key == "GroupNoShowPenaltyEnabled");
-        setting.Value = "true";
 
         var parent = new AppUser { Username = "p1", PasswordHash = "pw", DisplayName = "家長", Role = UserRole.Parent, LineUserId = "U_LINE_1" };
         var teacher = new AppUser { Username = "t1", PasswordHash = "pw", DisplayName = "老師", Role = UserRole.Teacher };
@@ -263,7 +259,7 @@ public class BookingAndLedgerTests
         Assert.Equal(1, reminderCount);
         Assert.True(hw.IsSecondReminderFlagged);
 
-        // 2. 團體課 30 天內爽約 3 次 → 自動暫停預約 14 天
+        // 2. 拔除爽約停權後，團體課爽約 3 次 → 不再暫停預約，堂數正常扣除/維持，學生仍可正常預約
         for (int i = 1; i <= 3; i++)
         {
             var gSlot = await booking.CreateSlotAsync(teacher.Id, prog.Id, "國三A班", SlotType.GroupCounseling, t0.AddDays(i), t0.AddDays(i).AddHours(1), 10, false, "");
@@ -271,11 +267,13 @@ public class BookingAndLedgerTests
             await booking.RecordAttendanceAsync(gb.Id, AttendanceStatus.NoShow, finalizeSlot: true, t0.AddDays(i).AddHours(2));
         }
 
-        Assert.NotNull(student.GroupBookingSuspendedUntilUtc);
+        Assert.Null(student.GroupBookingSuspendedUntilUtc);
 
+        // 後續預約不再拋出停權例外，順利完成預約
         var nextGroupSlot = await booking.CreateSlotAsync(teacher.Id, prog.Id, "國三A班", SlotType.GroupCounseling, t0.AddDays(5), t0.AddDays(5).AddHours(1), 10, false, "");
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            booking.CreateBookingAsync(nextGroupSlot.Id, student.Id, parent.Id, "作業輔導", t0.AddDays(4)));
+        var nextBooking = await booking.CreateBookingAsync(nextGroupSlot.Id, student.Id, parent.Id, "作業輔導", t0.AddDays(4));
+        Assert.NotNull(nextBooking);
+        Assert.Equal(student.Id, nextBooking.StudentId);
     }
 
     [Fact]

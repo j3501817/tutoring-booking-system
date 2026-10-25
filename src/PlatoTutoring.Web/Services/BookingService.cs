@@ -224,14 +224,6 @@ public class BookingService
             if (alreadyHasSmallGroupInProgress)
                 throw new InvalidOperationException("小組指導每個課程進度限預約 1 堂（若需更換時間請使用「同進度改期」功能）。");
         }
-        else if (slot.SlotType == SlotType.GroupCounseling)
-        {
-            if (student.GroupBookingSuspendedUntilUtc.HasValue && student.GroupBookingSuspendedUntilUtc.Value > timestamp)
-            {
-                var untilTpe = ToTaipeiTime(student.GroupBookingSuspendedUntilUtc.Value);
-                throw new InvalidOperationException($"因 30 天內團體課爽約達 3 次，目前已暫停預約至 {untilTpe:yyyy-MM-dd HH:mm}。");
-            }
-        }
 
         // 僅老師與管理員具備免扣堂權限，若非老師/管理員則不允許免扣堂
         var isTeacherOrAdmin = op.Role == UserRole.Teacher || op.Role == UserRole.Admin;
@@ -664,32 +656,6 @@ public class BookingService
         }
 
         await _db.SaveChangesAsync();
-
-        if (attendanceStatus == AttendanceStatus.NoShow
-            && booking.TutoringSlot?.SlotType == SlotType.GroupCounseling)
-        {
-            var penaltySetting = await _db.SystemSettings
-                .FirstOrDefaultAsync(s => s.Key == "GroupNoShowPenaltyEnabled");
-            var isPenaltyEnabled = string.Equals(penaltySetting?.Value, "true", StringComparison.OrdinalIgnoreCase);
-
-            if (isPenaltyEnabled && booking.Student != null)
-            {
-                var windowStart = timestamp.AddDays(-30);
-                var noShowCount = await _db.Bookings
-                    .Include(b => b.TutoringSlot)
-                    .CountAsync(b => b.StudentId == booking.StudentId
-                                     && b.AttendanceStatus == AttendanceStatus.NoShow
-                                     && b.TutoringSlot != null
-                                     && b.TutoringSlot.SlotType == SlotType.GroupCounseling
-                                     && b.TutoringSlot.StartsAtUtc >= windowStart);
-
-                if (noShowCount >= 3)
-                {
-                    booking.Student.GroupBookingSuspendedUntilUtc = timestamp.AddDays(14);
-                    await _db.SaveChangesAsync();
-                }
-            }
-        }
     }
 
     public async Task BatchRecordAttendanceAsync(
