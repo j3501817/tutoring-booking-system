@@ -144,8 +144,8 @@ public class IndexModel : PageModel
         NextYear = next.Year;
         NextMonth = next.Month;
 
+        await _scheduleManager.LoadConfigurationsFromDbAsync();
         ScheduledTasks = _scheduleManager.GetScheduledTasks();
-        ScheduledLogs = _scheduleManager.GetRecentLogs(50);
     }
 
     public async Task<IActionResult> OnPostTriggerScheduleAsync(string jobCode)
@@ -163,6 +163,25 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = message;
         }
 
+        return RedirectToPage(new { sub = "schedules" });
+    }
+
+    public async Task<IActionResult> OnPostToggleScheduleAsync(string jobCode, bool isEnabled)
+    {
+        await _scheduleManager.ToggleTaskAsync(jobCode, isEnabled);
+        TempData["SuccessMessage"] = $"排程狀態已切換為：{(isEnabled ? "啟用" : "停用")}。";
+        return RedirectToPage(new { sub = "schedules" });
+    }
+
+    public async Task<IActionResult> OnPostUpdateScheduleConfigAsync(
+        string jobCode,
+        bool isEnabled,
+        ScheduleFrequencyType frequencyType,
+        string dailyTime,
+        int intervalMinutes)
+    {
+        await _scheduleManager.UpdateTaskConfigAsync(jobCode, isEnabled, frequencyType, dailyTime, intervalMinutes);
+        TempData["SuccessMessage"] = "排程執行週期與設定已成功儲存！";
         return RedirectToPage(new { sub = "schedules" });
     }
 

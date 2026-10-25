@@ -636,142 +636,171 @@
                     <div>
                         <div class="d-flex align-items-center gap-2 mb-1">
                             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-semibold">
-                                <i class="bi bi-broadcast me-1"></i>常駐背景服務運行中
+                                <i class="bi bi-broadcast me-1"></i>常駐背景服務已掛載運行中
                             </span>
                             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold">
-                                共 @Model.ScheduledTasks.Count 個排程工作
+                                共 @Model.ScheduledTasks.Count 個排程工作（@(Model.ScheduledTasks.Count(t => t.IsEnabled)) 個啟用中）
                             </span>
                         </div>
                         <h5 class="fw-bold mb-1 text-dark"><i class="bi bi-clock-history me-2 text-primary"></i>系統背景排程管理與執行記錄</h5>
-                        <div class="text-muted small">列出系統常駐之背景定時任務，監控最近執行時間、耗時與執行結果，並可進行即時手動觸發測試</div>
+                        <div class="text-muted small">所有排程均已常駐掛載於系統背景。您可自由切換排程開關、自訂執行時間（支援每 N 分鐘或每日固定時間），並直接在各排程下方檢視近 3 筆執行歷程</div>
                     </div>
                 </div>
             </div>
             <div class="card-body p-3 p-md-4">
-                <!-- 排程列表 -->
-                <div class="table-responsive border rounded-3 mb-4">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="ps-3" style="width: 280px;">排程名稱與代碼</th>
-                                <th style="width: 170px;">執行週期</th>
-                                <th style="width: 110px;">目前狀態</th>
-                                <th style="width: 170px;">上次執行時間</th>
-                                <th>上次執行結果</th>
-                                <th style="width: 170px;">下次預計執行</th>
-                                <th class="text-end pe-3" style="width: 120px;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var task in Model.ScheduledTasks)
-                            {
-                                <tr>
-                                    <td class="ps-3">
-                                        <div class="fw-bold text-dark">@task.Name</div>
-                                        <div class="text-muted small"><code>@task.JobCode</code> ｜ @task.Description</div>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-light text-dark border">
-                                            <i class="bi bi-calendar-event me-1 text-secondary"></i>@task.ScheduleInterval
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge @(task.IsLastSuccess ? "bg-success" : "bg-danger") text-white">
-                                            <i class="bi @(task.IsLastSuccess ? "bi-check-circle" : "bi-x-circle") me-1"></i>@task.Status
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if (task.LastRunAtUtc.HasValue)
+                <div class="row g-3">
+                    @foreach (var task in Model.ScheduledTasks)
+                    {
+                        var isEnabled = task.IsEnabled;
+                        <div class="col-12">
+                            <div class="border rounded-3 p-3 @(isEnabled ? "bg-white shadow-sm" : "bg-light text-muted opacity-75")">
+                                <!-- 卡片頂部：標題、代碼、狀態、開關與操作按鈕 -->
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 pb-2 border-bottom">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <h6 class="fw-bold mb-0 text-dark">
+                                            <i class="bi bi-cpu text-primary me-1"></i>@task.Name
+                                        </h6>
+                                        <code class="text-secondary small">@task.JobCode</code>
+                                        @if (isEnabled)
                                         {
-                                            <div class="small fw-semibold">@task.LastRunAtUtc.Value.AddHours(8).ToString("yyyy/MM/dd HH:mm:ss")</div>
-                                            <div class="text-muted" style="font-size: 0.75rem;">耗時 @(task.LastDuration?.TotalMilliseconds ?? 0):F0 ms</div>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted small">-</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <span class="small @(task.IsLastSuccess ? "text-success" : "text-danger")">
-                                            @task.LastResult
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if (task.NextRunAtUtc.HasValue)
-                                        {
-                                            <span class="small text-secondary">
-                                                <i class="bi bi-hourglass-split me-1 text-primary"></i>@task.NextRunAtUtc.Value.AddHours(8).ToString("yyyy/MM/dd HH:mm")
+                                            <span class="badge bg-success text-white">
+                                                <i class="bi bi-play-circle me-1"></i>@task.Status
                                             </span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted small">-</span>
+                                            <span class="badge bg-secondary text-white">
+                                                <i class="bi bi-pause-circle me-1"></i>已停用
+                                            </span>
                                         }
-                                    </td>
-                                    <td class="text-end pe-3">
-                                        <form method="post" asp-page-handler="TriggerSchedule" onsubmit="return confirm('確定要立即手動執行「@task.Name」嗎？');">
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <!-- 開關切換按鈕 -->
+                                        <form method="post" asp-page-handler="ToggleSchedule" class="d-inline">
                                             <input type="hidden" name="jobCode" value="@task.JobCode" />
-                                            <button type="submit" class="btn btn-sm btn-outline-primary fw-bold text-nowrap">
-                                                <i class="bi bi-play-fill me-1"></i>立即執行
+                                            <input type="hidden" name="isEnabled" value="@(isEnabled ? "false" : "true")" />
+                                            <button type="submit" class="btn btn-sm @(isEnabled ? "btn-outline-danger" : "btn-outline-success") fw-bold py-1 px-2"
+                                                    title="@(isEnabled ? "點擊暫停停用此排程" : "點擊啟用此排程")">
+                                                <i class="bi @(isEnabled ? "bi-pause-fill" : "bi-play-fill") me-1"></i>@(isEnabled ? "停用排程" : "啟用排程")
                                             </button>
                                         </form>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
 
-                <!-- 排程歷程記錄 -->
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="fw-bold mb-0 text-dark">
-                        <i class="bi bi-journal-text me-2 text-primary"></i>近期排程執行歷程紀錄 (最近 @Model.ScheduledLogs.Count 筆)
-                    </h6>
-                    <span class="text-muted small">依執行時間降冪排序</span>
-                </div>
-                <div class="table-responsive border rounded-3 bg-white" style="max-height: 380px; overflow-y: auto;">
-                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th class="ps-3" style="width: 170px;">執行時間 (台北時間)</th>
-                                <th style="width: 220px;">排程名稱</th>
-                                <th style="width: 110px;">觸發來源</th>
-                                <th style="width: 90px;">耗時</th>
-                                <th style="width: 90px;">狀態</th>
-                                <th class="pe-3">執行結果摘要</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (!Model.ScheduledLogs.Any())
-                            {
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-3">尚無排程執行紀錄。</td>
-                                </tr>
-                            }
-                            else
-                            {
-                                @foreach (var log in Model.ScheduledLogs)
-                                {
-                                    <tr>
-                                        <td class="ps-3 text-secondary text-nowrap">@log.TriggeredAtUtc.AddHours(8).ToString("yyyy/MM/dd HH:mm:ss")</td>
-                                        <td class="fw-semibold text-dark text-nowrap">@log.JobName</td>
-                                        <td>
-                                            <span class="badge @(log.TriggeredBy.Contains("手動") ? "bg-warning text-dark" : "bg-light text-secondary border")">
-                                                @log.TriggeredBy
+                                        <!-- 設定排程週期按鈕 -->
+                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-semibold py-1 px-2"
+                                                onclick="openEditScheduleModal('@task.JobCode', '@Html.Raw(task.Name)', @(isEnabled.ToString().ToLower()), '@((int)task.FrequencyType)', '@task.DailyTime', @task.IntervalMinutes)">
+                                            <i class="bi bi-gear-fill me-1"></i>設定時間
+                                        </button>
+
+                                        <!-- 手動立即執行按鈕 -->
+                                        <form method="post" asp-page-handler="TriggerSchedule" onsubmit="return confirm('確定要立即手動執行「@task.Name」嗎？');" class="d-inline">
+                                            <input type="hidden" name="jobCode" value="@task.JobCode" />
+                                            <button type="submit" class="btn btn-sm btn-primary fw-bold py-1 px-2">
+                                                <i class="bi bi-lightning-charge-fill me-1"></i>立即執行
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="text-secondary small mt-2 mb-3">
+                                    @task.Description
+                                </div>
+
+                                <!-- 排程運行資訊欄位 -->
+                                <div class="row g-2 mb-3 small">
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">執行週期模式：</span>
+                                        <span class="fw-bold text-dark">
+                                            <i class="bi bi-clock me-1 text-primary"></i>@task.ScheduleInterval
+                                        </span>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">上次執行時間：</span>
+                                        @if (task.LastRunAtUtc.HasValue)
+                                        {
+                                            <span class="fw-semibold text-dark">
+                                                @task.LastRunAtUtc.Value.AddHours(8).ToString("yyyy/MM/dd HH:mm:ss")
                                             </span>
-                                        </td>
-                                        <td class="text-muted">@log.Duration.TotalMilliseconds:F0 ms</td>
-                                        <td>
-                                            <span class="badge @(log.IsSuccess ? "bg-success" : "bg-danger")">
-                                                @(log.IsSuccess ? "成功" : "失敗")
+                                            @if (task.LastDuration.HasValue)
+                                            {
+                                                <span class="text-muted ms-1" style="font-size: 0.75rem;">
+                                                    (@((int)Math.Round(task.LastDuration.Value.TotalMilliseconds)) ms)
+                                                </span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">尚無紀錄</span>
+                                        }
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">下次預計執行：</span>
+                                        @if (isEnabled && task.NextRunAtUtc.HasValue)
+                                        {
+                                            <span class="fw-bold text-primary">
+                                                <i class="bi bi-hourglass-split me-1"></i>@task.NextRunAtUtc.Value.AddHours(8).ToString("yyyy/MM/dd HH:mm:ss")
                                             </span>
-                                        </td>
-                                        <td class="pe-3 @(log.IsSuccess ? "text-dark" : "text-danger fw-semibold")">@log.Message</td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-secondary">⏸️ 暫不排程（已停用）</span>
+                                        }
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">上次執行結果：</span>
+                                        <span class="@(task.IsLastSuccess ? "text-success" : "text-danger") fw-semibold text-truncate d-block" title="@task.LastResult">
+                                            @task.LastResult
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 每筆排程下方近 3 筆執行歷程清單 -->
+                                <div class="bg-light rounded-3 p-2 border">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small fw-bold text-secondary">
+                                            <i class="bi bi-journal-text me-1 text-primary"></i>近 3 筆執行紀錄
+                                        </span>
+                                    </div>
+                                    @if (!task.RecentLogs.Any())
+                                    {
+                                        <div class="text-muted text-center py-2 small">尚無執行紀錄</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                                                <tbody>
+                                                    @foreach (var log in task.RecentLogs.Take(3))
+                                                    {
+                                                        <tr>
+                                                            <td class="text-secondary text-nowrap ps-2" style="width: 170px;">
+                                                                @log.TriggeredAtUtc.AddHours(8).ToString("yyyy/MM/dd HH:mm:ss")
+                                                            </td>
+                                                            <td style="width: 110px;">
+                                                                <span class="badge @(log.TriggeredBy.Contains("手動") ? "bg-warning text-dark" : "bg-light text-secondary border")">
+                                                                    @log.TriggeredBy
+                                                                </span>
+                                                            </td>
+                                                            <td style="width: 90px;" class="text-muted">
+                                                                @((int)Math.Round(log.Duration.TotalMilliseconds)) ms
+                                                            </td>
+                                                            <td style="width: 80px;">
+                                                                <span class="badge @(log.IsSuccess ? "bg-success" : "bg-danger")">
+                                                                    @(log.IsSuccess ? "成功" : "失敗")
+                                                                </span>
+                                                            </td>
+                                                            <td class="pe-2 @(log.IsSuccess ? "text-dark" : "text-danger fw-semibold")">
+                                                                @log.Message
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -897,8 +926,147 @@
     </div>
 </div>
 
+<!-- 排程設定 Modal -->
+<div class="modal fade" id="modalEditSchedule" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" asp-page-handler="UpdateScheduleConfig">
+                <input type="hidden" name="jobCode" id="editScheduleJobCode" />
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="editScheduleTitle">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>設定排程週期與開關
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 1. 開關設定 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">排程運行開關</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="isEnabled" id="schedEnabledTrue" value="true">
+                                <label class="form-check-label text-success fw-bold" for="schedEnabledTrue">
+                                    <i class="bi bi-play-circle me-1"></i>啟用常駐排程
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="isEnabled" id="schedEnabledFalse" value="false">
+                                <label class="form-check-label text-secondary fw-semibold" for="schedEnabledFalse">
+                                    <i class="bi bi-pause-circle me-1"></i>暫停停用排程
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 頻率模式 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">執行週期與時間設定</label>
+                        <div class="d-flex flex-column gap-2">
+                            <!-- 模式 A：間隔分鐘執行（支援每 1 分鐘、每 5 分鐘...） -->
+                            <div class="border rounded-3 p-3 bg-light">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="frequencyType" id="freqInterval" value="1" onchange="updateFreqModeDisplay()">
+                                    <label class="form-check-label fw-bold text-dark" for="freqInterval">
+                                        間隔分鐘執行（包含每分鐘、每 5 分鐘...）
+                                    </label>
+                                </div>
+                                <div class="text-muted small mt-1 ps-4">適合候補逾期名額釋放、即時遞補巡檢等短週期頻繁任務</div>
+                                <div id="intervalMinutesWrapper" class="mt-2 ps-4">
+                                    <div class="input-group input-group-sm" style="max-width: 210px;">
+                                        <span class="input-group-text">每隔</span>
+                                        <input type="number" name="intervalMinutes" id="editScheduleInterval" class="form-control text-center fw-bold" min="1" max="1440" value="5" />
+                                        <span class="input-group-text">分鐘執行</span>
+                                    </div>
+                                    <div class="d-flex gap-1 mt-2 flex-wrap">
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setIntervalValue(1)">每 1 分鐘</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setIntervalValue(5)">每 5 分鐘</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setIntervalValue(15)">每 15 分鐘</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setIntervalValue(30)">每 30 分鐘</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setIntervalValue(60)">每 60 分鐘</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 模式 B：每日固定時間執行（台北時間） -->
+                            <div class="border rounded-3 p-3 bg-light">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="frequencyType" id="freqDaily" value="0" onchange="updateFreqModeDisplay()">
+                                    <label class="form-check-label fw-bold text-dark" for="freqDaily">
+                                        每日固定時間執行（台北時間）
+                                    </label>
+                                </div>
+                                <div class="text-muted small mt-1 ps-4">適合每日學期歸零、課前 LINE 提醒、每日作業催促等每日一次性排程</div>
+                                <div id="dailyTimeWrapper" class="mt-2 ps-4">
+                                    <div class="input-group input-group-sm" style="max-width: 210px;">
+                                        <span class="input-group-text"><i class="bi bi-clock me-1 text-primary"></i>每日</span>
+                                        <input type="time" name="dailyTime" id="editScheduleDailyTime" class="form-control fw-bold" value="00:00" />
+                                    </div>
+                                    <div class="d-flex gap-1 mt-2 flex-wrap">
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDailyTimeValue('00:00')">00:00 (午夜)</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDailyTimeValue('08:00')">08:00 (早晨)</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDailyTimeValue('12:00')">12:00 (中午)</button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="setDailyTimeValue('17:00')">17:00 (傍晚)</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary fw-bold">
+                        <i class="bi bi-save me-1"></i>儲存排程設定
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
+        function openEditScheduleModal(jobCode, name, isEnabled, freqType, dailyTime, intervalMinutes) {
+            document.getElementById('editScheduleJobCode').value = jobCode;
+            document.getElementById('editScheduleTitle').innerHTML = '<i class="bi bi-clock-history me-2 text-primary"></i>設定「' + name + '」排程週期與開關';
+            
+            if (isEnabled) {
+                document.getElementById('schedEnabledTrue').checked = true;
+            } else {
+                document.getElementById('schedEnabledFalse').checked = true;
+            }
+
+            if (freqType === 1 || freqType === '1' || freqType === 'IntervalMinutes') {
+                document.getElementById('freqInterval').checked = true;
+            } else {
+                document.getElementById('freqDaily').checked = true;
+            }
+
+            document.getElementById('editScheduleDailyTime').value = dailyTime || '00:00';
+            document.getElementById('editScheduleInterval').value = intervalMinutes || 5;
+
+            updateFreqModeDisplay();
+            new bootstrap.Modal(document.getElementById('modalEditSchedule')).show();
+        }
+
+        function updateFreqModeDisplay() {
+            const isInterval = document.getElementById('freqInterval').checked;
+            document.getElementById('intervalMinutesWrapper').style.opacity = isInterval ? '1' : '0.4';
+            document.getElementById('intervalMinutesWrapper').style.pointerEvents = isInterval ? 'auto' : 'none';
+            document.getElementById('dailyTimeWrapper').style.opacity = isInterval ? '0.4' : '1';
+            document.getElementById('dailyTimeWrapper').style.pointerEvents = isInterval ? 'none' : 'auto';
+        }
+
+        function setIntervalValue(val) {
+            document.getElementById('editScheduleInterval').value = val;
+            document.getElementById('freqInterval').checked = true;
+            updateFreqModeDisplay();
+        }
+
+        function setDailyTimeValue(val) {
+            document.getElementById('editScheduleDailyTime').value = val;
+            document.getElementById('freqDaily').checked = true;
+            updateFreqModeDisplay();
+        }
         function prepareNewSemester() {
             document.getElementById('semIdInput').value = '0';
             document.getElementById('semNameInput').value = '';

@@ -10,7 +10,7 @@ namespace PlatoTutoring.Tests;
 
 public class ComprehensiveEnhancementTests
 {
-    private static (AppDbContext Db, CreditLedgerService Ledger, BookingService Booking, LineNotificationService Line, StudentParentLinkingService Linking) CreateServices()
+    private static (AppDbContext Db, CreditLedgerService Ledger, BookingService Booking, LineNotificationService Line, StudentParentLinkingService Linking, DbContextOptions<AppDbContext> Options) CreateServices()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString("N"))
@@ -38,13 +38,13 @@ public class ComprehensiveEnhancementTests
         var booking = new BookingService(db, ledger, line);
         var linking = new StudentParentLinkingService(db);
 
-        return (db, ledger, booking, line, linking);
+        return (db, ledger, booking, line, linking, options);
     }
 
     [Fact]
     public async Task StudentParentLinkingService_BindsBidirectionally_ByPhones()
     {
-        var (db, _, _, _, linking) = CreateServices();
+        var (db, _, _, _, linking, _) = CreateServices();
 
         // 1. 先建立家長（電話：0912-345-678）
         var parentUser = new AppUser
@@ -116,7 +116,7 @@ public class ComprehensiveEnhancementTests
     [Fact]
     public async Task BookingService_RejectsBooking_Within30MinutesOfStartTime()
     {
-        var (db, _, booking, _, _) = CreateServices();
+        var (db, _, booking, _, _, _) = CreateServices();
 
         var teacher = new AppUser { Username = "t1", PasswordHash = "pw", DisplayName = "老師", Role = UserRole.Teacher };
         var parent = new AppUser { Username = "p1", PasswordHash = "pw", DisplayName = "家長", Role = UserRole.Parent };
@@ -159,7 +159,7 @@ public class ComprehensiveEnhancementTests
     [Fact]
     public async Task BookingService_RejectsBooking_OnAcademicHoliday()
     {
-        var (db, _, booking, _, _) = CreateServices();
+        var (db, _, booking, _, _, _) = CreateServices();
 
         var teacher = new AppUser { Username = "t1", PasswordHash = "pw", DisplayName = "老師", Role = UserRole.Teacher };
         var parent = new AppUser { Username = "p1", PasswordHash = "pw", DisplayName = "家長", Role = UserRole.Parent };
@@ -230,7 +230,7 @@ public class ComprehensiveEnhancementTests
         Assert.Equal("mock_secret_456", authService.GetLoginClientSecret());
 
         // 尚未在 config 設定 ChannelId，但可透過 db SystemSettings 回退讀取
-        var (db, _, _, _, _) = CreateServices();
+        var (db, _, _, _, _, _) = CreateServices();
         db.SystemSettings.Add(new SystemSetting { Key = "LineBot:ChannelId", Value = "2009998888" });
         db.SaveChanges();
 
@@ -241,7 +241,7 @@ public class ComprehensiveEnhancementTests
     [Fact]
     public async Task SystemAdminCalendar_BuildsMonthlyGrid_WithHolidayMap()
     {
-        var (db, ledger, booking, _, _) = CreateServices();
+        var (db, ledger, booking, line, _, options) = CreateServices();
         var adminUser = new AppUser { Username = "admin_cal", PasswordHash = "pw", DisplayName = "管理員", Role = UserRole.Admin };
         db.Users.Add(adminUser);
 
@@ -250,9 +250,10 @@ public class ComprehensiveEnhancementTests
         await db.SaveChangesAsync();
 
         var services = new ServiceCollection();
-        services.AddScoped(_ => db);
-        services.AddScoped(_ => ledger);
-        services.AddScoped(_ => booking);
+        services.AddScoped(_ => new AppDbContext(options));
+        services.AddScoped(sp => new CreditLedgerService(sp.GetRequiredService<AppDbContext>()));
+        services.AddScoped(sp => new LineNotificationService(sp.GetRequiredService<AppDbContext>()));
+        services.AddScoped(sp => new BookingService(sp.GetRequiredService<AppDbContext>(), sp.GetRequiredService<CreditLedgerService>(), sp.GetRequiredService<LineNotificationService>()));
         var sp = services.BuildServiceProvider();
 
         var scheduleManager = new ScheduleManagerService(sp, Microsoft.Extensions.Logging.Abstractions.NullLogger<ScheduleManagerService>.Instance);
@@ -275,7 +276,66 @@ public class ComprehensiveEnhancementTests
         Assert.Contains(model.ScheduledTasks, t => t.JobCode == "WaitlistCleanup");
 
         var (success, msg) = await scheduleManager.TriggerJobAsync("BonusExpiry");
-        Assert.True(success);
+        Assert.True(success, msg);
         Assert.Contains("成功", msg);
+    }
+
+    [Fact]
+    public async Task ScheduleManager_SupportsToggling_IntervalCustomization_AndPerJobRecentLogs()
+    {
+        var (db, ledger, booking, line, _, options) = CreateServices();
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new AppDbContext(options));
+        services.AddScoped(sp => new CreditLedgerService(sp.GetRequiredService<AppDbContext>()));
+        services.AddScoped(sp => new LineNotificationService(sp.GetRequiredService<AppDbContext>()));
+        services.AddScoped(sp => new BookingService(sp.GetRequiredService<AppDbContext>(), sp.GetRequiredService<CreditLedgerService>(), sp.GetRequiredService<LineNotificationService>()));
+        var sp = services.BuildServiceProvider();
+
+        var scheduleManager = new ScheduleManagerService(sp, Microsoft.Extensions.Logging.Abstractions.NullLogger<ScheduleManagerService>.Instance);
+
+        // 1. 驗證各任務初始狀態
+        var tasks = scheduleManager.GetScheduledTasks();
+        Assert.Equal(4, tasks.Count);
+
+        var waitlistTask = tasks.First(t => t.JobCode == "WaitlistCleanup");
+        Assert.True(waitlistTask.IsEnabled);
+        Assert.Equal(ScheduleFrequencyType.IntervalMinutes, waitlistTask.FrequencyType);
+        Assert.Equal(5, waitlistTask.IntervalMinutes);
+        Assert.NotEmpty(waitlistTask.RecentLogs);
+        Assert.True(waitlistTask.RecentLogs.Count <= 3);
+
+        // 2. 測試切換排程開關 (停用)
+        await scheduleManager.ToggleTaskAsync("WaitlistCleanup", false);
+        var updatedTasks = scheduleManager.GetScheduledTasks();
+        var disabledTask = updatedTasks.First(t => t.JobCode == "WaitlistCleanup");
+        Assert.False(disabledTask.IsEnabled);
+        Assert.Null(disabledTask.NextRunAtUtc);
+        Assert.Equal("已停用", disabledTask.Status);
+
+        // 3. 測試自訂排程時間（自訂為每 1 分鐘間隔執行）
+        await scheduleManager.UpdateTaskConfigAsync("WaitlistCleanup", true, ScheduleFrequencyType.IntervalMinutes, "00:00", 1);
+        var interval1Tasks = scheduleManager.GetScheduledTasks();
+        var reEnabledTask = interval1Tasks.First(t => t.JobCode == "WaitlistCleanup");
+        Assert.True(reEnabledTask.IsEnabled);
+        Assert.Equal(1, reEnabledTask.IntervalMinutes);
+        Assert.NotNull(reEnabledTask.NextRunAtUtc);
+        Assert.Equal("每 1 分鐘", reEnabledTask.ScheduleInterval);
+
+        // 4. 測試設定每日固定時間 (例如每日 08:30)
+        await scheduleManager.UpdateTaskConfigAsync("LessonReminder", true, ScheduleFrequencyType.DailyTime, "08:30", 1440);
+        var lessonTasks = scheduleManager.GetScheduledTasks();
+        var lessonTask = lessonTasks.First(t => t.JobCode == "LessonReminder");
+        Assert.Equal("08:30", lessonTask.DailyTime);
+        Assert.Equal("每日 08:30 (台北時間)", lessonTask.ScheduleInterval);
+        Assert.NotNull(lessonTask.NextRunAtUtc);
+
+        // 5. 測試觸發工作與每筆排程保留近 3 筆歷史
+        for (int i = 0; i < 4; i++)
+        {
+            scheduleManager.RecordExecution("WaitlistCleanup", true, $"測試執行 {i}", TimeSpan.FromMilliseconds(50));
+        }
+        var recentLogs = scheduleManager.GetScheduledTasks().First(t => t.JobCode == "WaitlistCleanup").RecentLogs;
+        Assert.Equal(3, recentLogs.Count); // 最多只保留近 3 筆
+        Assert.Equal("測試執行 3", recentLogs[0].Message);
     }
 }
