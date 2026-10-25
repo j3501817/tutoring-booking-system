@@ -445,13 +445,179 @@
         </div>
     </div>
 
-    <!-- 全域送出/等待遮罩 (阻斷其他操作與防止重複點擊) -->
-    <div id="globalLoadingOverlay" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(5px); z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: #ffffff; pointer-events: all; user-select: none;">
-        <div class="spinner-border text-light mb-3" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <!-- 全域送出/等待遮罩 (旗艦綜合款：數理符號 3D 翻滾動畫) -->
+    <style>
+        .math-perspective {
+            perspective: 900px;
+        }
+        /* 標題後綴 3D 數理翻滾魔方 */
+        .math-cube-spinner {
+            width: 28px;
+            height: 28px;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: mathRotateCube 6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .math-cube-face {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-family: serif;
+            font-weight: bold;
+            border-radius: 6px;
+            background: rgba(30, 58, 138, 0.45);
+            border: 1.5px solid rgba(147, 197, 253, 0.7);
+            color: #93c5fd;
+            text-shadow: 0 0 8px rgba(147, 197, 253, 0.85);
+            box-shadow: inset 0 0 8px rgba(59, 130, 246, 0.35);
+        }
+        .math-cube-face-front  { transform: translateZ(14px); }
+        .math-cube-face-back   { transform: rotateY(180deg) translateZ(14px); }
+        .math-cube-face-right  { transform: rotateY(90deg) translateZ(14px); }
+        .math-cube-face-left   { transform: rotateY(-90deg) translateZ(14px); }
+        .math-cube-face-top    { transform: rotateX(90deg) translateZ(14px); }
+        .math-cube-face-bottom { transform: rotateX(-90deg) translateZ(14px); }
+
+        @@keyframes mathRotateCube {
+            0%   { transform: rotateX(0deg) rotateY(0deg); }
+            16%  { transform: rotateX(90deg) rotateY(0deg); }
+            33%  { transform: rotateX(90deg) rotateY(90deg); }
+            50%  { transform: rotateX(180deg) rotateY(90deg); }
+            66%  { transform: rotateX(180deg) rotateY(180deg); }
+            83%  { transform: rotateX(270deg) rotateY(180deg); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
+        }
+
+        /* 背景漂浮 3D 翻轉數理符號 */
+        @@keyframes mathFloatTumble1 {
+            0% {
+                transform: translateY(15px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(0.9);
+                opacity: 0.12;
+            }
+            50% {
+                transform: translateY(-25px) rotateX(180deg) rotateY(120deg) rotateZ(45deg) scale(1.1);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(15px) rotateX(360deg) rotateY(240deg) rotateZ(0deg) scale(0.9);
+                opacity: 0.12;
+            }
+        }
+        @@keyframes mathFloatTumble2 {
+            0% {
+                transform: translateY(-12px) rotateX(45deg) rotateY(0deg) rotateZ(20deg) scale(1);
+                opacity: 0.15;
+            }
+            50% {
+                transform: translateY(28px) rotateX(225deg) rotateY(180deg) rotateZ(180deg) scale(1.2);
+                opacity: 0.55;
+            }
+            100% {
+                transform: translateY(-12px) rotateX(405deg) rotateY(360deg) rotateZ(380deg) scale(1);
+                opacity: 0.15;
+            }
+        }
+
+        .math-tumble-1 { animation: mathFloatTumble1 7s infinite ease-in-out; }
+        .math-tumble-2 { animation: mathFloatTumble2 9s infinite ease-in-out; }
+        .math-tumble-3 { animation: mathFloatTumble1 11s infinite ease-in-out reverse; }
+        .math-tumble-4 { animation: mathFloatTumble2 8.5s infinite ease-in-out reverse; }
+
+        /* 中央微光環繞軌道 */
+        @@keyframes mathOrbitSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @@keyframes mathCounterSpin {
+            0% { transform: rotate(0deg) rotateX(0deg) rotateY(0deg); }
+            100% { transform: rotate(-360deg) rotateX(360deg) rotateY(360deg); }
+        }
+        .math-orbit-ring {
+            width: 140px;
+            height: 140px;
+            position: absolute;
+            animation: mathOrbitSpin 12s infinite linear;
+            pointer-events: none;
+        }
+        .math-orbit-node {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            font-family: serif;
+            animation: mathCounterSpin 12s infinite linear;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+
+    <div id="globalLoadingOverlay" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: #ffffff; pointer-events: all; user-select: none; overflow: hidden;">
+        
+        <!-- 背景層：全景數理星空漂浮 3D 翻滾符號 -->
+        <div class="math-perspective" style="position: absolute; inset: 0; pointer-events: none; overflow: hidden;">
+            <span class="math-tumble-1" style="position: absolute; top: 10%; left: 12%; font-size: 2.5rem; color: #60a5fa; font-family: serif; font-weight: bold;">π</span>
+            <span class="math-tumble-2" style="position: absolute; top: 22%; right: 14%; font-size: 3rem; color: #67e8f9; font-family: serif; font-weight: bold;">∑</span>
+            <span class="math-tumble-3" style="position: absolute; bottom: 25%; left: 15%; font-size: 2.2rem; color: #818cf8; font-family: serif; font-weight: bold;">∫</span>
+            <span class="math-tumble-4" style="position: absolute; bottom: 18%; right: 20%; font-size: 2.2rem; color: #38bdf8; font-family: serif; font-weight: bold;">√x</span>
+            <span class="math-tumble-1" style="position: absolute; top: 15%; left: 35%; font-size: 2rem; color: #fde047; font-family: serif; font-weight: bold;">∞</span>
+            <span class="math-tumble-2" style="position: absolute; top: 38%; left: 8%; font-size: 2rem; color: #2dd4bf; font-family: serif; font-weight: bold;">Δ</span>
+            <span class="math-tumble-3" style="position: absolute; top: 45%; right: 9%; font-size: 2.4rem; color: #c084fc; font-family: serif; font-weight: bold;">θ</span>
+            <span class="math-tumble-4" style="position: absolute; bottom: 35%; right: 12%; font-size: 2rem; color: #93c5fd; font-family: serif; font-weight: bold;">λ</span>
+            <span class="math-tumble-1" style="position: absolute; top: 62%; left: 24%; font-size: 1.6rem; color: #6ee7b7; font-family: serif; font-weight: bold;">f(x)</span>
+            <span class="math-tumble-2" style="position: absolute; bottom: 10%; left: 45%; font-size: 2rem; color: #a5b4fc; font-family: serif; font-weight: bold;">Ω</span>
+            <span class="math-tumble-3" style="position: absolute; top: 12%; right: 38%; font-size: 1.6rem; color: #bae6fd; font-family: serif; font-weight: bold;">e<sup>iπ</sup></span>
+            <span class="math-tumble-4" style="position: absolute; bottom: 10%; right: 38%; font-size: 2rem; color: #7dd3fc; font-family: serif; font-weight: bold;">≈</span>
         </div>
-        <h4 class="fw-bold mb-2" id="globalLoadingTitle" style="letter-spacing: 0.05em;">處理中，請稍候...</h4>
-        <p class="text-white-50 small mb-0" id="globalLoadingDesc">系統正在儲存並同步資料，請勿關閉視窗或點擊其他功能</p>
+
+        <!-- 中央主要進度圖示 (微光 Spinner + 軌道衛星 + π 核心) -->
+        <div style="position: relative; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center; z-index: 10;">
+            <!-- 微光環繞軌道 -->
+            <div class="math-orbit-ring">
+                <div class="math-orbit-node" style="top: -13px; left: 57px; background: rgba(59, 130, 246, 0.35); border: 1px solid rgba(147, 197, 253, 0.7); color: #bfdbfe; box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);">π</div>
+                <div class="math-orbit-node" style="bottom: -13px; left: 57px; background: rgba(6, 182, 212, 0.35); border: 1px solid rgba(103, 232, 249, 0.7); color: #cffafe; box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);">∑</div>
+                <div class="math-orbit-node" style="top: 57px; left: -13px; background: rgba(99, 102, 241, 0.35); border: 1px solid rgba(165, 180, 252, 0.7); color: #e0e7ff; box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);">∫</div>
+                <div class="math-orbit-node" style="top: 57px; right: -13px; background: rgba(14, 165, 233, 0.35); border: 1px solid rgba(125, 211, 252, 0.7); color: #e0f2fe; box-shadow: 0 0 10px rgba(14, 165, 233, 0.6);">√</div>
+            </div>
+
+            <!-- 標準環形 Spinner (加強外層微光) -->
+            <div class="spinner-border text-info" style="width: 4.2rem; height: 4.2rem; border-width: 0.32em; filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.5));" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <!-- 中心微光數理核心 -->
+            <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+                <span style="font-family: serif; font-weight: 900; font-size: 1.4rem; color: #93c5fd; text-shadow: 0 0 12px rgba(147, 197, 253, 0.9);">
+                    π
+                </span>
+            </div>
+        </div>
+
+        <!-- 標題列：處理中，請稍候... + 3D 數理翻滾魔方 -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 0.65rem; margin-bottom: 0.5rem; z-index: 10;">
+            <h4 class="fw-bold mb-0" id="globalLoadingTitle" style="letter-spacing: 0.05em; text-shadow: 0 2px 8px rgba(0,0,0,0.5);">處理中，請稍候...</h4>
+            <!-- 3D 數理翻滾方塊 -->
+            <div class="math-perspective" style="display: inline-flex; align-items: center; justify-content: center;">
+                <div class="math-cube-spinner">
+                    <div class="math-cube-face math-cube-face-front">π</div>
+                    <div class="math-cube-face math-cube-face-back">∑</div>
+                    <div class="math-cube-face math-cube-face-right">∫</div>
+                    <div class="math-cube-face math-cube-face-left">√</div>
+                    <div class="math-cube-face math-cube-face-top">∞</div>
+                    <div class="math-cube-face math-cube-face-bottom">Δ</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示說明字串 -->
+        <p class="text-white-50 small mb-0" id="globalLoadingDesc" style="z-index: 10; letter-spacing: 0.02em;">系統正在儲存並同步資料，請勿關閉視窗或點擊其他功能</p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
