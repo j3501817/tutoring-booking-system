@@ -314,29 +314,20 @@ public static class DbInitializer
         var provider = db.Database.ProviderName ?? string.Empty;
         if (provider.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
         {
-            const string sql = @"
-IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL
-BEGIN
-    IF COL_LENGTH('BK_Students', 'School') IS NULL
-        ALTER TABLE [BK_Students] ADD [School] nvarchar(80) NOT NULL CONSTRAINT [DF_BK_Students_School] DEFAULT N'';
-    IF COL_LENGTH('BK_Students', 'Grade') IS NULL
-        ALTER TABLE [BK_Students] ADD [Grade] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_Grade] DEFAULT N'';
-    IF COL_LENGTH('BK_Students', 'ClassName') IS NULL
-        ALTER TABLE [BK_Students] ADD [ClassName] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_ClassName] DEFAULT N'';
-    IF COL_LENGTH('BK_Students', 'Phone1') IS NULL
-        ALTER TABLE [BK_Students] ADD [Phone1] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone1] DEFAULT N'';
-    IF COL_LENGTH('BK_Students', 'Phone2') IS NULL
-        ALTER TABLE [BK_Students] ADD [Phone2] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone2] DEFAULT N'';
-    IF COL_LENGTH('BK_Students', 'Phone3') IS NULL
-        ALTER TABLE [BK_Students] ADD [Phone3] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone3] DEFAULT N'';
-END
-IF OBJECT_ID(N'[BK_Users]', N'U') IS NOT NULL
-BEGIN
-    IF COL_LENGTH('BK_Users', 'Subjects') IS NULL
-        ALTER TABLE [BK_Users] ADD [Subjects] nvarchar(200) NOT NULL CONSTRAINT [DF_BK_Users_Subjects] DEFAULT N'';
-    IF COL_LENGTH('BK_Users', 'IsProxyAdmin') IS NULL
-        ALTER TABLE [BK_Users] ADD [IsProxyAdmin] bit NOT NULL CONSTRAINT [DF_BK_Users_IsProxyAdmin] DEFAULT 0;
-END
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'School') IS NULL ALTER TABLE [BK_Students] ADD [School] nvarchar(80) NOT NULL CONSTRAINT [DF_BK_Students_School] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'Grade') IS NULL ALTER TABLE [BK_Students] ADD [Grade] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_Grade] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'ClassName') IS NULL ALTER TABLE [BK_Students] ADD [ClassName] nvarchar(40) NOT NULL CONSTRAINT [DF_BK_Students_ClassName] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'Phone1') IS NULL ALTER TABLE [BK_Students] ADD [Phone1] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone1] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'Phone2') IS NULL ALTER TABLE [BK_Students] ADD [Phone2] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone2] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'Phone3') IS NULL ALTER TABLE [BK_Students] ADD [Phone3] nvarchar(40) NULL CONSTRAINT [DF_BK_Students_Phone3] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Students]', N'U') IS NOT NULL AND COL_LENGTH('BK_Students', 'EnrollmentStatus') IS NULL ALTER TABLE [BK_Students] ADD [EnrollmentStatus] int NOT NULL CONSTRAINT [DF_BK_Students_EnrollmentStatus] DEFAULT 1;"); } catch { }
+
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Users]', N'U') IS NOT NULL AND COL_LENGTH('BK_Users', 'Subjects') IS NULL ALTER TABLE [BK_Users] ADD [Subjects] nvarchar(200) NOT NULL CONSTRAINT [DF_BK_Users_Subjects] DEFAULT N'';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"IF OBJECT_ID(N'[BK_Users]', N'U') IS NOT NULL AND COL_LENGTH('BK_Users', 'IsProxyAdmin') IS NULL ALTER TABLE [BK_Users] ADD [IsProxyAdmin] bit NOT NULL CONSTRAINT [DF_BK_Users_IsProxyAdmin] DEFAULT 0;"); } catch { }
+
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID(N'[BK_FieldOptions]', N'U') IS NULL
 BEGIN
     CREATE TABLE [BK_FieldOptions] (
@@ -349,7 +340,13 @@ BEGIN
         CONSTRAINT [PK_BK_FieldOptions] PRIMARY KEY ([Id])
     );
     CREATE INDEX [IX_BK_FieldOptions_Category] ON [BK_FieldOptions] ([Category]);
-END
+END");
+            }
+            catch { }
+
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID(N'[BK_AcademicHolidays]', N'U') IS NULL
 BEGIN
     CREATE TABLE [BK_AcademicHolidays] (
@@ -360,8 +357,29 @@ BEGIN
         [CreatedAtUtc] datetime2 NOT NULL CONSTRAINT [DF_BK_AcademicHolidays_CreatedAtUtc] DEFAULT GETUTCDATE(),
         CONSTRAINT [PK_BK_AcademicHolidays] PRIMARY KEY ([Id])
     );
-END";
-            try { await db.Database.ExecuteSqlRawAsync(sql); } catch { }
+END");
+            }
+            catch { }
+
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'[BK_StudentStatusLogs]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [BK_StudentStatusLogs] (
+        [Id] int NOT NULL IDENTITY(1,1),
+        [StudentId] int NOT NULL,
+        [FromStatus] int NOT NULL,
+        [ToStatus] int NOT NULL,
+        [SemesterId] int NULL,
+        [Note] nvarchar(250) NOT NULL CONSTRAINT [DF_BK_StudentStatusLogs_Note] DEFAULT N'',
+        [OperatorName] nvarchar(80) NOT NULL CONSTRAINT [DF_BK_StudentStatusLogs_OperatorName] DEFAULT N'',
+        [CreatedAtUtc] datetime2 NOT NULL CONSTRAINT [DF_BK_StudentStatusLogs_CreatedAtUtc] DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_BK_StudentStatusLogs] PRIMARY KEY ([Id])
+    );
+END");
+            }
+            catch { }
         }
         else if (provider.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
