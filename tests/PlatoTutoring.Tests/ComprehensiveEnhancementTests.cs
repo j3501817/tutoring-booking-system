@@ -463,4 +463,50 @@ public class ComprehensiveEnhancementTests
         Assert.Equal(0, stuUnrenewed.BonusCredits);
         Assert.Equal(0, stuDropped.BonusCredits);
     }
+
+    [Fact]
+    public async Task SemesterManagement_EnforcesSingleCurrentSemester_Correctly()
+    {
+        var (db, ledger, booking, line, _, options) = CreateServices();
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new AppDbContext(options));
+        services.AddScoped(sp => new CreditLedgerService(sp.GetRequiredService<AppDbContext>()));
+        services.AddScoped(sp => new LineNotificationService(sp.GetRequiredService<AppDbContext>()));
+        services.AddScoped(sp => new BookingService(sp.GetRequiredService<AppDbContext>(), sp.GetRequiredService<CreditLedgerService>(), sp.GetRequiredService<LineNotificationService>()));
+        var sp = services.BuildServiceProvider();
+        var scheduleManager = new ScheduleManagerService(sp, Microsoft.Extensions.Logging.Abstractions.NullLogger<ScheduleManagerService>.Instance);
+
+        var pageModel = new PlatoTutoring.Web.Pages.SystemAdmin.IndexModel(db, ledger, booking, scheduleManager);
+        db.Users.Add(new AppUser { Username = "admin_sem", PasswordHash = "pw", DisplayName = "系統管理員", Role = UserRole.Admin });
+        await db.SaveChangesAsync();
+
+        // 1. 新增第一個學期：115 學年 第一學期 (設為目前學期)
+        await pageModel.OnPostSaveSemesterAsync(null, "115-1 秋季學期", DateTime.Parse("2026-09-01"), DateTime.Parse("2027-01-20"), setAsCurrent: true);
+        var sem1 = await db.Semesters.FirstAsync(s => s.Name == "115-1 秋季學期");
+        Assert.True(sem1.IsCurrent);
+
+        // 2. 新增第二個學期：115 學年 第二學期 (設為目前學期)
+        await pageModel.OnPostSaveSemesterAsync(null, "115-2 春季學期", DateTime.Parse("2027-02-15"), DateTime.Parse("2027-06-30"), setAsCurrent: true);
+        var sem2 = await db.Semesters.FirstAsync(s => s.Name == "115-2 春季學期");
+        
+        // 重新讀取 sem1
+        await db.Entry(sem1).ReloadAsync();
+        Assert.True(sem2.IsCurrent);
+        Assert.False(sem1.IsCurrent); // 第一學期自動被切換為 false！
+        Assert.Equal(1, await db.Semesters.CountAsync(s => s.IsCurrent));
+
+        // 3. 測試切換回第一學期
+        await pageModel.OnPostSwitchSemesterAsync(sem1.Id);
+        await db.Entry(sem1).ReloadAsync();
+        await db.Entry(sem2).ReloadAsync();
+        Assert.True(sem1.IsCurrent);
+        Assert.False(sem2.IsCurrent);
+        Assert.Equal(1, await db.Semesters.CountAsync(s => s.IsCurrent));
+
+        // 4. 測試防呆：編輯唯一目前學期時嘗試取消勾選 (setAsCurrent: false)
+        await pageModel.OnPostSaveSemesterAsync(sem1.Id, "115-1 秋季學期", DateTime.Parse("2026-09-01"), DateTime.Parse("2027-01-20"), setAsCurrent: false);
+        await db.Entry(sem1).ReloadAsync();
+        Assert.True(sem1.IsCurrent); // 觸發防呆保護，強制維持唯一進行中學期！
+        Assert.Equal(1, await db.Semesters.CountAsync(s => s.IsCurrent));
+    }
 }
