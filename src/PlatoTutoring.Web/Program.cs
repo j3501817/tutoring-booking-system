@@ -59,7 +59,7 @@ builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<AttachmentStorageService>();
 builder.Services.AddScoped<StudentParentLinkingService>();
 builder.Services.AddSingleton<IScheduleManagerService, ScheduleManagerService>();
-builder.Services.AddHostedService<SemesterBonusExpirationBackgroundService>();
+builder.Services.AddHostedService<SystemSchedulerBackgroundService>();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

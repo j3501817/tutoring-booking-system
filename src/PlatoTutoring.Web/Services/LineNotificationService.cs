@@ -321,4 +321,50 @@ public class LineNotificationService
             $"/Parent?studentId={studentId}",
             nowUtc);
     }
+
+    /// <summary>8. 每日排程課前提醒：掃描 24 小時內即將開始之輔導時段發送 LINE 提醒</summary>
+    public async Task<int> ProcessUpcomingLessonRemindersAsync(DateTime? nowUtc = null)
+    {
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var next24h = timestamp.AddHours(24);
+
+        var upcomingBookings = await _db.Bookings
+            .Include(b => b.Student)
+            .Include(b => b.TutoringSlot)
+            .ThenInclude(s => s!.CourseProgress)
+            .Where(b => b.Status == BookingStatus.Confirmed &&
+                        b.TutoringSlot != null &&
+                        b.TutoringSlot.StartsAtUtc >= timestamp &&
+                        b.TutoringSlot.StartsAtUtc <= next24h)
+            .ToListAsync();
+
+        var sentCount = 0;
+        foreach (var b in upcomingBookings)
+        {
+            var slot = b.TutoringSlot!;
+            var slotTimeZh = BookingService.ToTaipeiTime(slot.StartsAtUtc).ToString("yyyy/MM/dd HH:mm");
+            var progressTitle = slot.CourseProgress?.Title ?? "輔導課堂";
+            var dateStr = BookingService.ToTaipeiTime(slot.StartsAtUtc).ToString("yyyyMMdd");
+            var idempotencyKey = $"lesson-remind:{b.Id}:{dateStr}";
+
+            var alreadySent = await _db.LineNotificationLogs.AnyAsync(l => l.IdempotencyKey == idempotencyKey);
+            if (!alreadySent)
+            {
+                var msg = $"【柏拉圖補習班・課前提醒】{b.Student?.FullName} 於今日/明日有預約輔導課堂！\n" +
+                          $"課堂時段：{slotTimeZh}（{progressTitle}）\n" +
+                          $"請提醒孩子準時到班參加輔導。";
+
+                await SendToStudentParentsAsync(
+                    b.StudentId,
+                    "LessonPreReminder",
+                    idempotencyKey,
+                    msg,
+                    $"/Parent?studentId={b.StudentId}#tab-parent-records",
+                    timestamp);
+
+                sentCount++;
+            }
+        }
+        return sentCount;
+    }
 }
