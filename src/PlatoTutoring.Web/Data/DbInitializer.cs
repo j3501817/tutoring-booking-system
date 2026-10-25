@@ -371,6 +371,7 @@ END";
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Phone1 TEXT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Phone2 TEXT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN Phone3 TEXT NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN EnrollmentStatus INTEGER NOT NULL DEFAULT 1;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN Subjects TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN IsProxyAdmin INTEGER NOT NULL DEFAULT 0;"); } catch { }
             try
@@ -398,6 +399,21 @@ CREATE TABLE IF NOT EXISTS BK_AcademicHolidays (
 );");
             }
             catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS BK_StudentStatusLogs (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentId INTEGER NOT NULL,
+    FromStatus INTEGER NOT NULL,
+    ToStatus INTEGER NOT NULL,
+    SemesterId INTEGER NULL,
+    Note TEXT NOT NULL DEFAULT '',
+    OperatorName TEXT NOT NULL DEFAULT '',
+    CreatedAtUtc TEXT NOT NULL
+);");
+            }
+            catch { }
         }
         else if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
         {
@@ -407,6 +423,7 @@ CREATE TABLE IF NOT EXISTS BK_AcademicHolidays (
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Phone1\" varchar(40) NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Phone2\" varchar(40) NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"Phone3\" varchar(40) NULL DEFAULT '';"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"EnrollmentStatus\" int NOT NULL DEFAULT 1;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"Subjects\" varchar(200) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"IsProxyAdmin\" boolean NOT NULL DEFAULT false;"); } catch { }
             try
@@ -430,6 +447,21 @@ CREATE TABLE IF NOT EXISTS ""BK_AcademicHolidays"" (
     ""Date"" date NOT NULL,
     ""Name"" varchar(80) NOT NULL,
     ""IsActive"" boolean NOT NULL DEFAULT true,
+    ""CreatedAtUtc"" timestamptz NOT NULL DEFAULT now()
+);");
+            }
+            catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
+    ""Id"" SERIAL PRIMARY KEY,
+    ""StudentId"" int NOT NULL,
+    ""FromStatus"" int NOT NULL,
+    ""ToStatus"" int NOT NULL,
+    ""SemesterId"" int NULL,
+    ""Note"" varchar(250) NOT NULL DEFAULT '',
+    ""OperatorName"" varchar(80) NOT NULL DEFAULT '',
     ""CreatedAtUtc"" timestamptz NOT NULL DEFAULT now()
 );");
             }

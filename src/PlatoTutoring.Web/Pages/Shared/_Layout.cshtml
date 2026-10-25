@@ -409,6 +409,33 @@
         <div class="app-main">
             <main role="main" class="flex-grow-1">
                 <div class="container-fluid px-3 px-md-4 py-3 py-md-4" style="max-width: 1380px;">
+                    @if (canAccessAdmin)
+                    {
+                        var currentSem = DbContext.Semesters.FirstOrDefault(s => s.IsCurrent);
+                        if (currentSem != null)
+                        {
+                            var todayTaipei = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+                            var daysRemaining = currentSem.EndDate.DayNumber - todayTaipei.DayNumber;
+                            if (daysRemaining >= 0 && daysRemaining <= 14)
+                            {
+                                <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between p-3 mb-4 rounded-3" role="alert" style="background: #fffbeb; border-left: 5px solid #f59e0b !important; color: #92400e;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <span class="fs-3">⚠️</span>
+                                        <div>
+                                            <div class="fw-bold" style="font-size: 1.05rem;">
+                                                目前學期將於 @currentSem.EndDate.ToString("yyyy-MM-dd") 結束（尚餘 @daysRemaining 天），請記得提前建立下一學期行事曆與排課進度！
+                                            </div>
+                                            <div class="small opacity-75 mt-0.5">學期即將結束，請至「系統管理 &gt; 學期行事曆管理」提早完成下一學期排程規劃與在籍學生續報。</div>
+                                        </div>
+                                    </div>
+                                    <a href="/SystemAdmin?sub=calendar#subtab-calendar" class="btn btn-warning text-dark fw-bold btn-sm shadow-sm text-nowrap mt-2 mt-md-0 ms-md-3">
+                                        <i class="bi bi-calendar-plus me-1"></i>前往學期行事曆
+                                    </a>
+                                </div>
+                            }
+                        }
+                    }
+
                     @if (TempData["SuccessMessage"] is string successMsg)
                     {
                         <div class="alert alert-success border-0 shadow-sm alert-dismissible fade show d-flex align-items-center gap-2" role="alert">

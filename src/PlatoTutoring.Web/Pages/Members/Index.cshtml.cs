@@ -452,6 +452,64 @@ public class IndexModel : PageModel
         return Redirect("/Members#tab-student-parent");
     }
 
+    public async Task<IActionResult> OnPostMarkUnrenewedAsync(int studentId, string? reason)
+    {
+        var operatorUser = await GetCurrentUserAsync();
+        if (operatorUser == null) return RedirectToPage("/Account/Login");
+
+        try
+        {
+            var student = await _ledgerService.MarkStudentUnrenewedAsync(studentId, operatorUser.Id, reason ?? "管理員手動標為未續報");
+            TempData["SuccessMessage"] = $"已將學生「{student.FullName}」標記為「未續報」。已購堂數（{student.PaidCredits} 堂）完整保留，本學期不可預約課堂。";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"標記未續報失敗：{ex.Message}";
+        }
+
+        return Redirect("/Members#tab-student-parent");
+    }
+
+    public async Task<IActionResult> OnPostRenewStudentAsync(int studentId, string? reason)
+    {
+        var operatorUser = await GetCurrentUserAsync();
+        if (operatorUser == null) return RedirectToPage("/Account/Login");
+
+        try
+        {
+            var (student, bonusGranted) = await _ledgerService.RenewStudentAsync(studentId, operatorUser.Id, reason ?? "辦理學期續報");
+            var bonusMsg = bonusGranted > 0 ? $"，並已自動補發本學期贈送堂數 +{bonusGranted} 堂" : "（本學期贈堂先前已核發）";
+            TempData["SuccessMessage"] = $"已為學生「{student.FullName}」完成「續報」（恢復為本學期在學）{bonusMsg}！";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"辦理續報失敗：{ex.Message}";
+        }
+
+        return Redirect("/Members#tab-student-parent");
+    }
+
+    public async Task<IActionResult> OnGetStudentStatusLogsAsync(int studentId)
+    {
+        var logs = await _db.StudentStatusLogs
+            .Include(l => l.Semester)
+            .Where(l => l.StudentId == studentId)
+            .OrderByDescending(l => l.CreatedAtUtc)
+            .Select(l => new
+            {
+                id = l.Id,
+                fromStatus = l.FromStatus == StudentEnrollmentStatus.Enrolled ? "本學期在學" : (l.FromStatus == StudentEnrollmentStatus.Unrenewed ? "未續報" : "退班"),
+                toStatus = l.ToStatus == StudentEnrollmentStatus.Enrolled ? "本學期在學" : (l.ToStatus == StudentEnrollmentStatus.Unrenewed ? "未續報" : "退班"),
+                semesterName = l.Semester != null ? l.Semester.Name : "當前學期",
+                note = l.Note,
+                operatorName = l.OperatorName,
+                createdAt = l.CreatedAtUtc.AddHours(8).ToString("yyyy-MM-dd HH:mm")
+            })
+            .ToListAsync();
+
+        return new JsonResult(logs);
+    }
+
     // =========================================================================
     // 2. 家長管理：新增 / 修改 / 刪除（彈跳視窗）
     // =========================================================================

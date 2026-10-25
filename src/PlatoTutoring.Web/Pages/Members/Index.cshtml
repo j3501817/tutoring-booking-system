@@ -220,9 +220,17 @@
                                                     <div class="p-2 px-3 rounded-3 border bg-white shadow-sm d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
                                                         <div class="d-flex flex-wrap align-items-center gap-2">
                                                             <span class="fw-bold fs-6 text-dark">@stu.FullName</span>
-                                                            @if (stu.IsDroppedOut)
+                                                            @if (stu.IsDroppedOut || stu.EnrollmentStatus == PlatoTutoring.Web.Models.StudentEnrollmentStatus.DroppedOut)
                                                             {
-                                                                <span class="badge bg-danger">已退班</span>
+                                                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>退班</span>
+                                                            }
+                                                            else if (stu.EnrollmentStatus == PlatoTutoring.Web.Models.StudentEnrollmentStatus.Unrenewed)
+                                                            {
+                                                                <span class="badge bg-warning text-dark"><i class="bi bi-pause-circle me-1"></i>未續報</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>本學期在學</span>
                                                             }
                                                             <span class="badge bg-light text-dark border">
                                                                 <i class="bi bi-building me-1 text-primary"></i>學校：@(string.IsNullOrWhiteSpace(stu.School) ? "未填" : stu.School)
@@ -243,10 +251,37 @@
                                                                 堂數：<strong class="text-success">@stu.PaidCredits</strong> 購 / <strong class="text-primary">@stu.BonusCredits</strong> 贈
                                                             </span>
                                                         </div>
-                                                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                        <div class="d-flex align-items-center gap-1 flex-shrink-0 flex-wrap">
+                                                            @if (!stu.IsDroppedOut)
+                                                            {
+                                                                @if (stu.EnrollmentStatus == PlatoTutoring.Web.Models.StudentEnrollmentStatus.Enrolled)
+                                                                {
+                                                                    <form method="post" asp-page-handler="MarkUnrenewed" class="d-inline"
+                                                                          onsubmit="return confirm('確定將學生「@stu.FullName」標記為「未續報」嗎？\n\n・已購堂數將完整保留\n・本學期不可預約課堂\n・新學期不會自動補發贈送堂數');">
+                                                                        <input type="hidden" name="studentId" value="@stu.Id" />
+                                                                        <button type="submit" class="btn btn-sm btn-outline-warning text-dark py-0 px-2" title="暫不報名當前學期">
+                                                                            <i class="bi bi-pause-circle me-1"></i>標為未續報
+                                                                        </button>
+                                                                    </form>
+                                                                }
+                                                                else if (stu.EnrollmentStatus == PlatoTutoring.Web.Models.StudentEnrollmentStatus.Unrenewed)
+                                                                {
+                                                                    <form method="post" asp-page-handler="RenewStudent" class="d-inline"
+                                                                          onsubmit="return confirm('確定為學生「@stu.FullName」辦理「續報」嗎？\n\n・將立即恢復為「本學期在學」\n・恢復預約權限\n・若當前學期尚未發放贈堂，系統將自動補發');">
+                                                                        <input type="hidden" name="studentId" value="@stu.Id" />
+                                                                        <button type="submit" class="btn btn-sm btn-success py-0 px-2 fw-semibold shadow-sm" title="恢復在學並自動補發本期贈堂">
+                                                                            <i class="bi bi-arrow-repeat me-1"></i>👉 續報
+                                                                        </button>
+                                                                    </form>
+                                                                }
+                                                            }
+                                                            <button type="button" class="btn btn-sm btn-outline-info py-0 px-2"
+                                                                    onclick="showStatusLogs(@stu.Id, '@Html.Raw(stu.FullName)')" title="查看學籍狀態異動歷程">
+                                                                <i class="bi bi-clock-history me-1"></i>歷程
+                                                            </button>
                                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
                                                                     onclick="openEditStudentModal(@stu.Id, '@Html.Raw(stu.FullName)', '@Html.Raw(stu.School)', '@Html.Raw(stu.Grade)', '@Html.Raw(stu.ClassName)', '@Html.Raw(stu.Phone1)', '@Html.Raw(stu.Phone2)', '@Html.Raw(stu.Phone3)', '@stu.EnrollmentDate.ToString("yyyy-MM-dd")', @(primaryParent?.Id ?? 0))">
-                                                                <i class="bi bi-pencil-square me-1"></i>修改學生
+                                                                <i class="bi bi-pencil-square me-1"></i>修改
                                                             </button>
                                                             <form method="post" asp-page-handler="DeleteStudent" class="d-inline"
                                                                   onsubmit="return confirm('確定要刪除學生「@stu.FullName」及其預約紀錄嗎？');">
@@ -928,5 +963,67 @@
 
             new bootstrap.Modal(document.getElementById('modalEditTeacher')).show();
         }
+
+        async function showStatusLogs(studentId, studentName) {
+            document.getElementById('statusLogsStudentName').textContent = studentName;
+            const container = document.getElementById('statusLogsContainer');
+            container.innerHTML = '<div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>載入中...</div>';
+            new bootstrap.Modal(document.getElementById('modalStatusLogs')).show();
+
+            try {
+                const res = await fetch(`/Members?handler=StudentStatusLogs&studentId=${studentId}`);
+                if (!res.ok) throw new Error('讀取歷程失敗');
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-info-circle me-1"></i>目前尚無狀態異動歷程（自入學起皆維持原在學狀態）。</div>';
+                    return;
+                }
+
+                let html = '<div class="timeline p-2">';
+                list.forEach((item, idx) => {
+                    const toBadgeClass = item.toStatus === '本學期在學' ? 'bg-success' : (item.toStatus === '未續報' ? 'bg-warning text-dark' : 'bg-danger');
+                    const fromBadgeClass = item.fromStatus === '本學期在學' ? 'bg-success' : (item.fromStatus === '未續報' ? 'bg-warning text-dark' : 'bg-danger');
+                    html += `
+                        <div class="border rounded p-3 mb-2 bg-light shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-secondary">${item.semesterName}</span>
+                                <small class="text-muted"><i class="bi bi-clock me-1"></i>${item.createdAt}</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 my-2">
+                                <span class="badge ${fromBadgeClass}">${item.fromStatus}</span>
+                                <i class="bi bi-arrow-right text-muted"></i>
+                                <span class="badge ${toBadgeClass}">${item.toStatus}</span>
+                            </div>
+                            <div class="small text-dark mb-1"><strong>備註說明：</strong>${item.note || '無'}</div>
+                            <div class="small text-muted text-end">經辦人：${item.operatorName || '系統'}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-danger mb-0">${err.message}</div>`;
+            }
+        }
     </script>
 }
+
+<!-- 學籍狀態異動歷程彈跳視窗 (Modal) -->
+<div class="modal fade" id="modalStatusLogs" tabindex="-1" aria-labelledby="modalStatusLogsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="modalStatusLogsLabel">
+                    <i class="bi bi-clock-history text-info me-2"></i>學籍與續報歷程時間軸 － <span id="statusLogsStudentName" class="text-warning"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+            </div>
+            <div class="modal-body p-4" id="statusLogsContainer">
+                <div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>載入中...</div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉視窗</button>
+            </div>
+        </div>
+    </div>
+</div>

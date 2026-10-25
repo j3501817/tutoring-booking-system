@@ -159,6 +159,163 @@ public class CreditLedgerService
         return entry;
     }
 
+    public async Task<int> GrantSemesterBonusToActiveStudentsAsync(
+        int semesterId,
+        int operatorUserId,
+        DateTime? nowUtc = null)
+    {
+        var semester = await _db.Semesters.FindAsync(semesterId)
+            ?? throw new InvalidOperationException("找不到學期設定。");
+        var op = await _db.Users.FindAsync(operatorUserId)
+            ?? throw new InvalidOperationException("找不到操作人。");
+
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+
+        var activeStudents = await _db.Students
+            .Where(s => !s.IsDroppedOut && s.EnrollmentStatus == StudentEnrollmentStatus.Enrolled)
+            .ToListAsync();
+
+        var grantedCount = 0;
+        foreach (var student in activeStudents)
+        {
+            var alreadyGranted = await _db.CreditLedgerEntries
+                .AnyAsync(e => e.StudentId == student.Id
+                               && e.TransactionType == LedgerTransactionType.SemesterBonusGrant
+                               && e.ReferenceNote.Contains($"({semester.Name})"));
+
+            if (alreadyGranted) continue;
+
+            var bonusToGrant = CalculateProRataSemesterBonus(
+                student.EnrollmentDate,
+                semester.StartDate,
+                semester.EndDate,
+                semester.DefaultBonusCredits);
+
+            student.BonusCredits += bonusToGrant;
+            _db.CreditLedgerEntries.Add(new CreditLedgerEntry
+            {
+                StudentId = student.Id,
+                TransactionType = LedgerTransactionType.SemesterBonusGrant,
+                PaidDelta = 0,
+                BonusDelta = bonusToGrant,
+                PaidBalanceAfter = student.PaidCredits,
+                BonusBalanceAfter = student.BonusCredits,
+                ReferenceNote = $"學期贈送堂數 ({semester.Name})：新學期生效自動核發 +{bonusToGrant} 堂 (入班日 {student.EnrollmentDate:yyyy-MM-dd})",
+                OperatorUserId = op.Id,
+                OperatorName = op.DisplayName,
+                CreatedAtUtc = timestamp
+            });
+            grantedCount++;
+        }
+
+        await _db.SaveChangesAsync();
+        return grantedCount;
+    }
+
+    public async Task<Student> MarkStudentUnrenewedAsync(
+        int studentId,
+        int operatorUserId,
+        string note,
+        DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId)
+            ?? throw new InvalidOperationException("找不到學生資料。");
+        if (student.IsDroppedOut)
+            throw new InvalidOperationException("該學生已退班，無法標記為未續報。");
+
+        var op = await _db.Users.FindAsync(operatorUserId)
+            ?? throw new InvalidOperationException("找不到操作人。");
+
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var fromStatus = student.EnrollmentStatus;
+        student.EnrollmentStatus = StudentEnrollmentStatus.Unrenewed;
+
+        var currentSem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent);
+
+        _db.StudentStatusLogs.Add(new StudentStatusLog
+        {
+            StudentId = student.Id,
+            FromStatus = fromStatus,
+            ToStatus = StudentEnrollmentStatus.Unrenewed,
+            SemesterId = currentSem?.Id,
+            Note = string.IsNullOrWhiteSpace(note) ? "管理員手動標為未續報" : note.Trim(),
+            OperatorName = op.DisplayName,
+            CreatedAtUtc = timestamp
+        });
+
+        await _db.SaveChangesAsync();
+        return student;
+    }
+
+    public async Task<(Student Student, int BonusGranted)> RenewStudentAsync(
+        int studentId,
+        int operatorUserId,
+        string note,
+        DateTime? nowUtc = null)
+    {
+        var student = await _db.Students.FindAsync(studentId)
+            ?? throw new InvalidOperationException("找不到學生資料。");
+        if (student.IsDroppedOut)
+            throw new InvalidOperationException("該學生已辦理退班結清，無法直接續報；如需入班請以新學生登記。");
+
+        var op = await _db.Users.FindAsync(operatorUserId)
+            ?? throw new InvalidOperationException("找不到操作人。");
+
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var fromStatus = student.EnrollmentStatus;
+        student.EnrollmentStatus = StudentEnrollmentStatus.Enrolled;
+
+        var currentSem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent);
+        _db.StudentStatusLogs.Add(new StudentStatusLog
+        {
+            StudentId = student.Id,
+            FromStatus = fromStatus,
+            ToStatus = StudentEnrollmentStatus.Enrolled,
+            SemesterId = currentSem?.Id,
+            Note = string.IsNullOrWhiteSpace(note) ? "辦理學期續報" : note.Trim(),
+            OperatorName = op.DisplayName,
+            CreatedAtUtc = timestamp
+        });
+
+        var bonusGranted = 0;
+        if (currentSem != null)
+        {
+            var alreadyGranted = await _db.CreditLedgerEntries
+                .AnyAsync(e => e.StudentId == student.Id
+                               && e.TransactionType == LedgerTransactionType.SemesterBonusGrant
+                               && e.ReferenceNote.Contains($"({currentSem.Name})"));
+
+            if (!alreadyGranted)
+            {
+                var bonus = CalculateProRataSemesterBonus(
+                    student.EnrollmentDate,
+                    currentSem.StartDate,
+                    currentSem.EndDate,
+                    currentSem.DefaultBonusCredits);
+
+                student.BonusCredits += bonus;
+                bonusGranted = bonus;
+
+                _db.CreditLedgerEntries.Add(new CreditLedgerEntry
+                {
+                    StudentId = student.Id,
+                    TransactionType = LedgerTransactionType.SemesterBonusGrant,
+                    PaidDelta = 0,
+                    BonusDelta = bonus,
+                    PaidBalanceAfter = student.PaidCredits,
+                    BonusBalanceAfter = student.BonusCredits,
+                    ReferenceNote = $"學期贈送堂數 ({currentSem.Name})：續報自動核發 +{bonus} 堂 (入班日 {student.EnrollmentDate:yyyy-MM-dd})",
+                    OperatorUserId = op.Id,
+                    OperatorName = op.DisplayName,
+                    CreatedAtUtc = timestamp
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync();
+        return (student, bonusGranted);
+    }
+
     public async Task<int> ExpireAllBonusCreditsForSemesterEndAsync(
         int semesterId,
         int operatorUserId,
@@ -414,8 +571,22 @@ public class CreditLedgerService
         var oldBonus = student.BonusCredits;
         student.PaidCredits = 0;
         student.BonusCredits = 0;
+        var prevStatus = student.EnrollmentStatus;
         student.IsDroppedOut = true;
         student.DroppedOutAtUtc = timestamp;
+        student.EnrollmentStatus = StudentEnrollmentStatus.DroppedOut;
+
+        var currentSem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent);
+        _db.StudentStatusLogs.Add(new StudentStatusLog
+        {
+            StudentId = student.Id,
+            FromStatus = prevStatus,
+            ToStatus = StudentEnrollmentStatus.DroppedOut,
+            SemesterId = currentSem?.Id,
+            Note = $"退班結算結清：{note}".Trim(),
+            OperatorName = admin.DisplayName,
+            CreatedAtUtc = timestamp
+        });
 
         _db.CreditLedgerEntries.Add(new CreditLedgerEntry
         {
