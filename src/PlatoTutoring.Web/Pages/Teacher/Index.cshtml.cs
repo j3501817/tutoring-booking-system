@@ -351,7 +351,7 @@ public class IndexModel : PageModel
         if (courseProgressIds == null || courseProgressIds.Count == 0)
         {
             TempData["ErrorMessage"] = "請至少選擇一項課程進度。";
-            return RedirectToPage();
+            return RedirectToPage(null, null, null, "tab-teacher-slots");
         }
 
         try
@@ -388,7 +388,7 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = ex.Message;
         }
 
-        return RedirectToPage();
+        return RedirectToPage(null, null, null, "tab-teacher-slots");
     }
 
     public async Task<IActionResult> OnPostUpdateSlotAsync(
@@ -430,7 +430,7 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = ex.Message;
         }
 
-        return RedirectToPage();
+        return RedirectToPage(null, null, null, "tab-teacher-slots");
     }
 
     public async Task<IActionResult> OnPostDeleteSlotAsync(int slotId)
@@ -448,7 +448,7 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = ex.Message;
         }
 
-        return RedirectToPage();
+        return RedirectToPage(null, null, null, "tab-teacher-slots");
     }
 
     public async Task<IActionResult> OnPostProxyBookAsync(
@@ -477,9 +477,8 @@ public class IndexModel : PageModel
             TempData["ErrorMessage"] = ex.Message;
         }
 
-        return RedirectToPage();
+        return RedirectToPage(null, null, null, "tab-teacher-slots");
     }
-
 
     public async Task<IActionResult> OnPostRecordAttendanceAsync(
         int bookingId,

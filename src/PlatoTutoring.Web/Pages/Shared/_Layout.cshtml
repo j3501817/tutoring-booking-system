@@ -713,6 +713,7 @@
 
         // 攔截所有表單送出（POST 或非新視窗操作）
         document.addEventListener('submit', function(e) {
+            if (e.defaultPrevented) return;
             const form = e.target;
             if (!form || form.target === '_blank') return;
             if (form.getAttribute('data-no-loading') === 'true') return;

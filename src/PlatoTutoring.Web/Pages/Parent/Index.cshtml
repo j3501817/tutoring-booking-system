@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "家長預約與堂數中心";
     var student = Model.SelectedStudent;
+    var isEnrollmentBlocked = student != null && (student.IsDroppedOut || student.EnrollmentStatus != StudentEnrollmentStatus.Enrolled);
+    var enrollmentStatusDesc = student == null ? "" : (student.EnrollmentStatus == StudentEnrollmentStatus.Unrenewed ? "本學期尚未完成續報" : (student.IsDroppedOut || student.EnrollmentStatus == StudentEnrollmentStatus.DroppedOut) ? "已辦理退班" : "非本學期在學");
 }
 
 <!-- 頂部區塊標題與 LINE 通知綁定 -->
@@ -46,7 +48,7 @@
                        class="btn btn-sm btn-outline-success fw-semibold" title="重新綁定或換帳號">
                         <i class="bi bi-arrow-repeat me-1"></i>重新綁定
                     </a>
-                    <form method="post" asp-page-handler="UnbindLine" class="d-inline" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？解除後將無法接收即時推播通知。');">
+                    <form method="post" asp-page-handler="UnbindLine" class="d-inline" data-no-loading="true" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？解除後將無法接收即時推播通知。');">
                         <input type="hidden" name="studentId" value="@student?.Id" />
                         <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" title="解除綁定">
                             <i class="bi bi-x-circle me-1"></i>解除
@@ -94,9 +96,21 @@
                                     @s.FullName.Substring(0, 1)
                                 </div>
                                 <div>
-                                    <div class="fw-bold fs-6">
-                                        @s.FullName
-                                        <span class="badge @(isSelected ? "bg-light text-dark" : "bg-secondary") ms-1">@s.DisplaySchoolGradeClass</span>
+                                    <div class="fw-bold fs-6 d-flex align-items-center flex-wrap gap-1">
+                                        <span>@s.FullName</span>
+                                        <span class="badge @(isSelected ? "bg-light text-dark" : "bg-secondary")">@s.DisplaySchoolGradeClass</span>
+                                        @if (s.EnrollmentStatus == StudentEnrollmentStatus.Enrolled)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">在學</span>
+                                        }
+                                        else if (s.EnrollmentStatus == StudentEnrollmentStatus.Unrenewed)
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">⚠️ 未續報</span>
+                                        }
+                                        else if (s.EnrollmentStatus == StudentEnrollmentStatus.DroppedOut || s.IsDroppedOut)
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">❌ 已退班</span>
+                                        }
                                     </div>
                                     <div class="small @(isSelected ? "text-white-50" : "text-muted")">
                                         入班日：@s.EnrollmentDate.ToString("yyyy-MM-dd")
@@ -123,6 +137,18 @@ else if (student != null)
             <span class="text-secondary small">檢視學生：</span>
             <strong class="fs-6 text-dark">@student.FullName</strong>
             <span class="badge bg-white text-dark border">@student.DisplaySchoolGradeClass</span>
+            @if (student.EnrollmentStatus == StudentEnrollmentStatus.Enrolled)
+            {
+                <span class="badge bg-success-subtle text-success border border-success-subtle">在學</span>
+            }
+            else if (student.EnrollmentStatus == StudentEnrollmentStatus.Unrenewed)
+            {
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">⚠️ 未續報</span>
+            }
+            else if (student.EnrollmentStatus == StudentEnrollmentStatus.DroppedOut || student.IsDroppedOut)
+            {
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">❌ 已退班</span>
+            }
             <span class="text-muted small">入班日：@student.EnrollmentDate.ToString("yyyy-MM-dd") ｜ 可用總堂數：<strong class="text-primary">@student.TotalCredits</strong> 堂</span>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -130,7 +156,8 @@ else if (student != null)
             <select class="form-select form-select-sm" style="width: auto; min-width: 200px;" onchange="if(this.value) window.location.href='/Parent/Index?studentId=' + this.value + (window.location.hash || '#tab-parent-book');">
                 @foreach (var s in Model.AuthorizedStudents)
                 {
-                    <option value="@s.Id" selected="@(student.Id == s.Id)">@s.FullName (@s.DisplaySchoolGradeClass)</option>
+                    var stText = s.EnrollmentStatus == StudentEnrollmentStatus.Enrolled ? "在學" : (s.EnrollmentStatus == StudentEnrollmentStatus.Unrenewed ? "未續報" : "已退班");
+                    <option value="@s.Id" selected="@(student.Id == s.Id)">@s.FullName (@s.DisplaySchoolGradeClass - @stText)</option>
                 }
             </select>
         </div>
@@ -301,13 +328,24 @@ else if (student != null)
 
                     <!-- 週期預約按鈕與圖例說明 -->
                     <div class="d-flex align-items-center gap-2 flex-wrap small">
-                        <button type="button"
-                                class="btn btn-sm btn-primary fw-bold"
-                                data-bs-toggle="modal"
-                                data-bs-target="#modalRecurringBooking"
-                                onclick="openRecurringBookingModal()">
-                            <i class="bi bi-arrow-repeat me-1"></i>週期預約
-                        </button>
+                        @if (isEnrollmentBlocked)
+                        {
+                            <button type="button"
+                                    class="btn btn-sm btn-primary fw-bold"
+                                    onclick="showEnrollmentBlockedModal('@student?.FullName', '該學生@(enrollmentStatusDesc)，暫無法預約課堂；請洽班主任辦理學期續報。')">
+                                <i class="bi bi-arrow-repeat me-1"></i>週期預約
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button"
+                                    class="btn btn-sm btn-primary fw-bold"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalRecurringBooking"
+                                    onclick="openRecurringBookingModal()">
+                                <i class="bi bi-arrow-repeat me-1"></i>週期預約
+                            </button>
+                        }
                         <span class="text-secondary ms-2 me-1">標示說明：</span>
                         <span class="badge badge-slot-small"><i class="bi bi-people-fill me-1"></i>小組指導</span>
                         <span class="badge badge-slot-group"><i class="bi bi-collection-fill me-1"></i>團體輔導</span>
@@ -446,11 +484,15 @@ else if (student != null)
                         var isMyBooked = myBooking != null;
                         var sameProgressOtherBooked = slot.SlotType == SlotType.SmallGroup && Model.StudentBookings.Any(b => b.Status == BookingStatus.Confirmed && b.TutoringSlot?.CourseProgressId == slot.CourseProgressId && b.TutoringSlotId != slot.Id);
 
+                        // 判斷當前學生是否已在候補名單中
+                        var myWaitlist = Model.StudentWaitlistEntries.FirstOrDefault(w => w.TutoringSlotId == slot.Id && (w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold));
+                        var isMyWaitlisted = myWaitlist != null;
+
                         var isVisibleForSelectedDate = Model.SelectedDate.HasValue && Model.SelectedDate.Value.ToString("yyyy-MM-dd") == slotDateStr;
 
-                        <div class="card-plato p-3 p-md-4 slot-card slot-card-item @(isVisibleForSelectedDate ? "" : "d-none") @(isMyBooked ? "border-success shadow-sm" : isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")"
+                        <div class="card-plato p-3 p-md-4 slot-card slot-card-item @(isVisibleForSelectedDate ? "" : "d-none") @(isMyBooked ? "border-success shadow-sm" : isMyWaitlisted ? "border-warning shadow-sm" : isFull ? "slot-full" : "") @(isGroup ? "slot-group" : "")"
                              data-slot-date="@slotDateStr"
-                             style="@(isMyBooked ? "border: 2px solid var(--plato-sage) !important; background: #f8fbf9;" : "")">
+                             style="@(isMyBooked ? "border: 2px solid var(--plato-sage) !important; background: #f8fbf9;" : isMyWaitlisted ? "border: 2px solid #f59e0b !important; background: #fffdf5;" : "")">
                             <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                                 <div class="flex-grow-1">
                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -473,6 +515,12 @@ else if (student != null)
                                         {
                                             <span class="badge bg-success px-2 py-1 fs-6">
                                                 <i class="bi bi-check-circle-fill me-1"></i>您已預約此時段
+                                            </span>
+                                        }
+                                        else if (isMyWaitlisted)
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 fs-6">
+                                                <i class="bi bi-clock-history me-1"></i>候補中（順位：#@myWaitlist!.Position）
                                             </span>
                                         }
                                         else if (isFull)
@@ -502,13 +550,13 @@ else if (student != null)
                                 <div class="d-flex flex-column justify-content-between align-items-md-end" style="min-width: 270px;">
                                     <div class="w-100 mb-2">
                                         <div class="d-flex justify-content-between align-items-center small mb-1">
-                                            <span class="fw-semibold @(isMyBooked ? "text-success" : isFull ? "text-danger" : "text-success")">
-                                                @(isMyBooked ? "✓ 您已成功佔位" : isFull ? "名額已滿（開放候補）" : $"尚餘 {slot.RemainingSeats} 名空位")
+                                            <span class="fw-semibold @(isMyBooked ? "text-success" : isMyWaitlisted ? "text-warning-emphasis" : isFull ? "text-danger" : "text-success")">
+                                                @(isMyBooked ? "✓ 您已成功佔位" : isMyWaitlisted ? $"排隊候補中（順位：#{myWaitlist!.Position}）" : isFull ? "名額已滿（開放候補）" : $"尚餘 {slot.RemainingSeats} 名空位")
                                             </span>
                                             <span class="text-muted">已約 @slot.CurrentBookedCount / @slot.MaxCapacity</span>
                                         </div>
                                         <div class="seat-progress">
-                                            <div class="h-100 @(isMyBooked ? "bg-success" : isFull ? "bg-danger" : "bg-success")" style="width: @(fillPct)%;"></div>
+                                            <div class="h-100 @(isMyBooked ? "bg-success" : isMyWaitlisted ? "bg-warning" : isFull ? "bg-danger" : "bg-success")" style="width: @(fillPct)%;"></div>
                                         </div>
                                     </div>
 
@@ -523,6 +571,20 @@ else if (student != null)
                                             </div>
                                             <div class="small text-secondary mt-1" style="font-size: 0.75rem;">
                                                 欲更換時段或取消，請至「我的預約與候補」頁籤操作
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (isMyWaitlisted)
+                                    {
+                                        <div class="text-md-end w-100 bg-warning bg-opacity-10 p-2 rounded-2 border border-warning-subtle">
+                                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                                <span class="small text-muted">候補目的：<strong>@myWaitlist?.PurposeName</strong></span>
+                                                <span class="badge bg-warning text-dark fw-bold py-1 px-2">
+                                                    <i class="bi bi-clock-history me-1"></i>排隊候補中（順位：#@myWaitlist?.Position）
+                                                </span>
+                                            </div>
+                                            <div class="small text-secondary mt-1" style="font-size: 0.75rem;">
+                                                若有名額釋出系統將依序遞補；可至「我的預約與候補」取消候補
                                             </div>
                                         </div>
                                     }
@@ -548,10 +610,22 @@ else if (student != null)
                                                 </button>
                                             </div>
                                         }
+                                        else if (isEnrollmentBlocked)
+                                        {
+                                            <div class="d-flex flex-column flex-sm-row gap-2 w-100">
+                                                <select class="form-select form-select-sm" disabled aria-label="選擇到班目的">
+                                                    <option>目的：課後輔導</option>
+                                                </select>
+                                                <button type="button" class="btn btn-accent btn-sm text-nowrap px-3"
+                                                        onclick="showEnrollmentBlockedModal('@student?.FullName', '該學生@(enrollmentStatusDesc)，暫無法登記或候補課堂；請洽班主任辦理學期續報。');">
+                                                    <i class="bi bi-check2 me-1"></i>確認預約
+                                                </button>
+                                            </div>
+                                        }
                                         else
                                         {
                                             <form method="post" asp-page-handler="BookSlot" class="w-100">
-                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                <input type="hidden" name="studentId" value="@student?.Id" />
                                                 <input type="hidden" name="slotId" value="@slot.Id" />
                                                 <div class="d-flex flex-column flex-sm-row gap-2">
                                                     <select name="purposeName" class="form-select form-select-sm" aria-label="選擇到班目的" required>
@@ -561,7 +635,7 @@ else if (student != null)
                                                         }
                                                     </select>
                                                     <button type="submit" class="btn btn-accent btn-sm text-nowrap px-3"
-                                                            onclick="return confirm('確認要為 @student.FullName 預約此時段嗎？');">
+                                                            onclick="return confirm('確認要為 @student?.FullName 預約此時段嗎？');">
                                                         <i class="bi bi-check2 me-1"></i>確認預約
                                                     </button>
                                                 </div>
@@ -579,10 +653,22 @@ else if (student != null)
                                                 </button>
                                             </div>
                                         }
+                                        else if (isEnrollmentBlocked)
+                                        {
+                                            <div class="d-flex flex-column flex-sm-row gap-2 w-100">
+                                                <select class="form-select form-select-sm" disabled aria-label="選擇候補到班目的">
+                                                    <option>目的：課後輔導</option>
+                                                </select>
+                                                <button type="button" class="btn btn-outline-danger btn-sm text-nowrap px-3 fw-semibold"
+                                                        onclick="showEnrollmentBlockedModal('@student?.FullName', '該學生@(enrollmentStatusDesc)，暫無法登記或候補課堂；請洽班主任辦理學期續報。');">
+                                                    <i class="bi bi-clock-history me-1"></i>登記候補
+                                                </button>
+                                            </div>
+                                        }
                                         else
                                         {
                                             <form method="post" asp-page-handler="JoinWaitlist" class="w-100">
-                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                <input type="hidden" name="studentId" value="@student?.Id" />
                                                 <input type="hidden" name="slotId" value="@slot.Id" />
                                                 <div class="d-flex flex-column flex-sm-row gap-2">
                                                     <select name="purposeName" class="form-select form-select-sm" aria-label="選擇候補到班目的" required>
@@ -639,7 +725,7 @@ else if (student != null)
                     <div class="card-plato p-3 p-md-4 h-100">
                         <div class="section-header-clean">
                             <div>
-                                <h2 class="h5 fw-bold mb-0">@student.FullName 的預約清單</h2>
+                                <h2 class="h5 fw-bold mb-0">@(student?.FullName) 的預約清單</h2>
                                 <div class="small text-muted">支援相同課程進度內改期，或於開課 24 小時前免費取消退堂</div>
                             </div>
                         </div>
@@ -842,7 +928,7 @@ else if (student != null)
                             @if (!string.IsNullOrWhiteSpace(Model.CurrentUser.LineUserId))
                             {
                                 <div class="small text-muted mb-2">目前接收通知 ID：<code>@Model.CurrentUser.LineUserId</code>（支援 7 大條件即時推播）</div>
-                                <form method="post" asp-page-handler="UnbindLine" class="d-inline" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？');">
+                                <form method="post" asp-page-handler="UnbindLine" class="d-inline" data-no-loading="true" onsubmit="return confirm('確定要解除 LINE 官方帳號通知綁定嗎？');">
                                     <input type="hidden" name="studentId" value="@student.Id" />
                                     <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">解除綁定</button>
                                 </form>
@@ -1144,8 +1230,56 @@ else if (student != null)
     </div>
 </div>
 
+<!-- 無法預約/候補提醒視窗 Modal -->
+<div class="modal fade" id="modalEnrollmentBlocked" tabindex="-1" aria-labelledby="modalEnrollmentBlockedLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning-subtle">
+                <h5 class="modal-title fw-bold text-warning-emphasis d-flex align-items-center gap-2" id="modalEnrollmentBlockedLabel">
+                    <i class="bi bi-exclamation-triangle-fill fs-4 text-warning"></i>
+                    無法預約或登記候補
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-warning bg-warning bg-opacity-10 flex-shrink-0" style="width: 48px; height: 48px;">
+                        <i class="bi bi-person-x fs-3"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark" id="enrollmentBlockedStudentName">@student?.FullName</h6>
+                        <p class="text-secondary small mb-0" id="enrollmentBlockedMessage">
+                            該學生本學期尚未完成續報（或已退班），暫無法登記或候補課堂；請洽班主任辦理學期續報。
+                        </p>
+                    </div>
+                </div>
+                <div class="p-3 bg-light rounded-3 border small text-muted">
+                    <i class="bi bi-info-circle me-1 text-primary"></i>如已完成續費或確認在籍，請向補習班行政老師確認學生學籍狀態已更新為「本學期在學」。
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">我知道了</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
+        function showEnrollmentBlockedModal(studentName, message) {
+            const nameEl = document.getElementById('enrollmentBlockedStudentName');
+            const msgEl = document.getElementById('enrollmentBlockedMessage');
+            if (nameEl && studentName) nameEl.textContent = studentName;
+            if (msgEl && message) msgEl.textContent = message;
+
+            const modalElem = document.getElementById('modalEnrollmentBlocked');
+            if (modalElem) {
+                const modal = bootstrap.Modal.getInstance(modalElem) || new bootstrap.Modal(modalElem);
+                modal.show();
+            }
+        }
+        window.showEnrollmentBlockedModal = showEnrollmentBlockedModal;
+
         function showHolidayNoticeModal(dateZh, reason) {
             document.getElementById('holidayNoticeDateText').textContent = dateZh || '休假日';
             document.getElementById('holidayNoticeReasonBadge').textContent = '節日 / 休假原因：' + (reason || '機構公休');
@@ -1279,6 +1413,13 @@ else if (student != null)
         });
 
         document.addEventListener('DOMContentLoaded', function () {
+            @if (TempData["EnrollmentBlockedMessage"] is string blockedMsg)
+            {
+                <text>
+                showEnrollmentBlockedModal('@student?.FullName', '@blockedMsg');
+                </text>
+            }
+
             // 保留切換孩子時的目前頁籤
             const hash = window.location.hash;
             if (hash) {

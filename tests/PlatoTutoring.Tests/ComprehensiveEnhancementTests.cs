@@ -595,4 +595,80 @@ public class ComprehensiveEnhancementTests
         Assert.True(await db.ParentStudentLinks.AnyAsync(l => l.ParentUserId == pChen.Id));
         Assert.True(await db.ParentStudentLinks.AnyAsync(l => l.ParentUserId == pHuang.Id));
     }
+
+    [Fact]
+    public async Task BookingService_UnrenewedOrDroppedOutStudent_CannotBookOrJoinWaitlist()
+    {
+        var (db, _, booking, _, _, _) = CreateServices();
+
+        var teacher = new AppUser { Username = "t1", DisplayName = "老師", Role = UserRole.Teacher, PasswordHash = "h" };
+        var parent = new AppUser { Username = "p1", DisplayName = "家長", Role = UserRole.Parent, PasswordHash = "h" };
+        db.Users.AddRange(teacher, parent);
+        await db.SaveChangesAsync();
+
+        var studentUnrenewed = new Student
+        {
+            FullName = "未續報學生",
+            EnrollmentStatus = StudentEnrollmentStatus.Unrenewed,
+            IsDroppedOut = false,
+            PaidCredits = 5,
+            BonusCredits = 2
+        };
+        var studentDropped = new Student
+        {
+            FullName = "已退班學生",
+            EnrollmentStatus = StudentEnrollmentStatus.DroppedOut,
+            IsDroppedOut = true,
+            PaidCredits = 0,
+            BonusCredits = 0
+        };
+        db.Students.AddRange(studentUnrenewed, studentDropped);
+        await db.SaveChangesAsync();
+
+        db.ParentStudentLinks.AddRange(
+            new ParentStudentLink { ParentUserId = parent.Id, StudentId = studentUnrenewed.Id, Relationship = "家長" },
+            new ParentStudentLink { ParentUserId = parent.Id, StudentId = studentDropped.Id, Relationship = "家長" }
+        );
+
+        var sem = new Semester { Name = "115-1", StartDate = DateOnly.FromDateTime(DateTime.UtcNow), EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(4)), IsCurrent = true };
+        db.Semesters.Add(sem);
+        await db.SaveChangesAsync();
+
+        var prog = new CourseProgress { SemesterId = sem.Id, Code = "W01", Title = "測試進度", WeekStartDate = sem.StartDate, WeekEndDate = sem.StartDate.AddDays(6) };
+        db.CourseProgresses.Add(prog);
+        await db.SaveChangesAsync();
+
+        var slot = new TutoringSlot
+        {
+            CourseProgressId = prog.Id,
+            TeacherUserId = teacher.Id,
+            GradeClass = "國二",
+            SlotType = SlotType.SmallGroup,
+            StartsAtUtc = DateTime.UtcNow.AddDays(2),
+            EndsAtUtc = DateTime.UtcNow.AddDays(2).AddHours(2),
+            MaxCapacity = 4,
+            CurrentBookedCount = 0
+        };
+        db.TutoringSlots.Add(slot);
+        await db.SaveChangesAsync();
+
+        // 1. 未續報學生嘗試預約 -> 應拋出包含「續報」之例外
+        var exBookUnrenewed = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            booking.CreateBookingAsync(slot.Id, studentUnrenewed.Id, parent.Id, "作業補正"));
+        Assert.Contains("續報", exBookUnrenewed.Message);
+
+        // 2. 已退班學生嘗試預約 -> 應拋出包含「續報」或「退班」之例外
+        var exBookDropped = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            booking.CreateBookingAsync(slot.Id, studentDropped.Id, parent.Id, "作業補正"));
+        Assert.Contains("續報", exBookDropped.Message);
+
+        // 3. 嘗試候補 -> 亦應拋出例外阻擋
+        slot.CurrentBookedCount = slot.MaxCapacity;
+        await db.SaveChangesAsync();
+
+        var exWaitUnrenewed = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            booking.JoinWaitlistAsync(slot.Id, studentUnrenewed.Id, parent.Id, "作業補正"));
+        Assert.Contains("續報", exWaitUnrenewed.Message);
+    }
 }
+

@@ -744,8 +744,12 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" asp-page-handler="CreateSlot">
+            <form method="post" asp-page-handler="CreateSlot" id="formCreateSlot" onsubmit="return validateCreateSlotForm(event);">
                 <div class="modal-body p-4">
+                    <div id="createSlotErrorAlert" class="alert alert-danger py-2 px-3 small d-none mb-3" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="createSlotErrorText">請至少勾選一個「所屬課程進度」。</span>
+                    </div>
+
                     <!-- 所屬課程進度多選（過濾結束日期未到之課程進度） -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">
@@ -1465,9 +1469,55 @@
             }
         }
 
+        // 建立時段表單防呆驗證：未勾選課程進度時在彈跳視窗內提示，不關閉視窗
+        function validateCreateSlotForm(e) {
+            const checkedCount = document.querySelectorAll('#modalCreateSlot input[name="courseProgressIds"]:checked').length;
+            const alertBox = document.getElementById('createSlotErrorAlert');
+            const alertText = document.getElementById('createSlotErrorText');
+
+            if (checkedCount === 0) {
+                if (alertBox) {
+                    if (alertText) alertText.textContent = '請至少勾選一個「所屬課程進度」。';
+                    alertBox.classList.remove('d-none');
+                    alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                return false;
+            }
+
+            if (alertBox) {
+                alertBox.classList.add('d-none');
+            }
+            return true;
+        }
+
         // 頁籤狀態保存
         document.addEventListener('DOMContentLoaded', function () {
             onHwSchoolChange();
+
+            // 監聽課程進度勾選變更，勾選後自動隱藏錯誤提示
+            const progressCheckboxes = document.querySelectorAll('#modalCreateSlot input[name="courseProgressIds"]');
+            progressCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    const checkedCount = document.querySelectorAll('#modalCreateSlot input[name="courseProgressIds"]:checked').length;
+                    const alertBox = document.getElementById('createSlotErrorAlert');
+                    if (alertBox && checkedCount > 0) {
+                        alertBox.classList.add('d-none');
+                    }
+                });
+            });
+
+            // modal 打開時重設錯誤提示
+            const modalEl = document.getElementById('modalCreateSlot');
+            if (modalEl) {
+                modalEl.addEventListener('show.bs.modal', function () {
+                    const alertBox = document.getElementById('createSlotErrorAlert');
+                    if (alertBox) alertBox.classList.add('d-none');
+                });
+            }
 
             const hash = window.location.hash;
             if (hash) {

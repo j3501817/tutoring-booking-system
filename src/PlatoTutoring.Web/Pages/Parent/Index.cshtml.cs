@@ -258,7 +258,14 @@ public class IndexModel : PageModel
         }
         catch (Exception ex)
         {
-            TempData["ErrorMessage"] = ex.Message;
+            if (ex.Message.Contains("續報") || ex.Message.Contains("退班"))
+            {
+                TempData["EnrollmentBlockedMessage"] = ex.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = ex.Message;
+            }
         }
 
         return RedirectToPage(new { studentId });
@@ -298,7 +305,15 @@ public class IndexModel : PageModel
         }
         else
         {
-            TempData["ErrorMessage"] = $"批次預約失敗：{string.Join("；", failMessages.Distinct())}";
+            var combinedError = string.Join("；", failMessages.Distinct());
+            if (combinedError.Contains("續報") || combinedError.Contains("退班"))
+            {
+                TempData["EnrollmentBlockedMessage"] = combinedError;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = $"批次預約失敗：{combinedError}";
+            }
         }
 
         return RedirectToPage(new { studentId });
@@ -316,7 +331,14 @@ public class IndexModel : PageModel
         }
         catch (Exception ex)
         {
-            TempData["ErrorMessage"] = ex.Message;
+            if (ex.Message.Contains("續報") || ex.Message.Contains("退班"))
+            {
+                TempData["EnrollmentBlockedMessage"] = ex.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = ex.Message;
+            }
         }
 
         return RedirectToPage(new { studentId });
@@ -334,7 +356,14 @@ public class IndexModel : PageModel
         }
         catch (Exception ex)
         {
-            TempData["ErrorMessage"] = ex.Message;
+            if (ex.Message.Contains("續報") || ex.Message.Contains("退班"))
+            {
+                TempData["EnrollmentBlockedMessage"] = ex.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = ex.Message;
+            }
         }
 
         return RedirectToPage(new { studentId });
