@@ -278,7 +278,7 @@ else if (student != null)
                         data-bs-target="#tab-parent-records" type="button" role="tab">
                     <i class="bi bi-list-check"></i>
                     <span>我的預約與候補</span>
-                    <span class="workspace-tab-count">@Model.StudentBookings.Count(b => b.Status == BookingStatus.Confirmed)</span>
+                    <span class="workspace-tab-count">@(Model.StudentBookings.Count(b => b.Status == BookingStatus.Confirmed) + Model.StudentWaitlistEntries.Count(w => w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold))</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -725,13 +725,40 @@ else if (student != null)
                     <div class="card-plato p-3 p-md-4 h-100">
                         <div class="section-header-clean">
                             <div>
-                                <h2 class="h5 fw-bold mb-0">@(student?.FullName) 的預約清單</h2>
-                                <div class="small text-muted">支援相同課程進度內改期，或於開課 24 小時前免費取消退堂</div>
+                                <h2 class="h5 fw-bold mb-0">@(student?.FullName) 的預約與候補清單</h2>
+                                <div class="small text-muted">包含已確認預約與候補排隊，統一依開課時間排序；支援改期、取消預約或取消候補</div>
                             </div>
                         </div>
-                        @if (!Model.StudentBookings.Any())
+
+                        @{
+                            var activeBookingList = Model.StudentBookings
+                                .Where(b => b.Status == BookingStatus.Confirmed)
+                                .Select(b => new {
+                                    IsWaitlist = false,
+                                    StartsAtUtc = b.TutoringSlot!.StartsAtUtc,
+                                    Slot = b.TutoringSlot,
+                                    Booking = (Booking?)b,
+                                    Waitlist = (WaitlistEntry?)null
+                                });
+
+                            var activeWaitlistList = Model.StudentWaitlistEntries
+                                .Where(w => w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold)
+                                .Select(w => new {
+                                    IsWaitlist = true,
+                                    StartsAtUtc = w.TutoringSlot!.StartsAtUtc,
+                                    Slot = w.TutoringSlot,
+                                    Booking = (Booking?)null,
+                                    Waitlist = (WaitlistEntry?)w
+                                });
+
+                            var combinedScheduleList = activeBookingList.Concat(activeWaitlistList)
+                                .OrderBy(x => x.StartsAtUtc)
+                                .ToList();
+                        }
+
+                        @if (!combinedScheduleList.Any())
                         {
-                            <div class="text-muted small py-4 text-center">目前尚無預約紀錄。</div>
+                            <div class="text-muted small py-4 text-center">目前尚無預約或候補紀錄。</div>
                         }
                         else
                         {
@@ -742,117 +769,197 @@ else if (student != null)
                                             <th>時段與進度</th>
                                             <th>類型 / 到班目的</th>
                                             <th>扣堂明細</th>
-                                            <th>狀態 / 點名</th>
-                                            <th>改期或取消操作</th>
+                                            <th>狀態 / 順位</th>
+                                            <th>操作</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach (var b in Model.StudentBookings)
+                                        @foreach (var item in combinedScheduleList)
                                         {
-                                            var sTpe = BookingService.ToTaipeiTime(b.TutoringSlot!.StartsAtUtc);
+                                            var slot = item.Slot!;
+                                            var sTpe = BookingService.ToTaipeiTime(slot.StartsAtUtc);
                                             var dayZh = "日一二三四五六"[(int)sTpe.DayOfWeek];
-                                            var hoursLeft = (b.TutoringSlot.StartsAtUtc - DateTime.UtcNow).TotalHours;
-                                            var sameProgressTargets = Model.AllCurrentSlots
-                                                .Where(s => s.CourseProgressId == b.TutoringSlot.CourseProgressId
-                                                            && s.Id != b.TutoringSlotId
-                                                            && s.RemainingSeats > 0
-                                                            && s.SlotType == b.TutoringSlot.SlotType
-                                                            && s.StartsAtUtc > DateTime.UtcNow.AddMinutes(30))
-                                                .OrderBy(s => s.StartsAtUtc)
-                                                .ToList();
-                                            var attendanceZh = b.AttendanceStatus switch {
-                                                AttendanceStatus.Pending => "待點名",
-                                                AttendanceStatus.Present => "出席",
-                                                AttendanceStatus.Absent => "請假",
-                                                AttendanceStatus.NoShow => "曠課",
-                                                _ => b.AttendanceStatus.ToString()
-                                            };
 
-                                            <tr>
-                                                <td data-label="時段與進度">
-                                                    <div>
-                                                        <div class="fw-bold">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
-                                                        <div class="small text-muted">@b.TutoringSlot.CourseProgress?.Code @b.TutoringSlot.GradeClass</div>
-                                                    </div>
-                                                </td>
-                                                <td data-label="類型 / 目的">
-                                                    <div>
-                                                        <span class="badge @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
-                                                            @(b.TutoringSlot.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
-                                                        </span>
-                                                        <div class="small fw-semibold mt-1">@b.PurposeName</div>
-                                                    </div>
-                                                </td>
-                                                <td data-label="扣堂明細">
-                                                    @if (b.CreditsDeducted == 0)
-                                                    {
-                                                        <span class="text-muted small">免費 (0 堂)</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="small">
-                                                            贈送 @b.BonusCreditsUsed 堂 + 付費 @b.PaidCreditsUsed 堂
-                                                        </span>
-                                                    }
-                                                </td>
-                                                <td data-label="狀態 / 點名">
-                                                    <div>
-                                                        <span class="badge bg-success">
-                                                            已預約
-                                                        </span>
-                                                        <span class="badge bg-light text-dark border ms-1">點名：@attendanceZh</span>
-                                                    </div>
-                                                </td>
-                                                <td data-label="改期或取消操作">
-                                                    <div class="d-flex flex-column gap-2">
-                                                        <!-- 改期區塊 -->
-                                                        <div class="p-2 rounded bg-light border">
-                                                            <div class="small fw-semibold text-dark mb-1">
-                                                                <i class="bi bi-arrow-left-right me-1 text-primary"></i>改期至同進度其他時段：
+                                            if (!item.IsWaitlist)
+                                            {
+                                                var b = item.Booking!;
+                                                var hoursLeft = (slot.StartsAtUtc - DateTime.UtcNow).TotalHours;
+                                                var sameProgressTargets = Model.AllCurrentSlots
+                                                    .Where(s => s.CourseProgressId == slot.CourseProgressId
+                                                                && s.Id != slot.Id
+                                                                && s.RemainingSeats > 0
+                                                                && s.SlotType == slot.SlotType
+                                                                && s.StartsAtUtc > DateTime.UtcNow.AddMinutes(30))
+                                                    .OrderBy(s => s.StartsAtUtc)
+                                                    .ToList();
+                                                var attendanceZh = b.AttendanceStatus switch {
+                                                    AttendanceStatus.Pending => "待點名",
+                                                    AttendanceStatus.Present => "出席",
+                                                    AttendanceStatus.Absent => "請假",
+                                                    AttendanceStatus.NoShow => "曠課",
+                                                    _ => b.AttendanceStatus.ToString()
+                                                };
+
+                                                <tr>
+                                                    <td data-label="時段與進度">
+                                                        <div>
+                                                            <div class="fw-bold text-dark">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
+                                                            <div class="small text-muted">@slot.CourseProgress?.Code @slot.GradeClass</div>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label="類型 / 目的">
+                                                        <div>
+                                                            <span class="badge @(slot.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
+                                                                @(slot.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
+                                                            </span>
+                                                            <div class="small fw-semibold mt-1">@b.PurposeName</div>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label="扣堂明細">
+                                                        @if (b.CreditsDeducted == 0)
+                                                        {
+                                                            <span class="text-muted small">免費 (0 堂)</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="small">
+                                                                贈送 @b.BonusCreditsUsed 堂 + 付費 @b.PaidCreditsUsed 堂
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                    <td data-label="狀態 / 順位">
+                                                        <div>
+                                                            <span class="badge bg-success">
+                                                                已預約
+                                                            </span>
+                                                            <span class="badge bg-light text-dark border ms-1">點名：@attendanceZh</span>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label="操作">
+                                                        <div class="d-flex flex-column gap-2">
+                                                            <!-- 改期區塊 -->
+                                                            <div class="p-2 rounded bg-light border">
+                                                                <div class="small fw-semibold text-dark mb-1">
+                                                                    <i class="bi bi-arrow-left-right me-1 text-primary"></i>改期至同進度其他時段：
+                                                                </div>
+                                                                @if (hoursLeft < 24)
+                                                                {
+                                                                    <div class="small text-muted" style="font-size: 0.74rem;">
+                                                                        開課前 24 小時內不可改期
+                                                                    </div>
+                                                                }
+                                                                else if (!sameProgressTargets.Any())
+                                                                {
+                                                                    <div class="small text-muted" style="font-size: 0.74rem;">
+                                                                        此進度目前無其他可改期空位時段
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <form method="post" asp-page-handler="Reschedule" class="d-flex gap-1">
+                                                                        <input type="hidden" name="studentId" value="@student.Id" />
+                                                                        <input type="hidden" name="existingBookingId" value="@b.Id" />
+                                                                        <select name="targetSlotId" class="form-select form-select-sm" aria-label="選擇改期目標時段" required>
+                                                                            @foreach (var tgt in sameProgressTargets)
+                                                                            {
+                                                                                var tStart = BookingService.ToTaipeiTime(tgt.StartsAtUtc);
+                                                                                var tDayZh = "日一二三四五六"[(int)tStart.DayOfWeek];
+                                                                                <option value="@tgt.Id">@tStart.ToString("MM/dd") (@tDayZh) @tStart.ToString("HH:mm") (餘 @tgt.RemainingSeats 名)</option>
+                                                                            }
+                                                                        </select>
+                                                                        <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap fw-bold"
+                                                                                onclick="return confirm('確定要更換至所選的新時段嗎？');">改期</button>
+                                                                    </form>
+                                                                }
                                                             </div>
-                                                            @if (hoursLeft < 24)
-                                                            {
-                                                                <div class="small text-muted" style="font-size: 0.74rem;">
-                                                                    開課前 24 小時內不可改期
+
+                                                            <!-- 取消預約按鈕 -->
+                                                            <form method="post" asp-page-handler="CancelBooking">
+                                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                                <input type="hidden" name="bookingId" value="@b.Id" />
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                                                                        onclick="return confirm('@(hoursLeft >= 24 ? "目前距離開課滿 24 小時，取消將全額退還原扣抵堂數。確定取消？" : "注意：距離開課已不足 24 小時，取消將不退還堂數！確定取消？")');">
+                                                                    <i class="bi bi-x-circle me-1"></i>取消預約 @(hoursLeft >= 24 ? "(退還堂數)" : "(逾時不退)")
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                var w = item.Waitlist!;
+                                                var isHold = w.Status == WaitlistStatus.NotifiedHold;
+                                                var holdUntilTpe = w.HoldExpiresAtUtc.HasValue ? BookingService.ToTaipeiTime(w.HoldExpiresAtUtc.Value) : (DateTime?)null;
+
+                                                <tr class="@(isHold ? "table-warning" : "")">
+                                                    <td data-label="時段與進度">
+                                                        <div>
+                                                            <div class="fw-bold text-dark">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
+                                                            <div class="small text-muted">@slot.CourseProgress?.Code @slot.GradeClass</div>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label="類型 / 目的">
+                                                        <div>
+                                                            <span class="badge @(slot.SlotType == SlotType.SmallGroup ? "badge-slot-small" : "badge-slot-group")">
+                                                                @(slot.SlotType == SlotType.SmallGroup ? "小組指導" : "團體輔導")
+                                                            </span>
+                                                            <div class="small fw-semibold mt-1">@w.PurposeName</div>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label="扣堂明細">
+                                                        <span class="small text-muted">
+                                                            <i class="bi bi-info-circle me-1"></i>候補免先扣堂 (確認轉正時扣 1 堂)
+                                                        </span>
+                                                    </td>
+                                                    <td data-label="狀態 / 順位">
+                                                        @if (isHold)
+                                                        {
+                                                            <div>
+                                                                <span class="badge bg-danger">
+                                                                    <i class="bi bi-clock-history me-1"></i>名額保留中 (30分鐘)
+                                                                </span>
+                                                                <div class="small text-danger fw-bold mt-1">
+                                                                    保留至 @(holdUntilTpe?.ToString("HH:mm")) 止
                                                                 </div>
-                                                            }
-                                                            else if (!sameProgressTargets.Any())
-                                                            {
-                                                                <div class="small text-muted" style="font-size: 0.74rem;">
-                                                                    此進度目前無其他可改期空位時段
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div>
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <i class="bi bi-hourglass-split me-1"></i>排隊候補中
+                                                                </span>
+                                                                <div class="small text-primary fw-bold mt-1">
+                                                                    順位：第 @w.Position 位
                                                                 </div>
-                                                            }
-                                                            else
+                                                            </div>
+                                                        }
+                                                    </td>
+                                                    <td data-label="操作">
+                                                        <div class="d-flex flex-column gap-2">
+                                                            @if (isHold)
                                                             {
-                                                                <form method="post" asp-page-handler="Reschedule" class="d-flex gap-1">
+                                                                <form method="post" asp-page-handler="ConfirmWaitlist">
                                                                     <input type="hidden" name="studentId" value="@student.Id" />
-                                                                    <input type="hidden" name="existingBookingId" value="@b.Id" />
-                                                                    <select name="targetSlotId" class="form-select form-select-sm" aria-label="選擇改期目標時段" required>
-                                                                        @foreach (var tgt in sameProgressTargets)
-                                                                        {
-                                                                            var tStart = BookingService.ToTaipeiTime(tgt.StartsAtUtc);
-                                                                            var tDayZh = "日一二三四五六"[(int)tStart.DayOfWeek];
-                                                                            <option value="@tgt.Id">@tStart.ToString("MM/dd") (@tDayZh) @tStart.ToString("HH:mm") (餘 @tgt.RemainingSeats 名)</option>
-                                                                        }
-                                                                    </select>
-                                                                    <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap fw-bold"
-                                                                            onclick="return confirm('確定要更換至所選的新時段嗎？');">改期</button>
+                                                                    <input type="hidden" name="waitlistEntryId" value="@w.Id" />
+                                                                    <button type="submit" class="btn btn-sm btn-success fw-bold w-100 shadow-sm" onclick="return confirm('確定要確認轉正此預約嗎？系統將扣除 1 堂課並正式加入該時段。');">
+                                                                        <i class="bi bi-check-circle me-1"></i>確認轉正預約
+                                                                    </button>
                                                                 </form>
                                                             }
-                                                        </div>
 
-                                                        <!-- 取消預約按鈕 -->
-                                                        <form method="post" asp-page-handler="CancelBooking">
-                                                            <input type="hidden" name="studentId" value="@student.Id" />
-                                                            <input type="hidden" name="bookingId" value="@b.Id" />
-                                                            <button type="submit" class="btn btn-outline-danger btn-sm w-100"
-                                                                    onclick="return confirm('@(hoursLeft >= 24 ? "目前距離開課滿 24 小時，取消將全額退還原扣抵堂數。確定取消？" : "注意：距離開課已不足 24 小時，取消將不退還堂數！確定取消？")');">
-                                                                <i class="bi bi-x-circle me-1"></i>取消預約 @(hoursLeft >= 24 ? "(退還堂數)" : "(逾時不退)")
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                            <form method="post" asp-page-handler="CancelWaitlist">
+                                                                <input type="hidden" name="studentId" value="@student.Id" />
+                                                                <input type="hidden" name="waitlistEntryId" value="@w.Id" />
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('確定要取消候補此時段嗎？取消後將釋出順位並重新調整其他候補學生。');">
+                                                                    <i class="bi bi-x-circle me-1"></i>取消候補
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
                                         }
                                     </tbody>
                                 </table>
@@ -865,48 +972,10 @@ else if (student != null)
                     <div class="card-plato p-3 p-md-4 h-100">
                         <div class="section-header-clean">
                             <div>
-                                <h2 class="h5 fw-bold mb-0">候補順位與 LINE 通知</h2>
-                                <div class="small text-muted">名額釋出保留 30 分鐘確認紀錄</div>
+                                <h2 class="h5 fw-bold mb-0">LINE 官方帳號通知</h2>
+                                <div class="small text-muted">7 大即時推播與異動歷程</div>
                             </div>
                         </div>
-                        <div class="small fw-semibold text-secondary mb-2">目前候補狀態：</div>
-                        @if (!Model.StudentWaitlistEntries.Any())
-                        {
-                            <div class="text-muted small mb-3">目前無候補登記。</div>
-                        }
-                        else
-                        {
-                            <ul class="list-group list-group-flush mb-3 small">
-                                @foreach (var w in Model.StudentWaitlistEntries)
-                                {
-                                    var wTpe = BookingService.ToTaipeiTime(w.TutoringSlot!.StartsAtUtc);
-                                    var wDayZh = "日一二三四五六"[(int)wTpe.DayOfWeek];
-                                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="fw-bold">@wTpe.ToString("MM/dd") (@wDayZh) @wTpe.ToString("HH:mm") (@w.PurposeName)</div>
-                                            <div class="text-muted">
-                                                順位：#@w.Position ｜ 狀態：@(w.Status switch {
-                                                    WaitlistStatus.Waiting => "排隊候補中",
-                                                    WaitlistStatus.NotifiedHold => "已保留 30 分鐘",
-                                                    WaitlistStatus.ConfirmedToBooking => "已轉正確認",
-                                                    WaitlistStatus.Expired => "逾時失效",
-                                                    WaitlistStatus.Cancelled => "已取消",
-                                                    _ => w.Status.ToString()
-                                                })
-                                            </div>
-                                        </div>
-                                        @if (w.Status == WaitlistStatus.NotifiedHold)
-                                        {
-                                            <form method="post" asp-page-handler="ConfirmWaitlist">
-                                                <input type="hidden" name="studentId" value="@student.Id" />
-                                                <input type="hidden" name="waitlistEntryId" value="@w.Id" />
-                                                <button type="submit" class="btn btn-sm btn-accent">確認轉正</button>
-                                            </form>
-                                        }
-                                    </li>
-                                }
-                            </ul>
-                        }
 
                         <!-- LINE 官方帳號通知綁定狀態與操作 -->
                         <div class="p-3 mb-3 bg-light rounded-3 border">

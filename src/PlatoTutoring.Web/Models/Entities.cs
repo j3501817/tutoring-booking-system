@@ -290,6 +290,9 @@ public class WaitlistEntry
     public DateTime? NotifiedAtUtc { get; set; }
     public DateTime? HoldExpiresAtUtc { get; set; }
     public DateTime? ConfirmedAtUtc { get; set; }
+    public DateTime? CancelledAtUtc { get; set; }
+    [MaxLength(200)]
+    public string? CancelReason { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

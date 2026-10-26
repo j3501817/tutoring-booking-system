@@ -57,6 +57,7 @@ public class IndexModel : PageModel
     public int SlotsTotalPages { get; set; } = 1;
     public int SlotsTotalCount { get; set; } = 0;
     public List<TutoringSlot> PagedSlots { get; set; } = new();
+    public Dictionary<int, int> SlotWaitlistCounts { get; set; } = new();
 
     // 今日點名
     [BindProperty(SupportsGet = true)]
@@ -261,7 +262,102 @@ public class IndexModel : PageModel
             .Take(10)
             .ToListAsync();
 
+        var pagedIds = PagedSlots.Select(s => s.Id).ToList();
+        if (pagedIds.Count > 0)
+        {
+            SlotWaitlistCounts = await _db.WaitlistEntries
+                .Where(w => pagedIds.Contains(w.TutoringSlotId) && (w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold))
+                .GroupBy(w => w.TutoringSlotId)
+                .Select(g => new { SlotId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SlotId, x => x.Count);
+        }
+
         return Page();
+    }
+
+    public async Task<IActionResult> OnGetSlotRosterDetailsAsync(int slotId)
+    {
+        var user = await GetCurrentTeacherOrAdminAsync();
+        if (user == null) return Unauthorized();
+
+        var slot = await _db.TutoringSlots
+            .Include(s => s.CourseProgress)
+            .Include(s => s.TeacherUser)
+            .FirstOrDefaultAsync(s => s.Id == slotId);
+
+        if (slot == null) return NotFound();
+
+        var bookings = await _db.Bookings
+            .Include(b => b.Student)
+            .Where(b => b.TutoringSlotId == slotId && b.Status == BookingStatus.Confirmed)
+            .OrderBy(b => b.CreatedAtUtc)
+            .Select(b => new {
+                b.Id,
+                StudentName = b.Student!.FullName,
+                StudentSchoolGrade = b.Student.DisplaySchoolGradeClass,
+                b.PurposeName,
+                CreditsDesc = b.CreditsDeducted == 0 ? "免費 0 堂" : $"扣 {b.CreditsDeducted} 堂 (贈送{b.BonusCreditsUsed}/付費{b.PaidCreditsUsed})",
+                AttendanceDesc = b.AttendanceStatus == AttendanceStatus.Present ? "出席" : (b.AttendanceStatus == AttendanceStatus.NoShow ? "曠課" : "待點名"),
+                CreatedAtTpe = BookingService.ToTaipeiTime(b.CreatedAtUtc).ToString("MM/dd HH:mm")
+            })
+            .ToListAsync();
+
+        var waitlists = await _db.WaitlistEntries
+            .Include(w => w.Student)
+            .Where(w => w.TutoringSlotId == slotId)
+            .OrderBy(w => w.Position)
+            .ThenBy(w => w.CreatedAtUtc)
+            .Select(w => new {
+                w.Id,
+                w.Position,
+                StudentName = w.Student!.FullName,
+                StudentSchoolGrade = w.Student.DisplaySchoolGradeClass,
+                w.PurposeName,
+                Status = w.Status.ToString(),
+                StatusDesc = w.Status == WaitlistStatus.Waiting ? "排隊候補中" :
+                             w.Status == WaitlistStatus.NotifiedHold ? "保留 30 分鐘中（待確認轉正）" :
+                             w.Status == WaitlistStatus.ConfirmedToBooking ? "已確認轉正" :
+                             w.Status == WaitlistStatus.Cancelled ? "已取消" : "已逾時",
+                HoldExpiresTpe = w.HoldExpiresAtUtc.HasValue ? BookingService.ToTaipeiTime(w.HoldExpiresAtUtc.Value).ToString("HH:mm") : "",
+                CreatedAtTpe = BookingService.ToTaipeiTime(w.CreatedAtUtc).ToString("MM/dd HH:mm")
+            })
+            .ToListAsync();
+
+        var sTpe = BookingService.ToTaipeiTime(slot.StartsAtUtc);
+        var eTpe = BookingService.ToTaipeiTime(slot.EndsAtUtc);
+        var dayZh = "日一二三四五六"[(int)sTpe.DayOfWeek];
+
+        return new JsonResult(new {
+            success = true,
+            slotId = slot.Id,
+            timeDesc = $"{sTpe:yyyy/MM/dd} ({dayZh}) {sTpe:HH:mm} ~ {eTpe:HH:mm}",
+            progressTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim(),
+            gradeClass = slot.GradeClass,
+            slotTypeDesc = slot.SlotType == SlotType.SmallGroup ? "小組指導 (4人)" : "團體輔導 (20人)",
+            teacherName = slot.TeacherUser?.DisplayName ?? "",
+            currentBookedCount = slot.CurrentBookedCount,
+            maxCapacity = slot.MaxCapacity,
+            bookings,
+            waitlists
+        });
+    }
+
+    public async Task<IActionResult> OnPostTeacherConfirmWaitlistAsync(int slotId, int waitlistEntryId)
+    {
+        var user = await GetCurrentTeacherOrAdminAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        try
+        {
+            await _bookingService.ConfirmWaitlistHoldAsync(waitlistEntryId, user.Id);
+            TempData["SuccessMessage"] = "已成功代為確認轉為正式預約並完成扣堂！";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToPage(null, null, null, "tab-teacher-slots");
     }
 
     public async Task<IActionResult> OnPostRecordTopUpAsync(

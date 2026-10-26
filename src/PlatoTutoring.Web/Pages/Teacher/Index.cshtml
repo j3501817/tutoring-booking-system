@@ -277,11 +277,9 @@
                                                 <td data-label="點名狀態">
                                                     <select name="statuses" class="form-select form-select-sm fw-semibold" id="status_select_@b.Id">
                                                         <option value="Present" selected="@(b.AttendanceStatus == AttendanceStatus.Present)">出席 (Present)</option>
-                                                        <option value="Absent" selected="@(b.AttendanceStatus == AttendanceStatus.Absent)">請假 (Absent)</option>
-                                                        <option value="NoShow" selected="@(b.AttendanceStatus == AttendanceStatus.NoShow)">曠課爽約 (NoShow)</option>
+                                                        <option value="NoShow" selected="@(b.AttendanceStatus == AttendanceStatus.NoShow)">曠課 (NoShow)</option>
                                                         <option value="Pending" selected="@(b.AttendanceStatus == AttendanceStatus.Pending)">待點名 (Pending)</option>
                                                     </select>
-
                                                 </td>
                                                 <td data-label="單筆操作" class="text-end">
                                                     <button type="button" class="btn btn-sm btn-outline-dark"
@@ -548,10 +546,18 @@
                                         </span>
                                     </td>
                                     <td data-label="預約名額">
-                                        <span class="fw-bold @(s.RemainingSeats > 0 ? "text-success" : "text-danger")">
-                                            @s.CurrentBookedCount / @s.MaxCapacity
-                                        </span>
-                                        <span class="small text-muted">（餘 @s.RemainingSeats 名）</span>
+                                        @{
+                                            var waitlistCount = Model.SlotWaitlistCounts.TryGetValue(s.Id, out var wc) ? wc : 0;
+                                        }
+                                        <button type="button" class="btn btn-link p-0 text-start text-decoration-none" onclick="openSlotRosterModal(@s.Id)" title="點擊查看報名名單與候補名單">
+                                            <span class="fw-bold @(s.RemainingSeats > 0 ? "text-success" : "text-danger")">
+                                                @s.CurrentBookedCount / @s.MaxCapacity
+                                            </span>
+                                            <span class="badge @(waitlistCount > 0 ? "bg-warning text-dark" : "bg-light text-muted border") ms-1">
+                                                候補 @(waitlistCount) 人
+                                            </span>
+                                            <i class="bi bi-box-arrow-up-right ms-1 small text-primary"></i>
+                                        </button>
                                     </td>
                                     <td data-label="備註">
                                         @if (s.IsExtraSlot)
@@ -1193,6 +1199,123 @@
     </div>
 </div>
 
+<!-- 時段報名名冊與候補名單彈窗 -->
+<div class="modal fade" id="modalSlotRoster" tabindex="-1" aria-labelledby="modalSlotRosterLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalSlotRosterLabel">
+                    <i class="bi bi-people-fill me-2"></i>課堂名冊與候補名單
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- 時段資訊摘要卡片 -->
+                <div class="card border-0 bg-light mb-4 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-12 col-md-4">
+                                <div class="small text-muted">時段時間</div>
+                                <div class="fw-bold fs-6" id="rosterSlotTime">載入中...</div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="small text-muted">課程進度與類型</div>
+                                <div class="fw-semibold" id="rosterSlotCourse">載入中...</div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="small text-muted">名額與候補狀況</div>
+                                <div id="rosterSlotCapacity">載入中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="rosterLoadingSpinner" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入名冊中...</span>
+                    </div>
+                    <div class="mt-2 text-muted small">載入名冊中，請稍候...</div>
+                </div>
+
+                <div id="rosterContentArea" class="d-none">
+                    <!-- 區塊一：已報名學生名冊 -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-dark mb-0">
+                                <i class="bi bi-check-circle-fill text-success me-1"></i>已報名名冊
+                                <span class="badge bg-success ms-1" id="rosterBookedBadge">0 人</span>
+                            </h6>
+                            <span class="small text-muted">包含目前已確認報名學生與點名扣堂狀態</span>
+                        </div>
+                        <div class="table-responsive border rounded bg-white">
+                            <table class="table table-hover align-middle mb-0 text-nowrap">
+                                <thead class="table-light">
+                                    <tr class="small text-muted">
+                                        <th style="width: 50px;">#</th>
+                                        <th>學生姓名</th>
+                                        <th>學校／班別</th>
+                                        <th>到班目的</th>
+                                        <th>預約時間</th>
+                                        <th>點名狀態</th>
+                                        <th>扣堂紀錄</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rosterBookingsTableBody">
+                                    <!-- 動態填入 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="rosterNoBookingsAlert" class="alert alert-light text-center border py-3 mt-2 d-none">
+                            <i class="bi bi-info-circle me-1 text-muted"></i>目前尚無學生預約此時段。
+                        </div>
+                    </div>
+
+                    <!-- 區塊二：候補名單（若名額釋出可同步確認狀態） -->
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-dark mb-0">
+                                <i class="bi bi-hourglass-split text-warning me-1"></i>候補名單
+                                <span class="badge bg-warning text-dark ms-1" id="rosterWaitlistBadge">0 人</span>
+                            </h6>
+                            <span class="small text-muted">依登記時間依序候補；若有名額釋出將依序保留並發送通知</span>
+                        </div>
+                        <div class="table-responsive border rounded bg-white">
+                            <table class="table table-hover align-middle mb-0 text-nowrap">
+                                <thead class="table-light">
+                                    <tr class="small text-muted">
+                                        <th style="width: 80px;">順位</th>
+                                        <th>學生姓名</th>
+                                        <th>學校／班別</th>
+                                        <th>到班目的</th>
+                                        <th>登記時間</th>
+                                        <th>候補狀態</th>
+                                        <th class="text-end">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rosterWaitlistsTableBody">
+                                    <!-- 動態填入 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="rosterNoWaitlistAlert" class="alert alert-light text-center border py-3 mt-2 d-none">
+                            <i class="bi bi-info-circle me-1 text-muted"></i>目前此時段無學生候補排隊。
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 老師代為確認轉正 Form -->
+<form id="formTeacherConfirmWaitlist" method="post" asp-page-handler="TeacherConfirmWaitlist" class="d-none">
+    <input type="hidden" name="slotId" id="tcSlotId" />
+    <input type="hidden" name="waitlistEntryId" id="tcWaitlistEntryId" />
+</form>
+
 <!-- 全螢幕儲存等待中畫面（鎖定禁止任何操作） -->
 <div id="savingOverlay" class="saving-overlay d-none">
     <div class="saving-overlay-content">
@@ -1467,6 +1590,130 @@
             if (badge) {
                 badge.textContent = `符合條件：${visibleCount} 位`;
             }
+        }
+
+        // 開啟時段報名與候補名單彈窗
+        async function openSlotRosterModal(slotId) {
+            const modalEl = document.getElementById('modalSlotRoster');
+            if (!modalEl) return;
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+
+            const spinner = document.getElementById('rosterLoadingSpinner');
+            const content = document.getElementById('rosterContentArea');
+            const timeEl = document.getElementById('rosterSlotTime');
+            const courseEl = document.getElementById('rosterSlotCourse');
+            const capEl = document.getElementById('rosterSlotCapacity');
+            const bookedBadge = document.getElementById('rosterBookedBadge');
+            const waitlistBadge = document.getElementById('rosterWaitlistBadge');
+            const bookingsTable = document.getElementById('rosterBookingsTableBody');
+            const waitlistsTable = document.getElementById('rosterWaitlistsTableBody');
+            const noBookingsAlert = document.getElementById('rosterNoBookingsAlert');
+            const noWaitlistAlert = document.getElementById('rosterNoWaitlistAlert');
+
+            spinner.classList.remove('d-none');
+            content.classList.add('d-none');
+
+            try {
+                const resp = await fetch(`?handler=SlotRosterDetails&slotId=${slotId}`);
+                if (!resp.ok) throw new Error('名冊載入失敗');
+                const data = await resp.json();
+                if (!data.success) throw new Error('找不到時段資料');
+
+                const remSeats = Math.max(0, data.maxCapacity - data.currentBookedCount);
+                timeEl.textContent = data.timeDesc || '';
+                courseEl.textContent = `${data.progressTitle || ''} (${data.gradeClass || ''} · ${data.slotTypeDesc || ''})`;
+                capEl.innerHTML = `<span class="fw-bold ${remSeats > 0 ? 'text-success' : 'text-danger'}">${data.currentBookedCount} / ${data.maxCapacity}</span> (尚餘 ${remSeats} 名) ｜ <span class="badge ${data.waitlists.length > 0 ? 'bg-warning text-dark' : 'bg-light text-muted border'}">候補 ${data.waitlists.length} 人</span>`;
+
+                bookedBadge.textContent = `${data.bookings.length} 人`;
+                waitlistBadge.textContent = `${data.waitlists.length} 人`;
+
+                // 渲染已報名名單
+                bookingsTable.innerHTML = '';
+                if (data.bookings.length === 0) {
+                    noBookingsAlert.classList.remove('d-none');
+                } else {
+                    noBookingsAlert.classList.add('d-none');
+                    data.bookings.forEach((b, idx) => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${idx + 1}</td>
+                            <td><strong class="text-dark">${escapeHtml(b.studentName)}</strong></td>
+                            <td><span class="text-secondary small">${escapeHtml(b.studentSchoolGrade)}</span></td>
+                            <td><span class="badge bg-light text-dark border">${escapeHtml(b.purposeName)}</span></td>
+                            <td><span class="small text-muted">${escapeHtml(b.createdAtTpe)}</span></td>
+                            <td><span class="badge ${b.attendanceDesc === '出席' ? 'bg-success' : (b.attendanceDesc === '曠課' ? 'bg-danger' : 'bg-secondary')}">${escapeHtml(b.attendanceDesc)}</span></td>
+                            <td><span class="badge bg-light text-dark border">${escapeHtml(b.creditsDesc)}</span></td>
+                        `;
+                        bookingsTable.appendChild(tr);
+                    });
+                }
+
+                // 渲染候補名單
+                waitlistsTable.innerHTML = '';
+                if (data.waitlists.length === 0) {
+                    noWaitlistAlert.classList.remove('d-none');
+                } else {
+                    noWaitlistAlert.classList.add('d-none');
+                    data.waitlists.forEach(w => {
+                        const tr = document.createElement('tr');
+                        let statusHtml = '';
+                        let actionHtml = '';
+
+                        if (w.status === 'NotifiedHold') {
+                            statusHtml = `<span class="badge bg-danger text-white"><i class="bi bi-clock-history me-1"></i>保留中 (至 ${escapeHtml(w.holdExpiresTpe || '')})</span>`;
+                            actionHtml = `<button type="button" class="btn btn-sm btn-outline-success py-0 px-2 fw-semibold" onclick="confirmTeacherWaitlist(${slotId}, ${w.id}, '${escapeHtml(w.studentName)}')"><i class="bi bi-check-lg me-1"></i>確認轉正</button>`;
+                        } else if (w.status === 'Waiting') {
+                            statusHtml = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>排隊候補中</span>`;
+                            actionHtml = `<span class="small text-muted">名額釋出時自動推進</span>`;
+                        } else {
+                            statusHtml = `<span class="badge bg-secondary">${escapeHtml(w.statusDesc)}</span>`;
+                            actionHtml = `<span class="small text-muted">-</span>`;
+                        }
+
+                        tr.innerHTML = `
+                            <td><span class="badge rounded-pill bg-primary">第 ${w.position} 位</span></td>
+                            <td><strong class="text-dark">${escapeHtml(w.studentName)}</strong></td>
+                            <td><span class="text-secondary small">${escapeHtml(w.studentSchoolGrade)}</span></td>
+                            <td><span class="badge bg-light text-dark border">${escapeHtml(bPurpose(w.purposeName))}</span></td>
+                            <td><span class="small text-muted">${escapeHtml(w.createdAtTpe)}</span></td>
+                            <td>${statusHtml}</td>
+                            <td class="text-end">${actionHtml}</td>
+                        `;
+                        waitlistsTable.appendChild(tr);
+                    });
+                }
+
+                spinner.classList.add('d-none');
+                content.classList.remove('d-none');
+            } catch (err) {
+                alert('載入名冊失敗：' + err.message);
+                modal.hide();
+            }
+        }
+
+        function confirmTeacherWaitlist(slotId, waitlistEntryId, studentName) {
+            if (!confirm(`確定要為學生【${studentName}】確認轉正預約嗎？系統將扣除 1 堂課並正式加入該時段報名名單。`)) {
+                return;
+            }
+            document.getElementById('tcSlotId').value = slotId;
+            document.getElementById('tcWaitlistEntryId').value = waitlistEntryId;
+            showSavingOverlay();
+            document.getElementById('formTeacherConfirmWaitlist').submit();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function bPurpose(p) {
+            return p || '未註明';
         }
 
         // 建立時段表單防呆驗證：未勾選課程進度時在彈跳視窗內提示，不關閉視窗

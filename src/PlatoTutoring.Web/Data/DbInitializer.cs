@@ -410,6 +410,8 @@ END";
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Students ADD COLUMN EnrollmentStatus INTEGER NOT NULL DEFAULT 1;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN Subjects TEXT NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN IsProxyAdmin INTEGER NOT NULL DEFAULT 0;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_WaitlistEntries ADD COLUMN CancelledAtUtc TEXT NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_WaitlistEntries ADD COLUMN CancelReason TEXT NULL;"); } catch { }
             try
             {
                 await db.Database.ExecuteSqlRawAsync(@"
