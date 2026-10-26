@@ -567,4 +567,32 @@ public class ComprehensiveEnhancementTests
         Assert.Equal(10, settlement.TotalRefundablePaidCredits);
         Assert.Equal(6000m, settlement.CalculatedRefundAmountNtd);
     }
+
+    [Fact]
+    public async Task DbInitializer_SeedsThreeParents_ForQuickSwitch()
+    {
+        var (db, ledger, booking, _, _, _) = CreateServices();
+        await DbInitializer.SeedAsync(db, ledger, booking);
+
+        var pLin = await db.Users.FirstOrDefaultAsync(u => u.Username == "parent.lin");
+        var pChen = await db.Users.FirstOrDefaultAsync(u => u.Username == "parent.chen");
+        var pHuang = await db.Users.FirstOrDefaultAsync(u => u.Username == "parent.huang");
+
+        Assert.NotNull(pLin);
+        Assert.Equal(UserRole.Parent, pLin.Role);
+        Assert.Equal("林媽媽", pLin.DisplayName);
+
+        Assert.NotNull(pChen);
+        Assert.Equal(UserRole.Parent, pChen.Role);
+        Assert.Equal("陳爸爸", pChen.DisplayName);
+
+        Assert.NotNull(pHuang);
+        Assert.Equal(UserRole.Parent, pHuang.Role);
+        Assert.Equal("黃媽媽", pHuang.DisplayName);
+
+        // 驗證三位家長皆有關聯孩子
+        Assert.True(await db.ParentStudentLinks.AnyAsync(l => l.ParentUserId == pLin.Id));
+        Assert.True(await db.ParentStudentLinks.AnyAsync(l => l.ParentUserId == pChen.Id));
+        Assert.True(await db.ParentStudentLinks.AnyAsync(l => l.ParentUserId == pHuang.Id));
+    }
 }

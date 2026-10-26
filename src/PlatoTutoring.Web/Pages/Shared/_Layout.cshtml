@@ -53,6 +53,43 @@
         prefix == "/"
             ? string.Equals(currentPath, "/", StringComparison.OrdinalIgnoreCase) || string.Equals(currentPath, "/Index", StringComparison.OrdinalIgnoreCase)
             : currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+
+    // PM 驗收角色一鍵切換：動態讀取現有前 3 位家長（不足時補足為典型三位家長）
+    var quickParents = new List<(string Username, string DisplayName, string Badge)>();
+    try
+    {
+        var dbParents = DbContext.Users
+            .Where(u => u.Role == PlatoTutoring.Web.Models.UserRole.Parent)
+            .OrderBy(u => u.Id)
+            .Take(3)
+            .ToList();
+
+        foreach (var p in dbParents)
+        {
+            var childCount = DbContext.ParentStudentLinks.Count(l => l.ParentUserId == p.Id);
+            quickParents.Add((p.Username, p.DisplayName, childCount > 0 ? $"{childCount}子" : "家長"));
+        }
+    }
+    catch
+    {
+        // 忽略連線或初始化前查詢異常
+    }
+
+    if (!quickParents.Any())
+    {
+        quickParents.Add(("parent.lin", "林媽媽", "3子"));
+        quickParents.Add(("parent.chen", "陳爸爸", "未續報"));
+        quickParents.Add(("parent.huang", "黃媽媽", "3子"));
+    }
+    else if (quickParents.Count == 1)
+    {
+        quickParents.Add(("parent.chen", "陳爸爸", "未續報"));
+        quickParents.Add(("parent.huang", "黃媽媽", "3子"));
+    }
+    else if (quickParents.Count == 2)
+    {
+        quickParents.Add(("parent.huang", "黃媽媽", "3子"));
+    }
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -269,13 +306,16 @@
                     <i class="bi bi-lightning-charge-fill text-warning me-1"></i>PM 驗收角色一鍵切換
                 </div>
                 <div class="d-grid gap-1">
-                    <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
-                        <input type="hidden" name="username" value="parent.lin" />
-                        <button type="submit" class="role-switch-btn">
-                            <span><i class="bi bi-people-fill me-1 text-info"></i>家長（林媽媽）</span>
-                            <span class="badge bg-secondary">2子</span>
-                        </button>
-                    </form>
+                    @foreach (var p in quickParents)
+                    {
+                        <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
+                            <input type="hidden" name="username" value="@p.Username" />
+                            <button type="submit" class="role-switch-btn">
+                                <span><i class="bi bi-people-fill me-1 text-info"></i>家長（@p.DisplayName）</span>
+                                <span class="badge bg-secondary">@p.Badge</span>
+                            </button>
+                        </form>
+                    }
                     <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
                         <input type="hidden" name="username" value="teacher.wang" />
                         <button type="submit" class="role-switch-btn">
@@ -388,10 +428,13 @@
                     }
                     <div class="small text-white-50 fw-semibold mb-2">PM 驗收角色一鍵切換</div>
                     <div class="d-grid gap-2">
-                        <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
-                            <input type="hidden" name="username" value="parent.lin" />
-                            <button type="submit" class="role-switch-btn">家長（林媽媽：2位孩子）</button>
-                        </form>
+                        @foreach (var p in quickParents)
+                        {
+                            <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
+                                <input type="hidden" name="username" value="@p.Username" />
+                                <button type="submit" class="role-switch-btn">家長（@p.DisplayName：@p.Badge）</button>
+                            </form>
+                        }
                         <form method="post" asp-page="/Account/Login" asp-page-handler="QuickSwitch">
                             <input type="hidden" name="username" value="teacher.wang" />
                             <button type="submit" class="role-switch-btn">老師（王老師：點名/儲值）</button>
