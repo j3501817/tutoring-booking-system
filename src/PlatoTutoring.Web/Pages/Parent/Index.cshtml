@@ -69,45 +69,73 @@
     </div>
 </div>
 
-<!-- 關聯孩子切換列 -->
-<div class="mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="small fw-bold text-secondary">
-            <i class="bi bi-people-fill me-1"></i>切換關聯孩子（共 @Model.AuthorizedStudents.Count 位）
-        </span>
-    </div>
-    <div class="row g-3">
-        @foreach (var s in Model.AuthorizedStudents)
-        {
-            var isSelected = student?.Id == s.Id;
-            <div class="col-12 col-md-6 col-xl-4">
-                <a asp-page="/Parent/Index" asp-route-studentId="@s.Id"
-                   class="student-selector-card @(isSelected ? "active" : "")"
-                   onclick="this.href = '/Parent/Index?studentId=@s.Id' + (window.location.hash || '#tab-parent-book');">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
-                             style="width: 44px; height: 44px; background: @(isSelected ? "var(--plato-terracotta)" : "var(--plato-terracotta-soft)"); color: @(isSelected ? "#fff" : "var(--plato-terracotta-dark)");">
-                            @s.FullName.Substring(0, 1)
-                        </div>
-                        <div>
-                            <div class="fw-bold fs-6">
-                                @s.FullName
-                                <span class="badge @(isSelected ? "bg-light text-dark" : "bg-secondary") ms-1">@s.DisplaySchoolGradeClass</span>
-                            </div>
-                            <div class="small @(isSelected ? "text-white-50" : "text-muted")">
-                                入班日：@s.EnrollmentDate.ToString("yyyy-MM-dd")
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <div class="small @(isSelected ? "text-white-50" : "text-muted")" style="font-size: 0.75rem;">可用總堂數</div>
-                        <div class="fs-4 fw-bold">@s.TotalCredits <span class="fs-6 fw-normal">堂</span></div>
-                    </div>
-                </a>
+@if (Model.CurrentUser.Role == UserRole.Parent)
+{
+    @if (Model.AuthorizedStudents.Count > 0)
+    {
+        <!-- 關聯孩子切換列（家長專屬卡片切換） -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-secondary">
+                    <i class="bi bi-people-fill me-1"></i>切換關聯孩子（共 @Model.AuthorizedStudents.Count 位）
+                </span>
             </div>
-        }
+            <div class="row g-3">
+                @foreach (var s in Model.AuthorizedStudents)
+                {
+                    var isSelected = student?.Id == s.Id;
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <a asp-page="/Parent/Index" asp-route-studentId="@s.Id"
+                           class="student-selector-card @(isSelected ? "active" : "")"
+                           onclick="this.href = '/Parent/Index?studentId=@s.Id' + (window.location.hash || '#tab-parent-book');">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                                     style="width: 44px; height: 44px; background: @(isSelected ? "var(--plato-terracotta)" : "var(--plato-terracotta-soft)"); color: @(isSelected ? "#fff" : "var(--plato-terracotta-dark)");">
+                                    @s.FullName.Substring(0, 1)
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-6">
+                                        @s.FullName
+                                        <span class="badge @(isSelected ? "bg-light text-dark" : "bg-secondary") ms-1">@s.DisplaySchoolGradeClass</span>
+                                    </div>
+                                    <div class="small @(isSelected ? "text-white-50" : "text-muted")">
+                                        入班日：@s.EnrollmentDate.ToString("yyyy-MM-dd")
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="small @(isSelected ? "text-white-50" : "text-muted")" style="font-size: 0.75rem;">可用總堂數</div>
+                                <div class="fs-4 fw-bold">@s.TotalCredits <span class="fs-6 fw-normal">堂</span></div>
+                            </div>
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+else if (student != null)
+{
+    <!-- 管理端／教師端檢視模式提示（精簡單行，不展開全校大量學生卡片） -->
+    <div class="card-plato p-3 mb-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 bg-light border">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge bg-secondary">教務管理模式</span>
+            <span class="text-secondary small">檢視學生：</span>
+            <strong class="fs-6 text-dark">@student.FullName</strong>
+            <span class="badge bg-white text-dark border">@student.DisplaySchoolGradeClass</span>
+            <span class="text-muted small">入班日：@student.EnrollmentDate.ToString("yyyy-MM-dd") ｜ 可用總堂數：<strong class="text-primary">@student.TotalCredits</strong> 堂</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted text-nowrap">切換檢視學生：</label>
+            <select class="form-select form-select-sm" style="width: auto; min-width: 200px;" onchange="if(this.value) window.location.href='/Parent/Index?studentId=' + this.value + (window.location.hash || '#tab-parent-book');">
+                @foreach (var s in Model.AuthorizedStudents)
+                {
+                    <option value="@s.Id" selected="@(student.Id == s.Id)">@s.FullName (@s.DisplaySchoolGradeClass)</option>
+                }
+            </select>
+        </div>
     </div>
-</div>
+}
 
 @if (student != null)
 {

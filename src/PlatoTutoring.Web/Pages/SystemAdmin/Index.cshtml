@@ -93,7 +93,7 @@
                                     var isViewing = sem.Id == Model.ViewingSemester?.Id;
                                     <tr class="@(isViewing ? "table-primary bg-opacity-25" : "")">
                                         <td>
-                                            <a asp-page="./Index" asp-route-semesterId="@sem.Id" class="fw-bold text-decoration-none text-dark">
+                                            <a asp-page="./Index" asp-route-semesterId="@sem.Id" asp-route-sub="calendar" asp-fragment="subtab-calendar" class="fw-bold text-decoration-none text-dark" onclick="switchSubTab('calendar')">
                                                 @sem.Name
                                             </a>
                                             @if (isViewing)
@@ -250,18 +250,20 @@
                         }
                     </div>
                     <div class="d-flex align-items-center gap-1">
-                        <a asp-page="./Index" asp-route-year="@Model.PrevYear" asp-route-month="@Model.PrevMonth" asp-route-semesterId="@Model.SelectedSemesterId"
-                           class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-chevron-left"></i>
+                        <a asp-page="./Index" asp-route-year="@Model.PrevYear" asp-route-month="@Model.PrevMonth" asp-route-semesterId="@Model.SelectedSemesterId" asp-route-sub="calendar" asp-fragment="subtab-calendar"
+                           class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center p-0"
+                           style="width: 32px; height: 32px;" title="上個月" onclick="switchSubTab('calendar')">
+                            <i class="bi bi-chevron-left" style="line-height: 1; font-size: 0.85rem;"></i>
                         </a>
-                        <span class="fw-bold px-2 text-nowrap" style="min-width: 130px; text-align: center;">
+                        <span class="fw-bold px-2 text-nowrap d-inline-flex align-items-center justify-content-center" style="min-width: 130px; text-align: center;">
                             @Model.CalendarYear 年 @Model.CalendarMonth 月
                         </span>
-                        <a asp-page="./Index" asp-route-year="@Model.NextYear" asp-route-month="@Model.NextMonth" asp-route-semesterId="@Model.SelectedSemesterId"
-                           class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-chevron-right"></i>
+                        <a asp-page="./Index" asp-route-year="@Model.NextYear" asp-route-month="@Model.NextMonth" asp-route-semesterId="@Model.SelectedSemesterId" asp-route-sub="calendar" asp-fragment="subtab-calendar"
+                           class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center p-0"
+                           style="width: 32px; height: 32px;" title="下個月" onclick="switchSubTab('calendar')">
+                            <i class="bi bi-chevron-right" style="line-height: 1; font-size: 0.85rem;"></i>
                         </a>
-                        <a asp-page="./Index" asp-route-semesterId="@Model.SelectedSemesterId" class="btn btn-sm btn-outline-primary ms-1">本月</a>
+                        <a asp-page="./Index" asp-route-semesterId="@Model.SelectedSemesterId" asp-route-sub="calendar" asp-fragment="subtab-calendar" class="btn btn-sm btn-outline-primary ms-1 d-inline-flex align-items-center justify-content-center" style="height: 32px;" onclick="switchSubTab('calendar')">本月</a>
                     </div>
                 </div>
 
@@ -1150,12 +1152,14 @@
             const urlParams = new URLSearchParams(window.location.search);
             let subParam = urlParams.get('sub');
             if (!subParam) {
-                if (window.location.hash.includes('subtab-fields') || window.location.hash.includes('tab-')) {
+                if (window.location.hash.includes('subtab-fields')) {
                     subParam = 'fields';
                 } else if (window.location.hash.includes('subtab-schedules')) {
                     subParam = 'schedules';
-                } else if (window.location.hash.includes('subtab-calendar')) {
+                } else if (window.location.hash.includes('subtab-calendar') || urlParams.has('year') || urlParams.has('month') || urlParams.has('semesterId')) {
                     subParam = 'calendar';
+                } else if (window.location.hash.includes('tab-')) {
+                    subParam = 'fields';
                 } else {
                     subParam = localStorage.getItem('plato_admin_subtab') || 'calendar';
                 }

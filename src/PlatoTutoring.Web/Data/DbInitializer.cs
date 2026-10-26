@@ -45,6 +45,7 @@ public static class DbInitializer
             if (await db.Users.AnyAsync())
             {
                 await BackfillStudentSchoolGradeClassAsync(db);
+                await EnsureCreditBatchesAndLedgerConsistentAsync(db);
                 _isInitialized = true;
                 return;
             }
@@ -617,6 +618,87 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
         catch
         {
             // 忽略回填例外
+        }
+    }
+
+    private static async Task EnsureCreditBatchesAndLedgerConsistentAsync(AppDbContext db)
+    {
+        try
+        {
+            var students = await db.Students
+                .Where(s => !s.IsDroppedOut && s.PaidCredits > 0)
+                .ToListAsync();
+
+            if (!students.Any()) return;
+
+            var adminUser = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
+            var teacherUser = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Teacher) ?? adminUser;
+            var opId = teacherUser?.Id ?? adminUser?.Id ?? 1;
+            var opName = teacherUser?.DisplayName ?? adminUser?.DisplayName ?? "系統管理員";
+
+            var updated = false;
+
+            foreach (var s in students)
+            {
+                var batchSum = await db.TopUpBatches
+                    .Where(b => b.StudentId == s.Id)
+                    .SumAsync(b => b.RemainingPaidCredits);
+
+                if (s.PaidCredits > batchSum)
+                {
+                    var diff = s.PaidCredits - batchSum;
+                    var newBatch = new TopUpBatch
+                    {
+                        StudentId = s.Id,
+                        RecordedByTeacherId = opId,
+                        AmountNtd = diff * 500m,
+                        CreditsAdded = diff,
+                        UnitPriceNtd = 500m,
+                        RemainingPaidCredits = diff,
+                        RemittanceDate = s.EnrollmentDate,
+                        AccountLastFiveDigits = "AUTO",
+                        Note = "系統同步期初儲值批次",
+                        CreatedAtUtc = DateTime.UtcNow
+                    };
+                    db.TopUpBatches.Add(newBatch);
+                    await db.SaveChangesAsync();
+                    updated = true;
+
+                    // 檢查流水帳付費堂數是否也同步
+                    var ledgerPaidSum = await db.CreditLedgerEntries
+                        .Where(e => e.StudentId == s.Id)
+                        .SumAsync(e => (int?)e.PaidDelta) ?? 0;
+
+                    if (s.PaidCredits > ledgerPaidSum)
+                    {
+                        var ledgerDiff = s.PaidCredits - ledgerPaidSum;
+                        db.CreditLedgerEntries.Add(new CreditLedgerEntry
+                        {
+                            StudentId = s.Id,
+                            TransactionType = LedgerTransactionType.TopUpPaid,
+                            PaidDelta = ledgerDiff,
+                            BonusDelta = 0,
+                            PaidBalanceAfter = s.PaidCredits,
+                            BonusBalanceAfter = s.BonusCredits,
+                            RelatedTopUpBatchId = newBatch.Id,
+                            ReferenceNote = $"系統期初儲值批次同步補入 +{ledgerDiff} 堂",
+                            OperatorUserId = opId,
+                            OperatorName = opName,
+                            CreatedAtUtc = DateTime.UtcNow
+                        });
+                        updated = true;
+                    }
+                }
+            }
+
+            if (updated)
+            {
+                await db.SaveChangesAsync();
+            }
+        }
+        catch
+        {
+            // 忽略同步例外
         }
     }
 }
