@@ -75,24 +75,30 @@ public static class DbInitializer
         }
 
         // 1. 系統設定 (SystemSettings)
-        db.SystemSettings.AddRange(
-            new SystemSetting { Key = "SmallGroupUnitPrice", Value = "500", Description = "小組指導單堂基準價格 (NT$)" },
-            new SystemSetting { Key = "SmallGroupPackageSize", Value = "6", Description = "小組指導預設每組堂數" },
-            new SystemSetting { Key = "CancelRefundHours", Value = "24", Description = "開課前免費取消退堂時限 (小時)" },
-            new SystemSetting { Key = "WaitlistHoldMinutes", Value = "30", Description = "候補名額釋出保留分鐘數" },
-            new SystemSetting { Key = "AttachmentRetentionDays", Value = "90", Description = "匯款截圖附件保存天數" },
-            new SystemSetting { Key = "GroupNoShowPenaltyEnabled", Value = "false", Description = "團體課 30 天內爽約 3 次停權 14 天開關（預設關閉）" }
-        );
+        if (!await db.SystemSettings.AnyAsync())
+        {
+            db.SystemSettings.AddRange(
+                new SystemSetting { Key = "SmallGroupUnitPrice", Value = "500", Description = "小組指導單堂基準價格 (NT$)" },
+                new SystemSetting { Key = "SmallGroupPackageSize", Value = "6", Description = "小組指導預設每組堂數" },
+                new SystemSetting { Key = "CancelRefundHours", Value = "24", Description = "開課前免費取消退堂時限 (小時)" },
+                new SystemSetting { Key = "WaitlistHoldMinutes", Value = "30", Description = "候補名額釋出保留分鐘數" },
+                new SystemSetting { Key = "AttachmentRetentionDays", Value = "90", Description = "匯款截圖附件保存天數" },
+                new SystemSetting { Key = "GroupNoShowPenaltyEnabled", Value = "false", Description = "團體課 30 天內爽約 3 次停權 14 天開關（預設關閉）" }
+            );
+        }
 
         // 2. 到班目的 (AttendancePurposeOptions)
-        db.AttendancePurposeOptions.AddRange(
-            new AttendancePurposeOption { Name = "作業補正", SortOrder = 1, IsActive = true },
-            new AttendancePurposeOption { Name = "輔導未完", SortOrder = 2, IsActive = true },
-            new AttendancePurposeOption { Name = "進度落差", SortOrder = 3, IsActive = true },
-            new AttendancePurposeOption { Name = "補課確認", SortOrder = 4, IsActive = true },
-            new AttendancePurposeOption { Name = "紮根陪伴", SortOrder = 5, IsActive = true },
-            new AttendancePurposeOption { Name = "考前救急", SortOrder = 6, IsActive = true }
-        );
+        if (!await db.AttendancePurposeOptions.AnyAsync())
+        {
+            db.AttendancePurposeOptions.AddRange(
+                new AttendancePurposeOption { Name = "作業補正", SortOrder = 1, IsActive = true },
+                new AttendancePurposeOption { Name = "輔導未完", SortOrder = 2, IsActive = true },
+                new AttendancePurposeOption { Name = "進度落差", SortOrder = 3, IsActive = true },
+                new AttendancePurposeOption { Name = "補課確認", SortOrder = 4, IsActive = true },
+                new AttendancePurposeOption { Name = "紮根陪伴", SortOrder = 5, IsActive = true },
+                new AttendancePurposeOption { Name = "考前救急", SortOrder = 6, IsActive = true }
+            );
+        }
 
         var defaultPasswordHash = PasswordHelper.HashPassword(
             Environment.GetEnvironmentVariable("INITIAL_DEFAULT_PASSWORD") ?? "demo123");
@@ -119,6 +125,15 @@ public static class DbInitializer
             Phone = "0922-888-999",
             LineUserId = "U_LINE_PARENT_CHEN_002"
         };
+        var parentHuang = new AppUser
+        {
+            Username = "parent.huang",
+            PasswordHash = defaultPasswordHash,
+            DisplayName = "黃媽媽",
+            Role = UserRole.Parent,
+            Phone = "0933-222-111",
+            LineUserId = "U_LINE_PARENT_HUANG_003"
+        };
         var teacherWang = new AppUser
         {
             Username = "teacher.wang",
@@ -138,7 +153,7 @@ public static class DbInitializer
             Phone = "0900-000-001"
         };
 
-        db.Users.AddRange(parentLin, parentChen, teacherWang, adminBoss);
+        db.Users.AddRange(parentLin, parentChen, parentHuang, teacherWang, adminBoss);
         await db.SaveChangesAsync();
 
         // 4. 學期與進度
@@ -205,14 +220,24 @@ public static class DbInitializer
             GradeClass = "國三A班",
             EnrollmentDate = new DateOnly(2026, 9, 1)
         };
+        var stuHuang = new Student
+        {
+            FullName = "黃子恆",
+            School = "光華",
+            Grade = "國三",
+            ClassName = "精英班",
+            GradeClass = "國三精英班",
+            EnrollmentDate = new DateOnly(2026, 9, 1)
+        };
 
-        db.Students.AddRange(stuXiaoming, stuXiaomei, stuChen);
+        db.Students.AddRange(stuXiaoming, stuXiaomei, stuChen, stuHuang);
         await db.SaveChangesAsync();
 
         db.ParentStudentLinks.AddRange(
             new ParentStudentLink { ParentUserId = parentLin.Id, StudentId = stuXiaoming.Id, Relationship = "媽媽" },
             new ParentStudentLink { ParentUserId = parentLin.Id, StudentId = stuXiaomei.Id, Relationship = "媽媽" },
-            new ParentStudentLink { ParentUserId = parentChen.Id, StudentId = stuChen.Id, Relationship = "爸爸" }
+            new ParentStudentLink { ParentUserId = parentChen.Id, StudentId = stuChen.Id, Relationship = "爸爸" },
+            new ParentStudentLink { ParentUserId = parentHuang.Id, StudentId = stuHuang.Id, Relationship = "媽媽" }
         );
         await db.SaveChangesAsync();
 
@@ -220,6 +245,16 @@ public static class DbInitializer
         await ledgerService.GrantSemesterBonusAsync(stuXiaoming.Id, semester.Id, adminBoss.Id);
         await ledgerService.GrantSemesterBonusAsync(stuXiaomei.Id, semester.Id, adminBoss.Id);
         await ledgerService.GrantSemesterBonusAsync(stuChen.Id, semester.Id, adminBoss.Id);
+        await ledgerService.GrantSemesterBonusAsync(stuHuang.Id, semester.Id, adminBoss.Id);
+
+        await ledgerService.RecordTopUpAsync(
+            stuHuang.Id,
+            teacherWang.Id,
+            amountNtd: 3000m,
+            creditsAdded: 6,
+            remittanceDate: new DateOnly(2026, 10, 7),
+            accountLastFiveDigits: "29481",
+            note: "第一期小組指導 6 堂儲值");
 
         await ledgerService.RecordTopUpAsync(
             stuXiaoming.Id,
@@ -296,8 +331,8 @@ public static class DbInitializer
             notes: "週末精緻一對一／滿額候補示範時段");
 
         // 讓陳宥廷先預約 slot4Full，使其滿額，並讓林小美示範候補保留 30 分鐘通知狀態
-        await bookingService.CreateBookingAsync(slot4Full.Id, stuChen.Id, parentChen.Id, "考前複習");
-        await bookingService.JoinWaitlistAsync(slot4Full.Id, stuXiaomei.Id, parentLin.Id, "作業輔導");
+        await bookingService.CreateBookingAsync(slot4Full.Id, stuChen.Id, parentChen.Id, "考前救急");
+        await bookingService.JoinWaitlistAsync(slot4Full.Id, stuXiaomei.Id, parentLin.Id, "作業補正");
 
         // 示範一筆作業不佳追蹤通知
         var lineSvc = new LineNotificationService(db);
@@ -607,6 +642,35 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
                 {
                     t.Subjects = "數學,理化";
                     updated = true;
+                }
+            }
+
+            if (!await db.Users.AnyAsync(u => u.Username == "parent.huang"))
+            {
+                var defaultPwdHash = PasswordHelper.HashPassword(
+                    Environment.GetEnvironmentVariable("INITIAL_DEFAULT_PASSWORD") ?? "demo123");
+                var parentHuang = new AppUser
+                {
+                    Username = "parent.huang",
+                    PasswordHash = defaultPwdHash,
+                    DisplayName = "黃媽媽",
+                    Role = UserRole.Parent,
+                    Phone = "0933-222-111",
+                    LineUserId = "U_LINE_PARENT_HUANG_003"
+                };
+                db.Users.Add(parentHuang);
+                await db.SaveChangesAsync();
+
+                var stuHuang = await db.Students.FirstOrDefaultAsync(s => s.FullName == "黃子恆");
+                if (stuHuang != null)
+                {
+                    db.ParentStudentLinks.Add(new ParentStudentLink
+                    {
+                        ParentUserId = parentHuang.Id,
+                        StudentId = stuHuang.Id,
+                        Relationship = "媽媽"
+                    });
+                    await db.SaveChangesAsync();
                 }
             }
 
