@@ -609,6 +609,77 @@ public class BookingService
         return booking;
     }
 
+    public async Task<WaitlistEntry> CancelWaitlistAsync(
+        int waitlistEntryId,
+        int operatorUserId,
+        string? reason = null,
+        DateTime? nowUtc = null)
+    {
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var entry = await _db.WaitlistEntries
+            .Include(w => w.TutoringSlot)
+            .ThenInclude(s => s!.CourseProgress)
+            .Include(w => w.Student)
+            .FirstOrDefaultAsync(w => w.Id == waitlistEntryId)
+            ?? throw new InvalidOperationException("找不到指定的候補紀錄。");
+
+        if (entry.Status != WaitlistStatus.Waiting && entry.Status != WaitlistStatus.NotifiedHold)
+            throw new InvalidOperationException("此候補紀錄非等待中或保留中狀態，無法取消。");
+
+        var wasHold = entry.Status == WaitlistStatus.NotifiedHold;
+        var cancelledPos = entry.Position;
+        var slotId = entry.TutoringSlotId;
+        var slot = entry.TutoringSlot;
+
+        entry.Status = WaitlistStatus.Cancelled;
+        entry.CancelledAtUtc = timestamp;
+        entry.CancelReason = string.IsNullOrWhiteSpace(reason) ? "家長自行取消候補" : reason.Trim();
+
+        // 若原本處於 NotifiedHold，需釋放時段鎖定名額
+        if (wasHold && slot != null)
+        {
+            slot.CurrentBookedCount = Math.Max(0, slot.CurrentBookedCount - 1);
+        }
+
+        // 同時段後續 Waiting 候補學生，順位向前遞補（Position - 1）
+        var subsequentWaiting = await _db.WaitlistEntries
+            .Where(w => w.TutoringSlotId == slotId 
+                         && w.Status == WaitlistStatus.Waiting 
+                         && w.Position > cancelledPos)
+            .OrderBy(w => w.Position)
+            .ToListAsync();
+
+        foreach (var w in subsequentWaiting)
+        {
+            w.Position -= 1;
+        }
+
+        // 記錄歷程到 LineNotificationLog
+        var tpeStart = slot != null ? ToTaipeiTime(slot.StartsAtUtc) : timestamp;
+        var progCode = slot?.CourseProgress?.Code ?? "";
+        var logMsg = $"【候補取消歷程】學生「{entry.Student?.FullName}」已取消 {tpeStart:yyyy/MM/dd HH:mm} ({progCode}) 之候補（原第 #{cancelledPos} 順位），其餘後續候補學生已自動順位遞補。";
+
+        _db.LineNotificationLogs.Add(new LineNotificationLog
+        {
+            RecipientParentUserId = entry.ParentUserId,
+            NotificationType = "WaitlistCancelled",
+            IdempotencyKey = $"waitlist-cancel-{entry.Id}-{timestamp.Ticks}",
+            MessageText = logMsg,
+            Status = "Recorded",
+            SentAtUtc = timestamp
+        });
+
+        await _db.SaveChangesAsync();
+
+        // 若剛好釋出了保留名額，自動為下一位遞補發出保留通知
+        if (wasHold && slot != null)
+        {
+            await PromoteNextWaitlistEntryAsync(slot.Id, timestamp);
+        }
+
+        return entry;
+    }
+
     public async Task<int> ProcessExpiredWaitlistHoldsAsync(DateTime? nowUtc = null)
     {
         var timestamp = nowUtc ?? DateTime.UtcNow;

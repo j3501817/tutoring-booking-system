@@ -369,6 +369,24 @@ public class IndexModel : PageModel
         return RedirectToPage(new { studentId });
     }
 
+    public async Task<IActionResult> OnPostCancelWaitlistAsync(int studentId, int waitlistEntryId)
+    {
+        var user = await GetCurrentParentOrAdminAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        try
+        {
+            await _bookingService.CancelWaitlistAsync(waitlistEntryId, user.Id);
+            TempData["SuccessMessage"] = "已成功取消該時段的候補登記，後續候補學生順位已自動向前遞補。";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToPage(new { studentId });
+    }
+
     public async Task<IActionResult> OnPostCancelBookingAsync(int studentId, int bookingId, string? cancelReason)
     {
         var user = await GetCurrentParentOrAdminAsync();

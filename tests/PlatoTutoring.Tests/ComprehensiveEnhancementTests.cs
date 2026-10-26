@@ -670,5 +670,74 @@ public class ComprehensiveEnhancementTests
             booking.JoinWaitlistAsync(slot.Id, studentUnrenewed.Id, parent.Id, "作業補正"));
         Assert.Contains("續報", exWaitUnrenewed.Message);
     }
+
+    [Fact]
+    public async Task CancelWaitlistAsync_CancelsEntry_ReordersSubsequentEntries_AndLogsHistory()
+    {
+        var (db, ledger, booking, _, _, _) = CreateServices();
+
+        var parent = new AppUser { Username = "p_test_cancel", DisplayName = "家長", Role = UserRole.Parent };
+        db.Users.Add(parent);
+
+        var s1 = new Student { FullName = "學生甲", EnrollmentStatus = StudentEnrollmentStatus.Enrolled };
+        var s2 = new Student { FullName = "學生乙", EnrollmentStatus = StudentEnrollmentStatus.Enrolled };
+        var s3 = new Student { FullName = "學生丙", EnrollmentStatus = StudentEnrollmentStatus.Enrolled };
+        db.Students.AddRange(s1, s2, s3);
+        await db.SaveChangesAsync();
+
+        var sem = new Semester { Name = "115-1", StartDate = DateOnly.FromDateTime(DateTime.UtcNow), EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(4)), IsCurrent = true };
+        db.Semesters.Add(sem);
+        await db.SaveChangesAsync();
+
+        var prog = new CourseProgress { SemesterId = sem.Id, Code = "W02", Title = "進度測試", WeekStartDate = sem.StartDate, WeekEndDate = sem.StartDate.AddDays(6) };
+        db.CourseProgresses.Add(prog);
+        await db.SaveChangesAsync();
+
+        var slot = new TutoringSlot
+        {
+            CourseProgressId = prog.Id,
+            TeacherUserId = parent.Id,
+            GradeClass = "國二",
+            SlotType = SlotType.SmallGroup,
+            StartsAtUtc = DateTime.UtcNow.AddDays(3),
+            EndsAtUtc = DateTime.UtcNow.AddDays(3).AddHours(2),
+            MaxCapacity = 4,
+            CurrentBookedCount = 4 // 滿額
+        };
+        db.TutoringSlots.Add(slot);
+        await db.SaveChangesAsync();
+
+        // 加入三位候補
+        var w1 = await booking.JoinWaitlistAsync(slot.Id, s1.Id, parent.Id, "作業補正");
+        var w2 = await booking.JoinWaitlistAsync(slot.Id, s2.Id, parent.Id, "進度落差");
+        var w3 = await booking.JoinWaitlistAsync(slot.Id, s3.Id, parent.Id, "紮根陪伴");
+
+        Assert.Equal(1, w1.Position);
+        Assert.Equal(2, w2.Position);
+        Assert.Equal(3, w3.Position);
+
+        // 取消中間的第 2 位（學生乙）
+        var cancelled = await booking.CancelWaitlistAsync(w2.Id, parent.Id, "家長臨時有事取消");
+
+        Assert.Equal(WaitlistStatus.Cancelled, cancelled.Status);
+        Assert.NotNull(cancelled.CancelledAtUtc);
+        Assert.Equal("家長臨時有事取消", cancelled.CancelReason);
+
+        // 重新讀取 w1 與 w3
+        var reW1 = await db.WaitlistEntries.FindAsync(w1.Id);
+        var reW3 = await db.WaitlistEntries.FindAsync(w3.Id);
+
+        Assert.NotNull(reW1);
+        Assert.Equal(1, reW1.Position); // 順位 1 不受影響
+
+        Assert.NotNull(reW3);
+        Assert.Equal(2, reW3.Position); // 順位 3 自動向前遞補變為 2
+
+        // 檢查歷程有寫入 LineNotificationLog
+        var log = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "WaitlistCancelled");
+        Assert.NotNull(log);
+        Assert.Contains("學生乙", log.MessageText);
+        Assert.Contains("原第 #2 順位", log.MessageText);
+    }
 }
 
