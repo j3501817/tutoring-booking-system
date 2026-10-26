@@ -373,6 +373,13 @@ BEGIN
     IF COL_LENGTH('BK_Users', 'IsProxyAdmin') IS NULL
         ALTER TABLE [BK_Users] ADD [IsProxyAdmin] bit NOT NULL CONSTRAINT [DF_BK_Users_IsProxyAdmin] DEFAULT 0;
 END
+IF OBJECT_ID(N'[BK_WaitlistEntries]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('BK_WaitlistEntries', 'CancelledAtUtc') IS NULL
+        ALTER TABLE [BK_WaitlistEntries] ADD [CancelledAtUtc] datetime2 NULL;
+    IF COL_LENGTH('BK_WaitlistEntries', 'CancelReason') IS NULL
+        ALTER TABLE [BK_WaitlistEntries] ADD [CancelReason] nvarchar(200) NULL;
+END
 IF OBJECT_ID(N'[BK_FieldOptions]', N'U') IS NULL
 BEGIN
     CREATE TABLE [BK_FieldOptions] (
@@ -464,6 +471,8 @@ CREATE TABLE IF NOT EXISTS BK_StudentStatusLogs (
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Students\" ADD COLUMN IF NOT EXISTS \"EnrollmentStatus\" int NOT NULL DEFAULT 1;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"Subjects\" varchar(200) NOT NULL DEFAULT '';"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_Users\" ADD COLUMN IF NOT EXISTS \"IsProxyAdmin\" boolean NOT NULL DEFAULT false;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_WaitlistEntries\" ADD COLUMN IF NOT EXISTS \"CancelledAtUtc\" timestamptz NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"BK_WaitlistEntries\" ADD COLUMN IF NOT EXISTS \"CancelReason\" varchar(200) NULL;"); } catch { }
             try
             {
                 await db.Database.ExecuteSqlRawAsync(@"
