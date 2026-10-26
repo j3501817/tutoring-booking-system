@@ -533,6 +533,17 @@ public class CreditLedgerService
             breakdowns.Add($"批次 #{b.Id} ({b.RemittanceDate:yyyy-MM-dd})：剩餘 {b.RemainingPaidCredits} 堂 × 單價 NT${b.UnitPriceNtd:N0} = NT${subTotal:N0}");
         }
 
+        // 容錯防呆與期初資料同步：若學生主檔付費堂數大於現存儲值批次餘額總和，以基準單價 NT$500 補足結算試算
+        if (student.PaidCredits > totalPaidCredits)
+        {
+            var unbatchedCredits = student.PaidCredits - totalPaidCredits;
+            var fallbackUnitPrice = batches.LastOrDefault()?.UnitPriceNtd > 0 ? batches.LastOrDefault()!.UnitPriceNtd : 500m;
+            var unbatchedSubTotal = unbatchedCredits * fallbackUnitPrice;
+            totalRefund += unbatchedSubTotal;
+            totalPaidCredits += unbatchedCredits;
+            breakdowns.Add($"系統期初付費堂數：剩餘 {unbatchedCredits} 堂 × 基準單價 NT${fallbackUnitPrice:N0} = NT${unbatchedSubTotal:N0}");
+        }
+
         return new DropoutSettlementPreview(
             student.Id,
             student.FullName,

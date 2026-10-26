@@ -509,4 +509,62 @@ public class ComprehensiveEnhancementTests
         Assert.True(sem1.IsCurrent); // 觸發防呆保護，強制維持唯一進行中學期！
         Assert.Equal(1, await db.Semesters.CountAsync(s => s.IsCurrent));
     }
+
+    [Fact]
+    public async Task PreviewDropoutSettlement_AutoReconciles_WhenStudentHasUnbatchedPaidCredits()
+    {
+        var (db, ledger, _, _, _, _) = CreateServices();
+        var admin = new AppUser { Username = "admin_settle", DisplayName = "主任", Role = UserRole.Admin };
+        db.Users.Add(admin);
+
+        // 學生帳戶在主檔有 10 堂付費堂數，但儲值批次只有 1 筆 4 堂（缺 6 堂批次資料）
+        var student = new Student
+        {
+            FullName = "資料缺漏生",
+            PaidCredits = 10,
+            BonusCredits = 2,
+            GradeClass = "國二A班",
+            EnrollmentDate = new DateOnly(2026, 9, 1),
+            EnrollmentStatus = StudentEnrollmentStatus.Enrolled
+        };
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        var batch = new TopUpBatch
+        {
+            StudentId = student.Id,
+            RecordedByTeacherId = admin.Id,
+            AmountNtd = 2400m,
+            CreditsAdded = 4,
+            UnitPriceNtd = 600m,
+            RemainingPaidCredits = 4,
+            RemittanceDate = new DateOnly(2026, 9, 1),
+            AccountLastFiveDigits = "12345",
+            Note = "首批 4 堂",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        db.TopUpBatches.Add(batch);
+        await db.SaveChangesAsync();
+
+        // 試算退班結算
+        var preview = await ledger.PreviewDropoutSettlementAsync(student.Id);
+
+        // 驗證：可退付費堂數必須與學生主檔可用付費堂數 (10 堂) 完全一致！
+        Assert.Equal(10, preview.TotalRefundablePaidCredits);
+        // 金額：4 * 600 (2400) + 6 * 600 (3600) = 6000
+        Assert.Equal(6000m, preview.TotalRefundAmountNtd);
+        Assert.Equal(2, preview.RemainingBonusCreditsToForfeit);
+        Assert.Equal(2, preview.BatchBreakdowns.Count);
+
+        // 執行退班結算
+        var settlement = await ledger.ExecuteDropoutSettlementAsync(student.Id, admin.Id, "測試退班");
+        await db.Entry(student).ReloadAsync();
+
+        Assert.Equal(0, student.PaidCredits);
+        Assert.Equal(0, student.BonusCredits);
+        Assert.True(student.IsDroppedOut);
+        Assert.Equal(StudentEnrollmentStatus.DroppedOut, student.EnrollmentStatus);
+        Assert.Equal(10, settlement.TotalRefundablePaidCredits);
+        Assert.Equal(6000m, settlement.CalculatedRefundAmountNtd);
+    }
 }

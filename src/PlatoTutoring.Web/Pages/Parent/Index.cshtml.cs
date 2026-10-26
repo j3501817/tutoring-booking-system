@@ -84,7 +84,7 @@ public class IndexModel : PageModel
             .OrderBy(f => f.SortOrder)
             .ToListAsync();
 
-        if (user.Role == UserRole.Admin)
+        if (user.Role == UserRole.Admin || user.Role == UserRole.Teacher)
         {
             AuthorizedStudents = await _db.Students
                 .Where(s => !s.IsDroppedOut)
