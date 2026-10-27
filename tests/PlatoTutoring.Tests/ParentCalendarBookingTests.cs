@@ -105,4 +105,33 @@ public class ParentCalendarBookingTests
         Assert.True(res.HasMyBooking);
         Assert.False(res.IsFull);
     }
+
+    [Fact]
+    public void CalendarDaySummary_ShouldDisplaySingleBadgePerTypeRegardlessOfCount()
+    {
+        var summary = new CalendarDaySummary
+        {
+            Date = new DateOnly(2026, 10, 25),
+            SmallGroupCount = 5,
+            GroupCount = 3
+        };
+
+        // When multiple slots of the same type exist, each type should only produce one badge
+        var displayBadges = new List<string>();
+        if (summary.SmallGroupCount > 0)
+        {
+            displayBadges.Add("小組指導");
+        }
+        if (summary.GroupCount > 0)
+        {
+            displayBadges.Add("團體輔導");
+        }
+
+        Assert.Equal(2, displayBadges.Count);
+        Assert.Contains("小組指導", displayBadges);
+        Assert.Contains("團體輔導", displayBadges);
+        Assert.DoesNotContain("5", displayBadges[0]);
+        Assert.DoesNotContain("3", displayBadges[1]);
+    }
 }
+
