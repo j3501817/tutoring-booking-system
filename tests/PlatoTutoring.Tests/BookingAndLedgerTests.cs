@@ -570,6 +570,48 @@ public class BookingAndLedgerTests
         Assert.Equal(0, afterCancelStudent!.PaidCredits);
         Assert.Equal(0, afterCancelStudent.BonusCredits);
     }
+
+    [Fact]
+    public async Task EnsureCreditBatchesAndLedgerConsistent_FixesBothPaidAndBonusDiscrepancies()
+    {
+        var (db, ledger, _, _) = CreateTestServices();
+
+        var admin = new AppUser { Username = "admin1", PasswordHash = "pw", DisplayName = "管理員", Role = UserRole.Admin };
+        db.Users.Add(admin);
+
+        // 模擬林小明 (主檔付費8, 贈送3; 但無儲值批次, 且流水帳贈送合計為0)
+        var s1 = new Student { FullName = "林小明", GradeClass = "國三A班", EnrollmentDate = new DateOnly(2026, 9, 1), PaidCredits = 8, BonusCredits = 3 };
+        db.Students.Add(s1);
+        await db.SaveChangesAsync();
+
+        // 建立初始流水帳僅有付費8堂，贈送為0 (模擬資料不一致情境)
+        db.CreditLedgerEntries.Add(new CreditLedgerEntry
+        {
+            StudentId = s1.Id,
+            TransactionType = LedgerTransactionType.TopUpPaid,
+            PaidDelta = 8,
+            BonusDelta = 0,
+            PaidBalanceAfter = 8,
+            BonusBalanceAfter = 3,
+            ReferenceNote = "初始付費",
+            OperatorName = "測試",
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        // 執行對帳應發現異常 (缺少儲值批次8堂，缺少贈送流水帳3堂)
+        var discrepanciesBefore = await ledger.RunNightlyReconciliationAsync();
+        Assert.NotEmpty(discrepanciesBefore);
+        Assert.Contains(discrepanciesBefore, d => d.StudentId == s1.Id);
+
+        // 執行一鍵自動同步校準
+        await DbInitializer.EnsureCreditBatchesAndLedgerConsistentAsync(db);
+
+        // 重新對帳應 100% 吻合 (0 筆異常)
+        var discrepanciesAfter = await ledger.RunNightlyReconciliationAsync();
+        Assert.Empty(discrepanciesAfter);
+    }
 }
+
 
 
