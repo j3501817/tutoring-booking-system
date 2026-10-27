@@ -201,6 +201,8 @@
                             <ul class="sidebar-subnav">
                                 <li><a class="sidebar-subnav-link" href="#tab-student-parent" onclick="activateWorkspaceTab('tab-student-parent')"><i class="bi bi-mortarboard"></i>學生與家長管理</a></li>
                                 <li><a class="sidebar-subnav-link" href="#tab-teachers" onclick="activateWorkspaceTab('tab-teachers')"><i class="bi bi-easel2"></i>老師管理</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-member-accounts" onclick="activateWorkspaceTab('tab-member-accounts')"><i class="bi bi-shield-lock"></i>帳號與學生綁定</a></li>
+                                <li><a class="sidebar-subnav-link" href="#tab-member-semester" onclick="activateWorkspaceTab('tab-member-semester')"><i class="bi bi-calendar-range"></i>學期與每週進度</a></li>
                             </ul>
                         }
                     </li>
@@ -216,9 +218,6 @@
                         @if (IsActive("/Admin"))
                         {
                             <ul class="sidebar-subnav">
-                                <li><a class="sidebar-subnav-link" href="#tab-admin-accounts" onclick="activateWorkspaceTab('tab-admin-accounts')"><i class="bi bi-shield-lock"></i>帳號與學生綁定</a></li>
-                                <li><a class="sidebar-subnav-link" href="#tab-admin-semester" onclick="activateWorkspaceTab('tab-admin-semester')"><i class="bi bi-calendar-range"></i>學期與每週進度</a></li>
-                                <li><a class="sidebar-subnav-link" href="#tab-admin-students" onclick="activateWorkspaceTab('tab-admin-students')"><i class="bi bi-person-plus"></i>學生與到班目的</a></li>
                                 <li><a class="sidebar-subnav-link" href="#tab-admin-dropout" onclick="activateWorkspaceTab('tab-admin-dropout')"><i class="bi bi-calculator"></i>退班批次結算</a></li>
                                 <li><a class="sidebar-subnav-link" href="#tab-admin-audit" onclick="activateWorkspaceTab('tab-admin-audit')"><i class="bi bi-journal-code"></i>流水帳與 LINE 稽核</a></li>
                             </ul>

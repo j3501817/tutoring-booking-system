@@ -687,7 +687,7 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
         }
     }
 
-    private static async Task EnsureCreditBatchesAndLedgerConsistentAsync(AppDbContext db)
+    public static async Task EnsureCreditBatchesAndLedgerConsistentAsync(AppDbContext db)
     {
         try
         {

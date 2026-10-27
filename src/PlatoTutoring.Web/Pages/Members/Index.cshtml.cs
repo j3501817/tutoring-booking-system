@@ -35,6 +35,9 @@ public class IndexModel : PageModel
     public List<Student> Students { get; set; } = new();
     public List<AppUser> Parents { get; set; } = new();
     public List<AppUser> Teachers { get; set; } = new();
+    public List<AppUser> AllUsers { get; set; } = new();
+    public Semester? CurrentSemester { get; set; }
+    public List<CourseProgress> AllProgresses { get; set; } = new();
     public List<ParentStudentLink> AllLinks { get; set; } = new();
     public Dictionary<int, int> TeacherSlotCounts { get; set; } = new();
 
@@ -91,8 +94,13 @@ public class IndexModel : PageModel
             .OrderBy(u => u.Id)
             .ToListAsync();
 
+        AllUsers = allUsers;
         Parents = allUsers.Where(u => u.Role == UserRole.Parent).ToList();
         Teachers = allUsers.Where(u => u.Role == UserRole.Teacher).ToList();
+
+        CurrentSemester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        AllProgresses = await _db.CourseProgresses.OrderByDescending(p => p.Id).ToListAsync();
 
         AllLinks = await _db.ParentStudentLinks
             .Include(l => l.ParentUser)
@@ -818,6 +826,197 @@ public class IndexModel : PageModel
         }
 
         return Redirect("/Members#tab-teachers");
+    }
+
+    public async Task<IActionResult> OnPostCreateUserAsync(
+        string username,
+        string password,
+        string displayName,
+        UserRole role,
+        string? phone,
+        string? lineUserId,
+        int? linkStudentId,
+        string? relationship)
+    {
+        var cleanUsername = username.Trim();
+        if (await _db.Users.AnyAsync(u => u.Username == cleanUsername))
+        {
+            TempData["ErrorMessage"] = $"登入帳號「{cleanUsername}」已存在，請使用其他帳號名稱。";
+            return Redirect("/Members#tab-member-accounts");
+        }
+
+        try
+        {
+            var newUser = new AppUser
+            {
+                Username = cleanUsername,
+                PasswordHash = PasswordHelper.HashPassword(password),
+                DisplayName = displayName.Trim(),
+                Role = role,
+                Phone = phone?.Trim() ?? string.Empty,
+                LineUserId = string.IsNullOrWhiteSpace(lineUserId) ? null : lineUserId.Trim(),
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            _db.Users.Add(newUser);
+            await _db.SaveChangesAsync();
+
+            if (role == UserRole.Parent && linkStudentId.HasValue && linkStudentId.Value > 0)
+            {
+                _db.ParentStudentLinks.Add(new ParentStudentLink
+                {
+                    ParentUserId = newUser.Id,
+                    StudentId = linkStudentId.Value,
+                    Relationship = string.IsNullOrWhiteSpace(relationship) ? "家長" : relationship.Trim()
+                });
+                await _db.SaveChangesAsync();
+            }
+
+            TempData["SuccessMessage"] = $"已建立 {role} 登入帳號：「{newUser.DisplayName} ({newUser.Username})」！";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return Redirect("/Members#tab-member-accounts");
+    }
+
+    public async Task<IActionResult> OnPostResetPasswordAsync(
+        int targetUserId,
+        string newPassword,
+        string? phone,
+        string? lineUserId)
+    {
+        var user = await _db.Users.FindAsync(targetUserId);
+        if (user == null)
+        {
+            TempData["ErrorMessage"] = "找不到指定的帳號。";
+            return Redirect("/Members#tab-member-accounts");
+        }
+
+        if (!string.IsNullOrWhiteSpace(newPassword))
+        {
+            user.PasswordHash = PasswordHelper.HashPassword(newPassword.Trim());
+        }
+
+        if (phone != null)
+        {
+            user.Phone = phone.Trim();
+        }
+
+        if (lineUserId != null)
+        {
+            user.LineUserId = string.IsNullOrWhiteSpace(lineUserId) ? null : lineUserId.Trim();
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"已更新帳號「{user.DisplayName} ({user.Username})」的密碼與聯絡設定。";
+        return Redirect("/Members#tab-member-accounts");
+    }
+
+    public async Task<IActionResult> OnPostLinkParentStudentAsync(
+        int parentUserId,
+        int studentId,
+        string? relationship)
+    {
+        var exists = await _db.ParentStudentLinks.AnyAsync(l =>
+            l.ParentUserId == parentUserId && l.StudentId == studentId);
+
+        if (exists)
+        {
+            TempData["ErrorMessage"] = "該家長帳號已經綁定此學生，無須重複綁定。";
+            return Redirect("/Members#tab-member-accounts");
+        }
+
+        _db.ParentStudentLinks.Add(new ParentStudentLink
+        {
+            ParentUserId = parentUserId,
+            StudentId = studentId,
+            Relationship = string.IsNullOrWhiteSpace(relationship) ? "家長" : relationship.Trim()
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = "已成功新增「家長 ↔ 學生」授權綁定關係！";
+        return Redirect("/Members#tab-member-accounts");
+    }
+
+    public async Task<IActionResult> OnPostUnlinkParentStudentAsync(int linkId)
+    {
+        var link = await _db.ParentStudentLinks.FindAsync(linkId);
+        if (link != null)
+        {
+            _db.ParentStudentLinks.Remove(link);
+            await _db.SaveChangesAsync();
+            TempData["SuccessMessage"] = "已解除該筆家長與學生的綁定關聯。";
+        }
+        return Redirect("/Members#tab-member-accounts");
+    }
+
+    public async Task<IActionResult> OnPostSwitchCurrentProgressAsync(int progressId)
+    {
+        var all = await _db.CourseProgresses.ToListAsync();
+        foreach (var p in all)
+        {
+            p.IsCurrentProgress = (p.Id == progressId);
+        }
+        await _db.SaveChangesAsync();
+
+        var active = all.FirstOrDefault(p => p.Id == progressId);
+        TempData["SuccessMessage"] = $"已切換目前開放預約進度為：{active?.Code} {active?.Title}";
+        return Redirect("/Members#tab-member-semester");
+    }
+
+    public async Task<IActionResult> OnPostCreateProgressAsync(
+        string code,
+        string title,
+        string gradeClass,
+        DateOnly weekStartDate,
+        DateOnly weekEndDate,
+        bool setAsCurrent)
+    {
+        var sem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        if (sem == null)
+        {
+            TempData["ErrorMessage"] = "請先設定學期。";
+            return Redirect("/Members#tab-member-semester");
+        }
+
+        if (setAsCurrent)
+        {
+            var existing = await _db.CourseProgresses.ToListAsync();
+            foreach (var p in existing) p.IsCurrentProgress = false;
+        }
+
+        _db.CourseProgresses.Add(new CourseProgress
+        {
+            SemesterId = sem.Id,
+            Code = code.Trim(),
+            Title = title.Trim(),
+            GradeClass = gradeClass.Trim(),
+            WeekStartDate = weekStartDate,
+            WeekEndDate = weekEndDate,
+            IsCurrentProgress = setAsCurrent
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = $"已建立每週課程進度「{code} {title}」！";
+        return Redirect("/Members#tab-member-semester");
+    }
+
+    public async Task<IActionResult> OnPostEndSemesterBonusExpiryAsync()
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return RedirectToPage("/Account/Login");
+
+        var sem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
+            ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        if (sem == null) return Redirect("/Members#tab-member-semester");
+
+        var count = await _ledgerService.ExpireAllBonusCreditsForSemesterEndAsync(sem.Id, user.Id);
+        TempData["SuccessMessage"] = $"已執行學期結束贈送堂數歸零，共清除 {count} 位學生的未用贈送堂數並寫入稽核流水帳。";
+        return Redirect("/Members#tab-member-semester");
     }
 
     private async Task<AppUser?> GetCurrentUserAsync()

@@ -441,6 +441,16 @@ public class IndexModel : PageModel
         return Redirect("/Admin#tab-admin-audit");
     }
 
+    public async Task<IActionResult> OnPostSyncReconciliationFixAsync()
+    {
+        var admin = await GetCurrentAdminAsync();
+        if (admin == null) return RedirectToPage("/Account/Login");
+
+        await DbInitializer.EnsureCreditBatchesAndLedgerConsistentAsync(_db);
+        TempData["SuccessMessage"] = "已成功執行系統堂數三方對帳自動同步校準！所有學生主檔、流水帳與批次餘額已自動補齊校準。";
+        return Redirect("/Admin#tab-admin-dropout");
+    }
+
     public override async Task OnPageHandlerExecutionAsync(
         Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutingContext context,
         Microsoft.AspNetCore.Mvc.Filters.PageHandlerExecutionDelegate next)

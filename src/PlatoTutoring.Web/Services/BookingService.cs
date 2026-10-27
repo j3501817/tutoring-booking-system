@@ -483,34 +483,122 @@ public class BookingService
         if (slot == null || slot.RemainingSeats <= 0 || slot.StartsAtUtc <= timestamp)
             return null;
 
-        var nextWaiting = await _db.WaitlistEntries
-            .Include(w => w.Student)
-            .Where(w => w.TutoringSlotId == slotId && w.Status == WaitlistStatus.Waiting)
-            .OrderBy(w => w.Position)
-            .FirstOrDefaultAsync();
+        while (slot.RemainingSeats > 0)
+        {
+            var nextWaiting = await _db.WaitlistEntries
+                .Include(w => w.Student)
+                .Where(w => w.TutoringSlotId == slotId && w.Status == WaitlistStatus.Waiting)
+                .OrderBy(w => w.Position)
+                .FirstOrDefaultAsync();
 
-        if (nextWaiting == null)
-            return null;
+            if (nextWaiting == null)
+                return null;
 
-        nextWaiting.Status = WaitlistStatus.NotifiedHold;
-        nextWaiting.NotifiedAtUtc = timestamp;
-        nextWaiting.HoldExpiresAtUtc = timestamp.AddMinutes(30);
+            var student = nextWaiting.Student;
+            if (student == null || student.IsDroppedOut)
+            {
+                nextWaiting.Status = WaitlistStatus.Expired;
+                await _db.SaveChangesAsync();
+                continue;
+            }
 
-        // 保留名額 30 分鐘，避免其他人超賣搶走
-        slot.CurrentBookedCount += 1;
-        await _db.SaveChangesAsync();
+            // 檢查重複預約（同一進度小組指導限 1 堂）
+            var hasConflict = false;
+            if (slot.SlotType == SlotType.SmallGroup)
+            {
+                var hasOtherSmallGroup = await _db.Bookings
+                    .Include(b => b.TutoringSlot)
+                    .AnyAsync(b => b.StudentId == student.Id
+                                   && b.Status == BookingStatus.Confirmed
+                                   && b.TutoringSlot != null
+                                   && b.TutoringSlot.CourseProgressId == slot.CourseProgressId
+                                   && b.TutoringSlot.SlotType == SlotType.SmallGroup);
+                if (hasOtherSmallGroup)
+                {
+                    hasConflict = true;
+                }
+            }
 
-        var tpeStart = ToTaipeiTime(slot.StartsAtUtc);
-        var expTpe = ToTaipeiTime(nextWaiting.HoldExpiresAtUtc.Value);
-        await _lineService.SendToStudentParentsAsync(
-            nextWaiting.StudentId,
-            "WaitlistHold30m",
-            $"waitlist-hold:{nextWaiting.Id}:{timestamp.Ticks}",
-            $"【候補釋出通知】{nextWaiting.Student?.FullName} 候補之「{slot.CourseProgress?.Code} ({tpeStart:MM/dd HH:mm})」已釋出名額！系統為您保留 30 分鐘（至 {expTpe:HH:mm}），請立即登入網站點擊確認轉為正式預約。",
-            $"/Parent?studentId={nextWaiting.StudentId}",
-            timestamp);
+            var creditsNeeded = slot.SlotType == SlotType.SmallGroup ? 1 : 0;
+            if (hasConflict || (creditsNeeded > 0 && student.TotalCredits < creditsNeeded))
+            {
+                // 堂數不足或已有相同進度預約，將其標為失效並遞補下一位
+                nextWaiting.Status = WaitlistStatus.Expired;
+                nextWaiting.CancelReason = hasConflict ? "該進度已有小組指導預約，無法重複遞補" : "剩餘堂數不足，無法自動扣堂遞補";
+                await _db.SaveChangesAsync();
+                continue;
+            }
 
-        return nextWaiting;
+            // 直接轉為正式預約並扣堂
+            nextWaiting.Status = WaitlistStatus.ConfirmedToBooking;
+            nextWaiting.ConfirmedAtUtc = timestamp;
+            slot.CurrentBookedCount += 1;
+
+            var booking = new Booking
+            {
+                TutoringSlotId = slot.Id,
+                StudentId = student.Id,
+                CreatedByUserId = nextWaiting.ParentUserId,
+                CreatedByName = student.FullName + " 家長(候補自動轉正)",
+                CreatedByRole = UserRole.Parent,
+                PurposeName = nextWaiting.PurposeName,
+                Status = BookingStatus.Confirmed,
+                CreditsDeducted = creditsNeeded,
+                AttendanceStatus = AttendanceStatus.Pending,
+                CreatedAtUtc = timestamp
+            };
+            _db.Bookings.Add(booking);
+            await _db.SaveChangesAsync();
+
+            if (creditsNeeded > 0)
+            {
+                var tpeS = ToTaipeiTime(slot.StartsAtUtc);
+                var summary = $"候補自動轉正 {slot.CourseProgress?.Code} {tpeS:MM/dd HH:mm}";
+                var (bonusUsed, paidUsed) = await _ledgerService.DeductCreditsForBookingAsync(
+                    student.Id,
+                    creditsNeeded,
+                    booking.Id,
+                    nextWaiting.ParentUserId,
+                    "系統候補自動轉正",
+                    summary,
+                    timestamp);
+
+                booking.BonusCreditsUsed = bonusUsed;
+                booking.PaidCreditsUsed = paidUsed;
+                await _db.SaveChangesAsync();
+            }
+
+            // 同時段其餘候補學生順位往前遞補
+            var subsequent = await _db.WaitlistEntries
+                .Where(w => w.TutoringSlotId == slotId && w.Status == WaitlistStatus.Waiting && w.Position > nextWaiting.Position)
+                .OrderBy(w => w.Position)
+                .ToListAsync();
+            foreach (var w in subsequent)
+            {
+                w.Position = Math.Max(1, w.Position - 1);
+            }
+            await _db.SaveChangesAsync();
+
+            // 發送 LINE 候補直接轉正通知
+            try
+            {
+                var tpeStart = ToTaipeiTime(slot.StartsAtUtc);
+                var tpeTime = FormatTaipeiDateTimeZh(slot.StartsAtUtc);
+                var progTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim();
+                await _lineService.SendToStudentParentsAsync(
+                    student.Id,
+                    "WaitlistPromotedAuto",
+                    $"waitlist-auto-promote:{nextWaiting.Id}:{timestamp.Ticks}",
+                    $"【候補成功轉正通知】{student.FullName} 候補之「{progTitle} ({tpeStart:MM/dd HH:mm})」已成功自動遞補為正式預約！已扣抵 {creditsNeeded} 堂課，請準時出席。",
+                    $"/Parent?studentId={student.Id}",
+                    timestamp);
+            }
+            catch { }
+
+            return nextWaiting;
+        }
+
+        return null;
     }
 
     public async Task<Booking> ConfirmWaitlistHoldAsync(

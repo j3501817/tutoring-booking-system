@@ -162,22 +162,26 @@ public class BookingAndLedgerTests
         var w2 = await booking.JoinWaitlistAsync(slot.Id, s2.Id, p2User.Id, "考前複習", t0.AddMinutes(1));
         var w3 = await booking.JoinWaitlistAsync(slot.Id, s3.Id, p3User.Id, "錯題訂正", t0.AddMinutes(2));
 
-        // s1 取消預約 → 自動通知第 1 順位 s2 並保留 30 分鐘
+        // s1 取消預約 → 名額釋出後直接自動補上轉為正式預約並扣堂，後續候補學生自動推進順位
         await booking.CancelBookingAsync(b1.Id, p1User.Id, "改期", t0.AddMinutes(10));
-        Assert.Equal(WaitlistStatus.NotifiedHold, w2.Status);
-        Assert.Equal(1, slot.CurrentBookedCount); // 保留名額中
 
-        // 31 分鐘後 s2 未確認 → 逾時自動輪替給第 2 順位 s3
-        var rotated = await booking.ProcessExpiredWaitlistHoldsAsync(t0.AddMinutes(41));
-        Assert.Equal(1, rotated);
-        Assert.Equal(WaitlistStatus.Expired, w2.Status);
-        Assert.Equal(WaitlistStatus.NotifiedHold, w3.Status);
+        // 重新讀取驗證
+        var reloadedW2 = await db.WaitlistEntries.FindAsync(w2.Id);
+        var reloadedW3 = await db.WaitlistEntries.FindAsync(w3.Id);
+        var reloadedS2 = await db.Students.FindAsync(s2.Id);
+        var autoBookingForS2 = await db.Bookings.FirstOrDefaultAsync(b => b.TutoringSlotId == slot.Id && b.StudentId == s2.Id);
 
-        // s3 在 30 分鐘內回網站確認 → 轉為正式預約並扣 1 堂
-        var confirmedBooking = await booking.ConfirmWaitlistHoldAsync(w3.Id, p3User.Id, t0.AddMinutes(50));
-        Assert.Equal(BookingStatus.Confirmed, confirmedBooking.Status);
-        Assert.Equal(WaitlistStatus.ConfirmedToBooking, w3.Status);
-        Assert.Equal(0, s3.PaidCredits);
+        Assert.NotNull(reloadedW2);
+        Assert.Equal(WaitlistStatus.ConfirmedToBooking, reloadedW2!.Status);
+        Assert.NotNull(autoBookingForS2);
+        Assert.Equal(BookingStatus.Confirmed, autoBookingForS2!.Status);
+        Assert.Equal(0, reloadedS2!.PaidCredits); // 自動補上直接扣抵 1 堂
+        Assert.Equal(1, slot.CurrentBookedCount);
+
+        // s3 順位推進至第 1 順位
+        Assert.NotNull(reloadedW3);
+        Assert.Equal(1, reloadedW3!.Position);
+        Assert.Equal(WaitlistStatus.Waiting, reloadedW3.Status);
     }
 
     [Fact]

@@ -711,7 +711,7 @@ else if (student != null)
                         <i class="bi bi-dot text-primary"></i>開課前 <strong>24 小時（含）以上</strong>取消自動退還扣抵堂數；未滿 24 小時取消不退堂。
                     </div>
                     <div class="col-12 col-md-4">
-                        <i class="bi bi-dot text-primary"></i>名額額滿可登記候補，釋出空位時將發送 LINE 通知並為您保留 <strong>30 分鐘</strong>。
+                        <i class="bi bi-dot text-primary"></i>名額額滿可登記候補，釋出空位時系統將依順位直接自動補上轉正、扣堂並發送 LINE 推播通知。
                     </div>
                 </div>
             </div>
@@ -889,10 +889,8 @@ else if (student != null)
                                             else
                                             {
                                                 var w = item.Waitlist!;
-                                                var isHold = w.Status == WaitlistStatus.NotifiedHold;
-                                                var holdUntilTpe = w.HoldExpiresAtUtc.HasValue ? BookingService.ToTaipeiTime(w.HoldExpiresAtUtc.Value) : (DateTime?)null;
 
-                                                <tr class="@(isHold ? "table-warning" : "")">
+                                                <tr>
                                                     <td data-label="時段與進度">
                                                         <div>
                                                             <div class="fw-bold text-dark">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
@@ -909,54 +907,27 @@ else if (student != null)
                                                     </td>
                                                     <td data-label="扣堂明細">
                                                         <span class="small text-muted">
-                                                            <i class="bi bi-info-circle me-1"></i>候補免先扣堂 (確認轉正時扣 1 堂)
+                                                            <i class="bi bi-info-circle me-1"></i>候補免先扣堂（釋出空位直接自動補上扣 1 堂）
                                                         </span>
                                                     </td>
                                                     <td data-label="狀態 / 順位">
-                                                        @if (isHold)
-                                                        {
-                                                            <div>
-                                                                <span class="badge bg-danger">
-                                                                    <i class="bi bi-clock-history me-1"></i>名額保留中 (30分鐘)
-                                                                </span>
-                                                                <div class="small text-danger fw-bold mt-1">
-                                                                    保留至 @(holdUntilTpe?.ToString("HH:mm")) 止
-                                                                </div>
+                                                        <div>
+                                                            <span class="badge bg-warning text-dark">
+                                                                <i class="bi bi-hourglass-split me-1"></i>排隊候補中
+                                                            </span>
+                                                            <div class="small text-primary fw-bold mt-1">
+                                                                順位：第 @w.Position 位
                                                             </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <div>
-                                                                <span class="badge bg-warning text-dark">
-                                                                    <i class="bi bi-hourglass-split me-1"></i>排隊候補中
-                                                                </span>
-                                                                <div class="small text-primary fw-bold mt-1">
-                                                                    順位：第 @w.Position 位
-                                                                </div>
-                                                            </div>
-                                                        }
+                                                        </div>
                                                     </td>
                                                     <td data-label="操作">
-                                                        <div class="d-flex flex-column gap-2">
-                                                            @if (isHold)
-                                                            {
-                                                                <form method="post" asp-page-handler="ConfirmWaitlist">
-                                                                    <input type="hidden" name="studentId" value="@student.Id" />
-                                                                    <input type="hidden" name="waitlistEntryId" value="@w.Id" />
-                                                                    <button type="submit" class="btn btn-sm btn-success fw-bold w-100 shadow-sm" onclick="return confirm('確定要確認轉正此預約嗎？系統將扣除 1 堂課並正式加入該時段。');">
-                                                                        <i class="bi bi-check-circle me-1"></i>確認轉正預約
-                                                                    </button>
-                                                                </form>
-                                                            }
-
-                                                            <form method="post" asp-page-handler="CancelWaitlist">
-                                                                <input type="hidden" name="studentId" value="@student.Id" />
-                                                                <input type="hidden" name="waitlistEntryId" value="@w.Id" />
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('確定要取消候補此時段嗎？取消後將釋出順位並重新調整其他候補學生。');">
-                                                                    <i class="bi bi-x-circle me-1"></i>取消候補
-                                                                </button>
-                                                            </form>
-                                                        </div>
+                                                        <form method="post" asp-page-handler="CancelWaitlist">
+                                                            <input type="hidden" name="studentId" value="@student.Id" />
+                                                            <input type="hidden" name="waitlistEntryId" value="@w.Id" />
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('確定要取消候補此時段嗎？取消後將釋出順位並重新調整其他候補學生。');">
+                                                                <i class="bi bi-x-circle me-1"></i>取消候補
+                                                            </button>
+                                                        </form>
                                                     </td>
                                                 </tr>
                                             }

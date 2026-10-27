@@ -83,7 +83,6 @@
                     data-bs-target="#tab-teacher-rollcall" type="button" role="tab">
                 <i class="bi bi-person-check-fill"></i>
                 <span>今日課堂點名</span>
-                <span class="workspace-tab-count">@Model.AllConfirmedBookings.Count</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -91,7 +90,6 @@
                     data-bs-target="#tab-teacher-topup" type="button" role="tab">
                 <i class="bi bi-cash-coin"></i>
                 <span>儲值與堂數調整</span>
-                <span class="workspace-tab-count">@Model.RecentTopUps.Count</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -99,7 +97,6 @@
                     data-bs-target="#tab-teacher-slots" type="button" role="tab">
                 <i class="bi bi-calendar-plus-fill"></i>
                 <span>時段排課與代約</span>
-                <span class="workspace-tab-count">@Model.Slots.Count</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -107,7 +104,6 @@
                     data-bs-target="#tab-teacher-homework" type="button" role="tab">
                 <i class="bi bi-bell-fill"></i>
                 <span>作業追蹤與催促</span>
-                <span class="workspace-tab-count">@unresolvedHwCount</span>
             </button>
         </li>
     </ul>
@@ -1277,7 +1273,7 @@
                                 <i class="bi bi-hourglass-split text-warning me-1"></i>候補名單
                                 <span class="badge bg-warning text-dark ms-1" id="rosterWaitlistBadge">0 人</span>
                             </h6>
-                            <span class="small text-muted">依登記時間依序候補；若有名額釋出將依序保留並發送通知</span>
+                            <span class="small text-muted">依登記時間依序排隊；若有名額釋出將依順位直接自動補上轉正並推播通知</span>
                         </div>
                         <div class="table-responsive border rounded bg-white">
                             <table class="table table-hover align-middle mb-0 text-nowrap">

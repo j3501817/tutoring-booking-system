@@ -1,7 +1,35 @@
 @page
 @model PlatoTutoring.Web.Pages.Admin.IndexModel
+@using PlatoTutoring.Web.Models
+@using PlatoTutoring.Web.Services
 @{
-    ViewData["Title"] = "管理員營運、帳號權限與月報表中心";
+    ViewData["Title"] = "管理員營運與月報表中心";
+}
+@functions {
+    string GetTransactionTypeName(LedgerTransactionType type) => type switch
+    {
+        LedgerTransactionType.TopUpPaid => "儲值付費堂數",
+        LedgerTransactionType.SemesterBonusGrant => "學期贈送核發",
+        LedgerTransactionType.ManualBonusGrant => "人工贈送核發",
+        LedgerTransactionType.BookingDeduct => "預約扣抵堂數",
+        LedgerTransactionType.CancelRefund => "取消全額退回",
+        LedgerTransactionType.AdjustmentReversal => "沖正調整記錄",
+        LedgerTransactionType.SemesterBonusExpiry => "期末贈堂歸零",
+        LedgerTransactionType.DropoutSettlementDeduct => "退班結算結清",
+        _ => type.ToString()
+    };
+    string GetTransactionTypeBadgeClass(LedgerTransactionType type) => type switch
+    {
+        LedgerTransactionType.TopUpPaid => "bg-success text-white",
+        LedgerTransactionType.SemesterBonusGrant => "bg-info text-dark",
+        LedgerTransactionType.ManualBonusGrant => "bg-info text-dark",
+        LedgerTransactionType.BookingDeduct => "bg-primary text-white",
+        LedgerTransactionType.CancelRefund => "bg-teal text-white",
+        LedgerTransactionType.AdjustmentReversal => "bg-warning text-dark",
+        LedgerTransactionType.SemesterBonusExpiry => "bg-secondary text-white",
+        LedgerTransactionType.DropoutSettlementDeduct => "bg-danger text-white",
+        _ => "bg-secondary text-white"
+    };
 }
 
 <!-- 頂部管理員工作台標題、正式環境連線狀態與匯出工具 -->
@@ -103,43 +131,26 @@
                 }
             </div>
         </div>
-        <span class="badge bg-dark">對帳時間：@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd HH:mm")</span>
+        <div class="d-flex align-items-center gap-2">
+            @if (Model.Discrepancies.Count > 0)
+            {
+                <button type="button" class="btn btn-sm btn-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalReconciliationDetails">
+                    <i class="bi bi-eye-fill me-1"></i>立即檢視異常明細清單 (@Model.Discrepancies.Count)
+                </button>
+            }
+            <span class="badge bg-dark">對帳時間：@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd HH:mm")</span>
+        </div>
     </div>
 </div>
 
-<!-- 膠囊式分段工作區頁籤 (Segmented Workspace Tabs) -->
+<!-- 膠囊式分段工作區頁籤 (Segmented Workspace Tabs，移除數字) -->
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <ul class="nav nav-pills workspace-tabs-shell" id="adminWorkspaceTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="btn-admin-accounts" data-bs-toggle="pill"
-                    data-bs-target="#tab-admin-accounts" type="button" role="tab">
-                <i class="bi bi-shield-lock-fill"></i>
-                <span>帳號與學生綁定</span>
-                <span class="workspace-tab-count">@Model.AllUsers.Count</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="btn-admin-semester" data-bs-toggle="pill"
-                    data-bs-target="#tab-admin-semester" type="button" role="tab">
-                <i class="bi bi-calendar-range"></i>
-                <span>學期與每週進度</span>
-                <span class="workspace-tab-count">@Model.AllProgresses.Count</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="btn-admin-students" data-bs-toggle="pill"
-                    data-bs-target="#tab-admin-students" type="button" role="tab">
-                <i class="bi bi-person-plus-fill"></i>
-                <span>學生與到班目的</span>
-                <span class="workspace-tab-count">@Model.AllStudents.Count</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="btn-admin-dropout" data-bs-toggle="pill"
+            <button class="nav-link active" id="btn-admin-dropout" data-bs-toggle="pill"
                     data-bs-target="#tab-admin-dropout" type="button" role="tab">
                 <i class="bi bi-calculator-fill"></i>
                 <span>退班批次結算</span>
-                <span class="workspace-tab-count">@Model.SettlementPreviews.Count</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -147,7 +158,6 @@
                     data-bs-target="#tab-admin-audit" type="button" role="tab">
                 <i class="bi bi-journal-code"></i>
                 <span>流水帳與 LINE 稽核</span>
-                <span class="workspace-tab-count">@Model.RecentLedgerEntries.Count</span>
             </button>
         </li>
     </ul>
@@ -158,413 +168,8 @@
 </div>
 
 <div class="tab-content" id="adminWorkspaceTabContent">
-    <!-- 分頁一：帳號權限管理與家長↔學生綁定 -->
-    <div class="tab-pane fade show active" id="tab-admin-accounts" role="tabpanel">
-        <div class="row g-4 mb-4">
-            <!-- 新增家長 / 老師 / 管理員登入帳號 -->
-            <div class="col-12 col-xl-6">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box ocean"><i class="bi bi-person-fill-add"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">建立登入帳號（家長／老師／管理員）</h2>
-                                <div class="small text-muted">密碼自動以 PBKDF2-SHA256 加鹽雜湊加密儲存</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <form method="post" asp-page-handler="CreateUser">
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold" for="newUsername">登入帳號 (Username)</label>
-                                <input type="text" id="newUsername" name="username" class="form-control" placeholder="例如：parent.wang / teacher.lee" required />
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold" for="newPassword">初始登入密碼</label>
-                                <input type="password" id="newPassword" name="password" class="form-control" placeholder="請設定初始密碼" required />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold" for="newDisplayName">顯示名稱／稱謂</label>
-                                <input type="text" id="newDisplayName" name="displayName" class="form-control" placeholder="例如：王媽媽（家長）／李老師" required />
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold" for="newRole">帳號角色權限</label>
-                                <select id="newRole" name="role" class="form-select" required>
-                                    <option value="Parent">家長／學生家庭帳號 (Parent)</option>
-                                    <option value="Teacher">授課老師 (Teacher)</option>
-                                    <option value="Admin">系統管理員 (Admin)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold" for="newPhone">聯絡電話</label>
-                                <input type="text" id="newPhone" name="phone" class="form-control" placeholder="例如：0912-345-678" />
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small fw-semibold" for="newLineId">LINE User ID（選填）</label>
-                                <input type="text" id="newLineId" name="lineUserId" class="form-control" placeholder="家長可於登入後自行綁定" />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-12 col-sm-8">
-                                <label class="form-label small fw-semibold" for="linkStu">若為家長帳號，可同時綁定在籍學生（選填）</label>
-                                <select id="linkStu" name="linkStudentId" class="form-select">
-                                    <option value="">-- 暫不綁定（或稍後於右側綁定多位孩子） --</option>
-                                    @foreach (var s in Model.AllStudents)
-                                    {
-                                        <option value="@s.Id">@s.FullName (@s.GradeClass)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-12 col-sm-4">
-                                <label class="form-label small fw-semibold" for="linkRel">親屬關係</label>
-                                <input type="text" id="linkRel" name="relationship" class="form-control" value="家長" placeholder="母親/父親/本人" />
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-accent w-100">
-                            <i class="bi bi-shield-plus me-1"></i>建立登入帳號
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- 家長 ↔ 學生授權綁定管理 -->
-            <div class="col-12 col-xl-6">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box sage"><i class="bi bi-people-fill"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">家長帳號 ↔ 學生授權綁定管理</h2>
-                                <div class="small text-muted">支援一位家長綁定多位兄弟姊妹，或父母雙方各自帳號綁定同一位學生</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <form method="post" asp-page-handler="LinkParentStudent" class="mb-3">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-12 col-sm-5">
-                                <label class="form-label small fw-semibold">選擇家長帳號</label>
-                                <select name="parentUserId" class="form-select" required>
-                                    @foreach (var p in Model.ParentUsers)
-                                    {
-                                        <option value="@p.Id">@p.DisplayName (@p.Username)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-12 col-sm-4">
-                                <label class="form-label small fw-semibold">選擇學生</label>
-                                <select name="studentId" class="form-select" required>
-                                    @foreach (var s in Model.AllStudents)
-                                    {
-                                        <option value="@s.Id">@s.FullName (@s.GradeClass)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-6 col-sm-3">
-                                <label class="form-label small fw-semibold">關係</label>
-                                <input type="text" name="relationship" class="form-control" value="家長" />
-                            </div>
-                            <div class="col-12 mt-2">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-link-45deg me-1"></i>新增「家長 ↔ 學生」授權綁定
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <div class="small fw-semibold mb-2">目前生效中的家長與學生綁定清單（家長僅能查看與預約已綁定之學生）：</div>
-                    <div class="d-grid gap-2" style="max-height: 240px; overflow-y: auto;">
-                        @foreach (var link in Model.AllParentStudentLinks)
-                        {
-                            <div class="p-2 border rounded-3 bg-light d-flex justify-content-between align-items-center small">
-                                <div>
-                                    <strong>@link.ParentUser?.DisplayName</strong> (<code>@link.ParentUser?.Username</code>)
-                                    <i class="bi bi-arrow-left-right mx-1 text-muted"></i>
-                                    <span class="badge bg-dark">@link.Student?.FullName (@link.Student?.GradeClass)</span>
-                                    <span class="text-muted ms-1">[@link.Relationship]</span>
-                                </div>
-                                <form method="post" asp-page-handler="UnlinkParentStudent"
-                                      onsubmit="return confirm('確定要解除此家長對該學生的存取綁定嗎？');">
-                                    <input type="hidden" name="linkId" value="@link.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0">解除</button>
-                                </form>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 全系統帳號總覽與密碼重設 -->
-        <div class="card-plato p-3 p-md-4">
-            <div class="section-header-clean">
-                <div class="section-header-title">
-                    <span class="metric-icon-box"><i class="bi bi-key-fill"></i></span>
-                    <div>
-                        <h2 class="h5 fw-bold mb-0">全系統登入帳號清單與密碼／聯絡資訊維護</h2>
-                        <div class="small text-muted">可隨時為家長、老師或管理員重設密碼、修改聯絡電話與 LINE User ID</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle table-plato table-responsive-cards mb-0">
-                    <thead>
-                        <tr>
-                            <th>角色</th>
-                            <th>顯示姓名 / 登入帳號</th>
-                            <th>關聯學生（家長適用）</th>
-                            <th>電話與 LINE 通知綁定</th>
-                            <th>重設密碼 / 儲存更新</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var u in Model.AllUsers)
-                        {
-                            var linkedStudents = Model.AllParentStudentLinks
-                                .Where(l => l.ParentUserId == u.Id)
-                                .Select(l => $"{l.Student?.FullName}({l.Student?.GradeClass})")
-                                .ToList();
-
-                            <tr>
-                                <td data-label="角色">
-                                    <span class="badge @(u.Role == UserRole.Admin ? "bg-dark" : u.Role == UserRole.Teacher ? "badge-slot-group" : "badge-slot-small")">
-                                        @(u.Role == UserRole.Admin ? "管理員 (Admin)" : u.Role == UserRole.Teacher ? "授課老師 (Teacher)" : "家長 (Parent)")
-                                    </span>
-                                </td>
-                                <td data-label="姓名 / 帳號">
-                                    <div class="fw-bold">@u.DisplayName</div>
-                                    <div class="small text-muted">登入帳號：<code>@u.Username</code></div>
-                                </td>
-                                <td data-label="關聯學生" class="small">
-                                    @if (u.Role == UserRole.Parent)
-                                    {
-                                        if (linkedStudents.Any())
-                                        {
-                                            <span>@string.Join("、", linkedStudents)</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-danger">尚未綁定學生</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">全班別教務／系統權限</span>
-                                    }
-                                </td>
-                                <td data-label="聯絡與密碼維護" colspan="2">
-                                    <form method="post" asp-page-handler="ResetPassword" class="row g-2 align-items-center justify-content-end">
-                                        <input type="hidden" name="targetUserId" value="@u.Id" />
-                                        <div class="col-12 col-md-3">
-                                            <input type="text" name="phone" class="form-control form-control-sm" value="@u.Phone" placeholder="聯絡電話" />
-                                        </div>
-                                        <div class="col-12 col-md-4">
-                                            <input type="text" name="lineUserId" class="form-control form-control-sm" value="@u.LineUserId" placeholder="LINE User ID" />
-                                        </div>
-                                        <div class="col-12 col-md-3">
-                                            <input type="password" name="newPassword" class="form-control form-control-sm" placeholder="輸入新密碼（留空不改）" />
-                                        </div>
-                                        <div class="col-12 col-md-2 text-end">
-                                            <button type="submit" class="btn btn-sm btn-outline-dark w-100">更新設定</button>
-                                        </div>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- 分頁二：學期與每週課程進度控制 -->
-    <div class="tab-pane fade" id="tab-admin-semester" role="tabpanel">
-        <div class="row g-4">
-            <div class="col-12 col-xl-7">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box"><i class="bi bi-calendar-range"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">學期與目前開放進度切換</h2>
-                                <div class="small text-muted">
-                                    目前學期：@Model.CurrentSemester?.Name（每學期預設贈送 @Model.CurrentSemester?.DefaultBonusCredits 堂）
-                                </div>
-                            </div>
-                        </div>
-                        <form method="post" asp-page-handler="EndSemesterBonusExpiry"
-                              onsubmit="return confirm('確定要執行「學期結束贈送堂數歸零」嗎？所有學生未使用的贈送堂數將歸零並寫入稽核流水帳（付費堂數保留）。');">
-                            <button type="submit" class="btn btn-outline-danger btn-sm">
-                                <i class="bi bi-hourglass-bottom me-1"></i>期末贈送堂數歸零
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="small fw-semibold mb-2">切換目前開放預約進度（家長僅可預約目前進度）：</div>
-                    <div class="d-grid gap-2">
-                        @foreach (var p in Model.AllProgresses)
-                        {
-                            <div class="p-3 border rounded-3 d-flex justify-content-between align-items-center @(p.IsCurrentProgress ? "bg-light border-dark" : "")">
-                                <div>
-                                    <strong>@p.Code @p.Title</strong>
-                                    <span class="badge bg-secondary ms-1">@p.GradeClass</span>
-                                    <div class="small text-muted">@p.WeekStartDate.ToString("MM/dd") ~ @p.WeekEndDate.ToString("MM/dd")</div>
-                                </div>
-                                @if (p.IsCurrentProgress)
-                                {
-                                    <span class="badge bg-success px-3 py-2">目前開放進度</span>
-                                }
-                                else
-                                {
-                                    <form method="post" asp-page-handler="SwitchCurrentProgress">
-                                        <input type="hidden" name="progressId" value="@p.Id" />
-                                        <button type="submit" class="btn btn-sm btn-outline-dark">設為目前進度</button>
-                                    </form>
-                                }
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-xl-5">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box sage"><i class="bi bi-plus-square-fill"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">新增每週課程進度</h2>
-                                <div class="small text-muted">設定進度代碼、起訖日期與適用班別</div>
-                            </div>
-                        </div>
-                    </div>
-                    <form method="post" asp-page-handler="CreateProgress">
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">進度代碼（如 W09）</label>
-                            <input type="text" name="code" class="form-control" placeholder="例如：W09" required />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">進度主題名稱</label>
-                            <input type="text" name="title" class="form-control" placeholder="例如：幾何證明與相似形總複習" required />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">適用班別</label>
-                            <input type="text" name="gradeClass" class="form-control" value="國三A班" required />
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold">開始日期</label>
-                                <input type="date" name="weekStartDate" class="form-control" value="2026-11-02" required />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold">結束日期</label>
-                                <input type="date" name="weekEndDate" class="form-control" value="2026-11-08" required />
-                            </div>
-                        </div>
-                        <div class="form-check mb-3 small">
-                            <input type="checkbox" class="form-check-input" id="setAsCurrent" name="setAsCurrent" value="true" />
-                            <label class="form-check-label" for="setAsCurrent">立即設為目前開放進度</label>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-check2-circle me-1"></i>新增課程進度
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 分頁三：新增學生、插班生比例贈送堂數與到班目的管理 -->
-    <div class="tab-pane fade" id="tab-admin-students" role="tabpanel">
-        <div class="row g-4">
-            <div class="col-12 col-xl-6">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box ocean"><i class="bi bi-person-plus-fill"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">新增學生與插班生比例贈送堂數</h2>
-                                <div class="small text-muted">依「入班日至期末剩餘天數 ÷ 學期總天數 × 3 堂」四捨五入核發</div>
-                            </div>
-                        </div>
-                    </div>
-                    <form method="post" asp-page-handler="CreateStudent">
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold" for="stuName">學生姓名</label>
-                                <input type="text" id="stuName" name="fullName" class="form-control" placeholder="例如：張子軒" required />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold" for="stuClass">班別</label>
-                                <input type="text" id="stuClass" name="gradeClass" class="form-control" value="國三A班" required />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold" for="enrollDate">入班日期</label>
-                                <input type="date" id="enrollDate" name="enrollmentDate" class="form-control"
-                                       value="@DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd")" required />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold" for="parentUser">關聯家長帳號</label>
-                                <select id="parentUser" name="parentUserId" class="form-select" required>
-                                    @foreach (var p in Model.ParentUsers)
-                                    {
-                                        <option value="@p.Id">@p.DisplayName (@p.Username)</option>
-                                    }
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-check mb-3 small">
-                            <input type="checkbox" class="form-check-input" id="grantProRataBonus" name="grantProRataBonus" value="true" checked />
-                            <label class="form-check-label" for="grantProRataBonus">自動依入班日比例核發本學期贈送堂數</label>
-                        </div>
-                        <button type="submit" class="btn btn-accent w-100">
-                            <i class="bi bi-person-check-fill me-1"></i>新增學生並核發贈送堂數
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="col-12 col-xl-6">
-                <div class="card-plato p-3 p-md-4 h-100">
-                    <div class="section-header-clean">
-                        <div class="section-header-title">
-                            <span class="metric-icon-box"><i class="bi bi-sliders"></i></span>
-                            <div>
-                                <h2 class="h5 fw-bold mb-0">到班目的管理</h2>
-                                <div class="small text-muted">管理家長預約輔導時必選之到班目的選項</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="small fw-semibold mb-2">目前開放之到班目的及預約次數分佈：</div>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        @foreach (var p in Model.PurposeOptions)
-                        {
-                            var cnt = Model.PurposeCounts.TryGetValue(p.Name, out var c) ? c : 0;
-                            <span class="badge bg-light text-dark border p-2">
-                                @p.Name <strong class="text-primary">(@cnt 筆)</strong>
-                            </span>
-                        }
-                    </div>
-                    <form method="post" asp-page-handler="AddPurpose" class="d-flex gap-2">
-                        <input type="text" name="purposeName" class="form-control" placeholder="新增自訂到班目的名稱" required />
-                        <button type="submit" class="btn btn-outline-dark text-nowrap">新增目的</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 分頁四：退班批次結算計算器 -->
-    <div class="tab-pane fade" id="tab-admin-dropout" role="tabpanel">
+    <!-- 分頁一：退班批次結算計算器 -->
+    <div class="tab-pane fade show active" id="tab-admin-dropout" role="tabpanel">
         <div class="card-plato p-3 p-md-4">
             <div class="section-header-clean">
                 <div class="section-header-title">
@@ -671,7 +276,7 @@
                                     <tr>
                                         <td data-label="時間" class="small">@BookingService.ToTaipeiTime(e.CreatedAtUtc).ToString("MM/dd HH:mm")</td>
                                         <td data-label="學生"><strong>@e.Student?.FullName</strong></td>
-                                        <td data-label="類型"><span class="badge bg-secondary">@e.TransactionType</span></td>
+                                        <td data-label="類型"><span class="badge @GetTransactionTypeBadgeClass(e.TransactionType)">@GetTransactionTypeName(e.TransactionType)</span></td>
                                         <td data-label="異動">
                                             贈送 @(e.BonusDelta >= 0 ? $"+{e.BonusDelta}" : e.BonusDelta.ToString()) /
                                             付費 @(e.PaidDelta >= 0 ? $"+{e.PaidDelta}" : e.PaidDelta.ToString())
@@ -726,3 +331,77 @@
         </div>
     </div>
 </div>
+
+<!-- 三方對帳異常明細檢視與自動修復彈跳視窗 -->
+<div class="modal fade" id="modalReconciliationDetails" tabindex="-1" aria-labelledby="modalReconciliationDetailsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold" id="modalReconciliationDetailsLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>系統堂數三方對帳異常明細檢視清單（發現 @Model.Discrepancies.Count 筆）
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-warning mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <strong><i class="bi bi-shield-exclamation me-1"></i>對帳規則說明：</strong>
+                            系統夜間自動比對「學生主檔付費堂數」、「不可篡改流水帳累計 Delta」與「儲值批次 RemainingPaidCredits 總和」。若歷史遷移或測試資料未補建批次，將產生差額提示。
+                        </div>
+                        <form method="post" asp-page-handler="SyncReconciliationFix"
+                              onsubmit="return confirm('確定要執行一鍵自動同步校準嗎？系統將為有差額的在籍學生自動建立同步期初批次與流水帳記錄。');">
+                            <button type="submit" class="btn btn-danger fw-bold shadow-sm">
+                                <i class="bi bi-wrench-adjustable-circle me-1"></i>一鍵自動同步校準
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>學生編號</th>
+                                <th>學生姓名</th>
+                                <th>主檔付費堂數</th>
+                                <th>流水帳付費合計</th>
+                                <th>儲值批次剩餘合計</th>
+                                <th>主檔贈送堂數</th>
+                                <th>流水帳贈送合計</th>
+                                <th>不一致異常診斷詳情</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Discrepancies.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center text-success py-4">
+                                        <i class="bi bi-check-circle-fill me-1"></i>太棒了！目前無任何對帳不一致異常。
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var d in Model.Discrepancies)
+                            {
+                                <tr>
+                                    <td><code>#@d.StudentId</code></td>
+                                    <td class="fw-bold">@d.StudentName</td>
+                                    <td><span class="badge bg-primary">@d.ActualPaidCredits 堂</span></td>
+                                    <td><span class="badge @(d.ActualPaidCredits == d.LedgerPaidSum ? "bg-success" : "bg-danger")">@d.LedgerPaidSum 堂</span></td>
+                                    <td><span class="badge @(d.ActualPaidCredits == d.BatchRemainingPaidSum ? "bg-success" : "bg-danger")">@d.BatchRemainingPaidSum 堂</span></td>
+                                    <td><span class="badge bg-secondary">@d.ActualBonusCredits 堂</span></td>
+                                    <td><span class="badge @(d.ActualBonusCredits == d.LedgerBonusSum ? "bg-success" : "bg-danger")">@d.LedgerBonusSum 堂</span></td>
+                                    <td class="text-danger small font-monospace">@d.IssueSummary</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉視窗</button>
+            </div>
+        </div>
+    </div>
+</div>
+
