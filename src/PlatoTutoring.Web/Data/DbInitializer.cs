@@ -692,7 +692,7 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
         try
         {
             var students = await db.Students
-                .Where(s => !s.IsDroppedOut && s.PaidCredits > 0)
+                .Where(s => !s.IsDroppedOut)
                 .ToListAsync();
 
             if (!students.Any()) return;
@@ -702,13 +702,14 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
             var opId = teacherUser?.Id ?? adminUser?.Id ?? 1;
             var opName = teacherUser?.DisplayName ?? adminUser?.DisplayName ?? "系統管理員";
 
-            var updated = false;
-
             foreach (var s in students)
             {
-                var batchSum = await db.TopUpBatches
+                // 1. 同步儲值批次 (TopUpBatches)
+                var batches = await db.TopUpBatches
                     .Where(b => b.StudentId == s.Id)
-                    .SumAsync(b => b.RemainingPaidCredits);
+                    .OrderBy(b => b.Id)
+                    .ToListAsync();
+                var batchSum = batches.Sum(b => b.RemainingPaidCredits);
 
                 if (s.PaidCredits > batchSum)
                 {
@@ -728,43 +729,73 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
                     };
                     db.TopUpBatches.Add(newBatch);
                     await db.SaveChangesAsync();
-                    updated = true;
-
-                    // 檢查流水帳付費堂數是否也同步
-                    var ledgerPaidSum = await db.CreditLedgerEntries
-                        .Where(e => e.StudentId == s.Id)
-                        .SumAsync(e => (int?)e.PaidDelta) ?? 0;
-
-                    if (s.PaidCredits > ledgerPaidSum)
+                }
+                else if (s.PaidCredits < batchSum)
+                {
+                    var excess = batchSum - s.PaidCredits;
+                    foreach (var b in batches.OrderByDescending(x => x.Id))
                     {
-                        var ledgerDiff = s.PaidCredits - ledgerPaidSum;
-                        db.CreditLedgerEntries.Add(new CreditLedgerEntry
-                        {
-                            StudentId = s.Id,
-                            TransactionType = LedgerTransactionType.TopUpPaid,
-                            PaidDelta = ledgerDiff,
-                            BonusDelta = 0,
-                            PaidBalanceAfter = s.PaidCredits,
-                            BonusBalanceAfter = s.BonusCredits,
-                            RelatedTopUpBatchId = newBatch.Id,
-                            ReferenceNote = $"系統期初儲值批次同步補入 +{ledgerDiff} 堂",
-                            OperatorUserId = opId,
-                            OperatorName = opName,
-                            CreatedAtUtc = DateTime.UtcNow
-                        });
-                        updated = true;
+                        if (excess <= 0) break;
+                        var deduct = Math.Min(b.RemainingPaidCredits, excess);
+                        b.RemainingPaidCredits -= deduct;
+                        excess -= deduct;
                     }
+                    await db.SaveChangesAsync();
+                }
+
+                // 2. 同步流水帳付費堂數 (CreditLedgerEntries PaidDelta)
+                var ledgerPaidSum = await db.CreditLedgerEntries
+                    .Where(e => e.StudentId == s.Id)
+                    .SumAsync(e => (int?)e.PaidDelta) ?? 0;
+
+                if (s.PaidCredits != ledgerPaidSum)
+                {
+                    var paidDiff = s.PaidCredits - ledgerPaidSum;
+                    db.CreditLedgerEntries.Add(new CreditLedgerEntry
+                    {
+                        StudentId = s.Id,
+                        TransactionType = paidDiff > 0 ? LedgerTransactionType.TopUpPaid : LedgerTransactionType.AdjustmentReversal,
+                        PaidDelta = paidDiff,
+                        BonusDelta = 0,
+                        PaidBalanceAfter = s.PaidCredits,
+                        BonusBalanceAfter = s.BonusCredits,
+                        ReferenceNote = paidDiff > 0 ? $"系統付費堂數差額補入 +{paidDiff} 堂" : $"系統付費堂數差額沖正 {paidDiff} 堂",
+                        OperatorUserId = opId,
+                        OperatorName = opName,
+                        CreatedAtUtc = DateTime.UtcNow
+                    });
+                    await db.SaveChangesAsync();
+                }
+
+                // 3. 同步流水帳贈送堂數 (CreditLedgerEntries BonusDelta)
+                var ledgerBonusSum = await db.CreditLedgerEntries
+                    .Where(e => e.StudentId == s.Id)
+                    .SumAsync(e => (int?)e.BonusDelta) ?? 0;
+
+                if (s.BonusCredits != ledgerBonusSum)
+                {
+                    var bonusDiff = s.BonusCredits - ledgerBonusSum;
+                    db.CreditLedgerEntries.Add(new CreditLedgerEntry
+                    {
+                        StudentId = s.Id,
+                        TransactionType = bonusDiff > 0 ? LedgerTransactionType.SemesterBonusGrant : LedgerTransactionType.AdjustmentReversal,
+                        PaidDelta = 0,
+                        BonusDelta = bonusDiff,
+                        PaidBalanceAfter = s.PaidCredits,
+                        BonusBalanceAfter = s.BonusCredits,
+                        ReferenceNote = bonusDiff > 0 ? $"系統贈送堂數差額補入 +{bonusDiff} 堂" : $"系統贈送堂數差額沖正 {bonusDiff} 堂",
+                        OperatorUserId = opId,
+                        OperatorName = opName,
+                        CreatedAtUtc = DateTime.UtcNow
+                    });
+                    await db.SaveChangesAsync();
                 }
             }
-
-            if (updated)
-            {
-                await db.SaveChangesAsync();
-            }
         }
-        catch
+        catch (Exception ex)
         {
-            // 忽略同步例外
+            Console.WriteLine($"[EnsureCreditBatchesAndLedgerConsistentAsync Error] {ex}");
+            throw;
         }
     }
 }
