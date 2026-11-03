@@ -172,7 +172,28 @@ public class IndexModel : PageModel
         }
         else
         {
-            AvailableSlots = allCurrentSlots;
+            // 精簡體驗：未選日期時預設選取今天或當月最近有課的一天，讓時段列表直接展示
+            var today = DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
+            if (SlotDates.Contains(today))
+            {
+                SelectedDate = today;
+            }
+            else
+            {
+                var upcoming = SlotDates.FirstOrDefault(d => d >= today);
+                SelectedDate = upcoming != default ? upcoming : (SlotDates.Any() ? SlotDates.First() : null);
+            }
+
+            if (SelectedDate.HasValue)
+            {
+                AvailableSlots = allCurrentSlots
+                    .Where(s => DateOnly.FromDateTime(BookingService.ToTaipeiTime(s.StartsAtUtc)) == SelectedDate.Value)
+                    .ToList();
+            }
+            else
+            {
+                AvailableSlots = allCurrentSlots;
+            }
         }
 
         // 月曆年份與月份決定
@@ -246,15 +267,21 @@ public class IndexModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostBookSlotAsync(int studentId, int slotId, string purposeName)
+    public async Task<IActionResult> OnPostBookSlotAsync(int studentId, int slotId, string? purposeName)
     {
         var user = await GetCurrentParentOrAdminAsync();
         if (user == null) return RedirectToPage("/Account/Login");
 
+        if (string.IsNullOrWhiteSpace(purposeName))
+        {
+            var defPurpose = await _db.AttendancePurposeOptions.FirstOrDefaultAsync(p => p.IsActive);
+            purposeName = defPurpose?.Name ?? "課後輔導";
+        }
+
         try
         {
             await _bookingService.CreateBookingAsync(slotId, studentId, user.Id, purposeName);
-            TempData["SuccessMessage"] = $"已完成預約（到班目的：{purposeName}）！系統已自動按規則優先扣抵贈送堂數。";
+            TempData["SuccessMessage"] = "已完成預約！系統已自動按規則優先扣抵贈送堂數。";
         }
         catch (Exception ex)
         {
@@ -268,13 +295,20 @@ public class IndexModel : PageModel
             }
         }
 
-        return RedirectToPage(new { studentId });
+        var dateQuery = SelectedDate?.ToString("yyyy-MM-dd") ?? Request.Query["date"].ToString();
+        return RedirectToPage(new { studentId, date = dateQuery });
     }
 
-    public async Task<IActionResult> OnPostRecurringBookAsync(int studentId, List<int> slotIds, string purposeName)
+    public async Task<IActionResult> OnPostRecurringBookAsync(int studentId, List<int> slotIds, string? purposeName)
     {
         var user = await GetCurrentParentOrAdminAsync();
         if (user == null) return RedirectToPage("/Account/Login");
+
+        if (string.IsNullOrWhiteSpace(purposeName))
+        {
+            var defPurpose = await _db.AttendancePurposeOptions.FirstOrDefaultAsync(p => p.IsActive);
+            purposeName = defPurpose?.Name ?? "課後輔導";
+        }
 
         if (slotIds == null || slotIds.Count == 0)
         {
@@ -319,15 +353,21 @@ public class IndexModel : PageModel
         return RedirectToPage(new { studentId });
     }
 
-    public async Task<IActionResult> OnPostJoinWaitlistAsync(int studentId, int slotId, string purposeName)
+    public async Task<IActionResult> OnPostJoinWaitlistAsync(int studentId, int slotId, string? purposeName)
     {
         var user = await GetCurrentParentOrAdminAsync();
         if (user == null) return RedirectToPage("/Account/Login");
 
+        if (string.IsNullOrWhiteSpace(purposeName))
+        {
+            var defPurpose = await _db.AttendancePurposeOptions.FirstOrDefaultAsync(p => p.IsActive);
+            purposeName = defPurpose?.Name ?? "課後輔導";
+        }
+
         try
         {
             var entry = await _bookingService.JoinWaitlistAsync(slotId, studentId, user.Id, purposeName);
-            TempData["SuccessMessage"] = $"已登記候補（目前候補順位：第 {entry.Position} 順位）。名額釋出時將發送 LINE 通知並為您保留 30 分鐘。";
+            TempData["SuccessMessage"] = $"已排入候補名單（目前候補順位：第 {entry.Position} 順位）！若有名額釋出，系統將自動遞補為正式預約並發送通知。";
         }
         catch (Exception ex)
         {
@@ -341,7 +381,8 @@ public class IndexModel : PageModel
             }
         }
 
-        return RedirectToPage(new { studentId });
+        var dateQuery = SelectedDate?.ToString("yyyy-MM-dd") ?? Request.Query["date"].ToString();
+        return RedirectToPage(new { studentId, date = dateQuery });
     }
 
     public async Task<IActionResult> OnPostConfirmWaitlistAsync(int studentId, int waitlistEntryId)

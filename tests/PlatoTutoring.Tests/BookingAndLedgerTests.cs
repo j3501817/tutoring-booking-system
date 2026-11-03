@@ -611,7 +611,58 @@ public class BookingAndLedgerTests
         var discrepanciesAfter = await ledger.RunNightlyReconciliationAsync();
         Assert.Empty(discrepanciesAfter);
     }
+
+    [Fact]
+    public async Task StreamlinedBooking_AutoFallbackPurposeAndAutoPromoteWaitlist()
+    {
+        var (db, ledger, booking, _) = CreateTestServices();
+
+        var parent = new AppUser { Username = "p_stream", PasswordHash = "pw", DisplayName = "精簡家長", Role = UserRole.Parent, LineUserId = "U_Stream" };
+        var teacher = new AppUser { Username = "t_stream", PasswordHash = "pw", DisplayName = "精簡老師", Role = UserRole.Teacher };
+        db.Users.AddRange(parent, teacher);
+
+        var student = new Student { FullName = "精簡學生", GradeClass = "國七A班", EnrollmentDate = new DateOnly(2026, 9, 1) };
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        db.ParentStudentLinks.Add(new ParentStudentLink { ParentUserId = parent.Id, StudentId = student.Id });
+        var prog = new CourseProgress { SemesterId = 1, Code = "W05", Title = "精簡單元", GradeClass = "國七A班", IsCurrentProgress = true };
+        db.CourseProgresses.Add(prog);
+        await db.SaveChangesAsync();
+
+        // 儲值 2 堂付費堂數
+        await ledger.RecordTopUpAsync(student.Id, teacher.Id, 1000m, 2, new DateOnly(2026, 10, 1), "12345", "測試儲值");
+
+        // 開設一個名額為 1 的小組指導時段
+        var now = DateTime.UtcNow;
+        var slot = new TutoringSlot
+        {
+            CourseProgressId = prog.Id,
+            TeacherUserId = teacher.Id,
+            SlotType = SlotType.SmallGroup,
+            StartsAtUtc = now.AddDays(2),
+            EndsAtUtc = now.AddDays(2).AddHours(1.5),
+            MaxCapacity = 1,
+            CurrentBookedCount = 0
+        };
+        db.TutoringSlots.Add(slot);
+        await db.SaveChangesAsync();
+
+        // 1. 使用預設到班目的直接預約（前端免選下拉選單）
+        var defaultPurpose = await db.AttendancePurposeOptions.FirstOrDefaultAsync(p => p.IsActive);
+        Assert.NotNull(defaultPurpose);
+
+        var createdBooking = await booking.CreateBookingAsync(slot.Id, student.Id, parent.Id, defaultPurpose.Name);
+        Assert.NotNull(createdBooking);
+        Assert.Equal(BookingStatus.Confirmed, createdBooking.Status);
+        Assert.Equal(defaultPurpose.Name, createdBooking.PurposeName);
+
+        // 重新讀取時段，名額已滿
+        var refreshedSlot = await db.TutoringSlots.FindAsync(slot.Id);
+        Assert.Equal(0, refreshedSlot!.RemainingSeats);
+    }
 }
+
 
 
 
