@@ -26,10 +26,12 @@ public record DropoutSettlementPreview(
 public class CreditLedgerService
 {
     private readonly AppDbContext _db;
+    private readonly LineNotificationService? _lineService;
 
-    public CreditLedgerService(AppDbContext db)
+    public CreditLedgerService(AppDbContext db, LineNotificationService? lineService = null)
     {
         _db = db;
+        _lineService = lineService;
     }
 
     public static int CalculateProRataSemesterBonus(
@@ -115,6 +117,24 @@ public class CreditLedgerService
 
         _db.CreditLedgerEntries.Add(entry);
         await _db.SaveChangesAsync();
+
+        if (_lineService != null)
+        {
+            try
+            {
+                await _lineService.NotifyCreditsChangedAsync(
+                    studentId,
+                    "儲值入帳",
+                    $"儲值 NT${amountNtd:N0} / +{creditsAdded} 堂 (末五碼: {batch.AccountLastFiveDigits})",
+                    creditsAdded,
+                    0,
+                    student.PaidCredits,
+                    student.BonusCredits,
+                    timestamp);
+            }
+            catch { }
+        }
+
         return batch;
     }
 
@@ -156,6 +176,24 @@ public class CreditLedgerService
 
         _db.CreditLedgerEntries.Add(entry);
         await _db.SaveChangesAsync();
+
+        if (_lineService != null && bonusToGrant > 0)
+        {
+            try
+            {
+                await _lineService.NotifyCreditsChangedAsync(
+                    studentId,
+                    "獲得贈券",
+                    $"學期贈送堂數 ({semester.Name})：核發 +{bonusToGrant} 堂",
+                    0,
+                    bonusToGrant,
+                    student.PaidCredits,
+                    student.BonusCredits,
+                    timestamp);
+            }
+            catch { }
+        }
+
         return entry;
     }
 
@@ -206,6 +244,23 @@ public class CreditLedgerService
                 CreatedAtUtc = timestamp
             });
             grantedCount++;
+
+            if (_lineService != null && bonusToGrant > 0)
+            {
+                try
+                {
+                    await _lineService.NotifyCreditsChangedAsync(
+                        student.Id,
+                        "獲得贈券",
+                        $"新學期 ({semester.Name}) 自動核發贈送堂數 +{bonusToGrant} 堂",
+                        0,
+                        bonusToGrant,
+                        student.PaidCredits,
+                        student.BonusCredits,
+                        timestamp);
+                }
+                catch { }
+            }
         }
 
         await _db.SaveChangesAsync();
@@ -313,6 +368,24 @@ public class CreditLedgerService
         }
 
         await _db.SaveChangesAsync();
+
+        if (bonusGranted > 0 && _lineService != null)
+        {
+            try
+            {
+                await _lineService.NotifyCreditsChangedAsync(
+                    student.Id,
+                    "獲得贈券",
+                    $"辦理學期續報核發贈送堂數 +{bonusGranted} 堂",
+                    0,
+                    bonusGranted,
+                    student.PaidCredits,
+                    student.BonusCredits,
+                    timestamp);
+            }
+            catch { }
+        }
+
         return (student, bonusGranted);
     }
 
@@ -417,6 +490,25 @@ public class CreditLedgerService
 
         _db.CreditLedgerEntries.Add(entry);
         await _db.SaveChangesAsync();
+
+        if (_lineService != null)
+        {
+            try
+            {
+                var changeType = (paidDelta == 0 && bonusDelta > 0) ? "獲得贈券" : "堂數調整";
+                await _lineService.NotifyCreditsChangedAsync(
+                    studentId,
+                    changeType,
+                    reason.Trim(),
+                    paidDelta,
+                    bonusDelta,
+                    student.PaidCredits,
+                    student.BonusCredits,
+                    timestamp);
+            }
+            catch { }
+        }
+
         return entry;
     }
 
@@ -629,6 +721,24 @@ public class CreditLedgerService
 
         _db.DropoutSettlements.Add(settlement);
         await _db.SaveChangesAsync();
+
+        if (_lineService != null)
+        {
+            try
+            {
+                await _lineService.NotifyCreditsChangedAsync(
+                    studentId,
+                    "退還費用",
+                    $"退班結算結清：退費 NT${preview.TotalRefundAmountNtd:N0}（結清付費 {oldPaid} 堂，作廢贈送 {oldBonus} 堂）",
+                    -oldPaid,
+                    -oldBonus,
+                    0,
+                    0,
+                    timestamp);
+            }
+            catch { }
+        }
+
         return settlement;
     }
 

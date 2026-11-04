@@ -289,6 +289,23 @@ public class BookingService
             var tpeTime = FormatTaipeiDateTimeZh(slot.StartsAtUtc);
             var progTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim();
             await _lineService.NotifyBookingCompletedAsync(student.Id, tpeTime, progTitle, booking.PurposeName, op.DisplayName, timestamp);
+
+            if (booking.CreditsDeducted > 0)
+            {
+                var s = await _db.Students.FindAsync(student.Id);
+                if (s != null)
+                {
+                    await _lineService.NotifyCreditsChangedAsync(
+                        student.Id,
+                        "完成預約扣堂",
+                        $"完成預約 {progTitle}（{tpeTime}）扣抵堂數",
+                        -booking.PaidCreditsUsed,
+                        -booking.BonusCreditsUsed,
+                        s.PaidCredits,
+                        s.BonusCredits,
+                        timestamp);
+                }
+            }
         }
         catch { }
 
@@ -592,6 +609,23 @@ public class BookingService
                     $"【候補成功轉正通知】{student.FullName} 候補之「{progTitle} ({tpeStart:MM/dd HH:mm})」已成功自動遞補為正式預約！已扣抵 {creditsNeeded} 堂課，請準時出席。",
                     $"/Parent?studentId={student.Id}",
                     timestamp);
+
+                if (creditsNeeded > 0)
+                {
+                    var s = await _db.Students.FindAsync(student.Id);
+                    if (s != null)
+                    {
+                        await _lineService.NotifyCreditsChangedAsync(
+                            student.Id,
+                            "完成預約扣堂",
+                            $"候補自動轉正 {progTitle}（{tpeTime}）扣抵堂數",
+                            -booking.PaidCreditsUsed,
+                            -booking.BonusCreditsUsed,
+                            s.PaidCredits,
+                            s.BonusCredits,
+                            timestamp);
+                    }
+                }
             }
             catch { }
 

@@ -617,8 +617,8 @@
                         <div class="section-header-title">
                             <span class="metric-icon-box"><i class="bi bi-exclamation-octagon-fill"></i></span>
                             <div>
-                                <h2 class="h5 fw-bold mb-0">勾選作業不佳學生</h2>
-                                <div class="small text-muted">勾選後立即發送 LINE 通知家長預約；48 小時未預約自動二次催促</div>
+                                <h2 class="h5 fw-bold mb-0">標記學生學習狀況與輔導通知</h2>
+                                <div class="small text-muted">支援作業不佳、進度落差、觀念不清、輔導未完、補課確認，即時推播 LINE 通知家長預約</div>
                             </div>
                         </div>
                     </div>
@@ -682,6 +682,17 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-semibold" for="hwConditionType">學習輔導狀況類型</label>
+                            <select id="hwConditionType" name="conditionType" class="form-select" required>
+                                <option value="作業不佳" selected>作業不佳</option>
+                                <option value="進度落差">進度落差</option>
+                                <option value="觀念不清">觀念不清</option>
+                                <option value="輔導未完成">輔導未完成</option>
+                                <option value="補課確認">補課確認</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-semibold" for="hwProgress">課程進度</label>
                             <select id="hwProgress" name="courseProgressId" class="form-select" required>
                                 @foreach (var p in Model.ProgressList)
@@ -691,12 +702,12 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold" for="subjectNote">作業狀況說明</label>
+                            <label class="form-label fw-semibold" for="subjectNote">狀況說明與備註</label>
                             <input type="text" id="subjectNote" name="subjectNote" class="form-control"
                                    placeholder="例如：第7週隨堂考與講義訂正未完成，請預約輔導" required />
                         </div>
                         <button type="submit" class="btn btn-accent w-100">
-                            <i class="bi bi-send-fill me-1"></i>發送作業不佳 LINE 通知
+                            <i class="bi bi-send-fill me-1"></i>發送學習狀況 LINE 通知
                         </button>
                     </form>
                 </div>
@@ -708,11 +719,25 @@
                         <div class="section-header-title">
                             <span class="metric-icon-box sage"><i class="bi bi-list-stars"></i></span>
                             <div>
-                                <h2 class="h5 fw-bold mb-0">近期作業追蹤與預約解決狀態</h2>
+                                <h2 class="h5 fw-bold mb-0">近期學習狀況追蹤與預約解決狀態</h2>
                                 <div class="small text-muted">家長完成同進度輔導預約後，系統會自動標記為已預約解決</div>
                             </div>
                         </div>
                     </div>
+
+                    <div class="d-flex gap-2 mb-3">
+                        <form method="post" asp-page-handler="Trigger48hReminder">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-bell-fill me-1"></i>檢查 48h 作業催促
+                            </button>
+                        </form>
+                        <form method="post" asp-page-handler="TriggerUnbookedReminder">
+                            <button type="submit" class="btn btn-sm btn-outline-warning text-dark">
+                                <i class="bi bi-clock-history me-1"></i>檢查未預約催促提醒
+                            </button>
+                        </form>
+                    </div>
+
                     <div class="d-grid gap-2">
                         @foreach (var hw in Model.HomeworkItems)
                         {
@@ -721,6 +746,7 @@
                                     <div class="fw-bold">
                                         @hw.Student?.FullName
                                         <span class="badge bg-secondary ms-1">@hw.CourseProgress?.Code</span>
+                                        <span class="badge bg-info-subtle text-dark border ms-1">@(hw.ConditionType ?? "作業不佳")</span>
                                     </div>
                                     <div class="small text-secondary mt-1">@hw.SubjectNote</div>
                                 </div>
