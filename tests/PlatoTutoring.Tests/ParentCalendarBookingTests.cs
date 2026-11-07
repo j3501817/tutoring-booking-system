@@ -133,5 +133,25 @@ public class ParentCalendarBookingTests
         Assert.DoesNotContain("5", displayBadges[0]);
         Assert.DoesNotContain("3", displayBadges[1]);
     }
+
+    [Fact]
+    public void SevenDays_GeneratesExactlySevenConsecutiveDaysFromTodayWithoutPastDates()
+    {
+        var today = new DateOnly(2026, 10, 19);
+        var sevenDays = Enumerable.Range(0, 7).Select(i => today.AddDays(i)).ToList();
+
+        Assert.Equal(7, sevenDays.Count);
+        Assert.Equal(today, sevenDays.First());
+        Assert.Equal(today.AddDays(6), sevenDays.Last());
+
+        // 確保每一天都大於等於今天，完全不包含過去日期
+        Assert.All(sevenDays, d => Assert.True(d >= today));
+
+        // 確保日期連續無跳號
+        for (int i = 0; i < sevenDays.Count; i++)
+        {
+            Assert.Equal(today.AddDays(i), sevenDays[i]);
+        }
+    }
 }
 

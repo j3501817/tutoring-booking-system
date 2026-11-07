@@ -52,6 +52,8 @@ public class IndexModel : PageModel
     public HashSet<DateOnly> HolidayDates { get; set; } = new();
     public Dictionary<DateOnly, string> HolidayNames { get; set; } = new();
 
+    public DateOnly TodayDate { get; set; }
+    public List<DateOnly> SevenDays { get; set; } = new();
     public Dictionary<DateOnly, CalendarDaySummary> CalendarDaysSummary { get; set; } = new();
     public int CalendarYear { get; set; }
     public int CalendarMonth { get; set; }
@@ -163,6 +165,10 @@ public class IndexModel : PageModel
             .OrderBy(d => d)
             .ToList();
 
+        var nowTpe = BookingService.ToTaipeiTime(DateTime.UtcNow);
+        TodayDate = DateOnly.FromDateTime(nowTpe);
+        SevenDays = Enumerable.Range(0, 7).Select(i => TodayDate.AddDays(i)).ToList();
+
         if (!string.IsNullOrWhiteSpace(date) && DateOnly.TryParse(date, out var parsedDate))
         {
             SelectedDate = parsedDate;
@@ -172,16 +178,20 @@ public class IndexModel : PageModel
         }
         else
         {
-            // 精簡體驗：未選日期時預設選取今天或當月最近有課的一天，讓時段列表直接展示
-            var today = DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
+            // 精簡體驗：未選日期時預設選取今天或未來一週內最近有課的一天，讓時段列表直接展示
+            var today = TodayDate;
             if (SlotDates.Contains(today))
             {
                 SelectedDate = today;
             }
             else
             {
-                var upcoming = SlotDates.FirstOrDefault(d => d >= today);
-                SelectedDate = upcoming != default ? upcoming : (SlotDates.Any() ? SlotDates.First() : null);
+                var upcomingInSevenDays = SevenDays.FirstOrDefault(d => SlotDates.Contains(d));
+                SelectedDate = upcomingInSevenDays != default
+                    ? upcomingInSevenDays
+                    : (SlotDates.FirstOrDefault(d => d >= today) != default
+                        ? SlotDates.First(d => d >= today)
+                        : (SlotDates.Any() ? SlotDates.First() : null));
             }
 
             if (SelectedDate.HasValue)
@@ -214,7 +224,6 @@ public class IndexModel : PageModel
         }
         else
         {
-            var nowTpe = BookingService.ToTaipeiTime(DateTime.UtcNow);
             CalendarYear = nowTpe.Year;
             CalendarMonth = nowTpe.Month;
         }
