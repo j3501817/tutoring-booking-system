@@ -17,17 +17,20 @@ public class IndexModel : PageModel
     private readonly CreditLedgerService _ledgerService;
     private readonly BookingService _bookingService;
     private readonly IScheduleManagerService _scheduleManager;
+    private readonly LineNotificationService _lineService;
 
     public IndexModel(
         AppDbContext db,
         CreditLedgerService ledgerService,
         BookingService bookingService,
-        IScheduleManagerService scheduleManager)
+        IScheduleManagerService scheduleManager,
+        LineNotificationService? lineService = null)
     {
         _db = db;
         _ledgerService = ledgerService;
         _bookingService = bookingService;
         _scheduleManager = scheduleManager;
+        _lineService = lineService ?? new LineNotificationService(db);
     }
 
     public AppUser CurrentUser { get; set; } = null!;
@@ -46,6 +49,10 @@ public class IndexModel : PageModel
 
     public IReadOnlyList<ScheduledTaskItem> ScheduledTasks { get; set; } = new List<ScheduledTaskItem>();
     public IReadOnlyList<ScheduledTaskLog> ScheduledLogs { get; set; } = new List<ScheduledTaskLog>();
+
+    public List<LineNotificationLog> RecentLineLogs { get; set; } = new();
+    public int LineSentCount { get; set; }
+    public int LineFailedCount { get; set; }
 
     public int CalendarYear { get; set; }
     public int CalendarMonth { get; set; }
@@ -149,6 +156,37 @@ public class IndexModel : PageModel
 
         await _scheduleManager.LoadConfigurationsFromDbAsync();
         ScheduledTasks = _scheduleManager.GetScheduledTasks();
+
+        RecentLineLogs = await _db.LineNotificationLogs
+            .Include(l => l.RecipientParentUser)
+            .OrderByDescending(l => l.SentAtUtc)
+            .Take(10)
+            .ToListAsync();
+
+        LineSentCount = await _db.LineNotificationLogs.CountAsync(l => l.Status == "Sent" || l.Status == "RetriedSuccess");
+        LineFailedCount = await _db.LineNotificationLogs.CountAsync(l => l.Status.StartsWith("Failed"));
+    }
+
+    public async Task<IActionResult> OnPostRetryLineAsync(int logId)
+    {
+        var ok = await _lineService.RetryFailedNotificationAsync(logId);
+        if (ok)
+        {
+            TempData["SuccessMessage"] = "已成功重新發送 LINE 推播訊息！";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = "重新發送失敗，請確認該家長是否已綁定 LINE ID 或檢查 LINE 官方帳號 API 設定。";
+        }
+
+        return RedirectToPage(new { sub = "notifications" });
+    }
+
+    public async Task<IActionResult> OnPostBroadcastProgressAsync(string progressCode, string progressTitle)
+    {
+        var count = await _lineService.NotifyNewGroupProgressAsync(progressCode.Trim(), progressTitle.Trim());
+        TempData["SuccessMessage"] = $"已向全體家長發送新進度「{progressCode} {progressTitle}」開放預約 LINE 廣播通知（共發送 {count} 筆）！";
+        return RedirectToPage(new { sub = "notifications" });
     }
 
     public async Task<IActionResult> OnPostTriggerScheduleAsync(string jobCode)

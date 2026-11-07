@@ -342,7 +342,8 @@ public class IndexModel : PageModel
         string gradeClass,
         DateOnly weekStartDate,
         DateOnly weekEndDate,
-        bool setAsCurrent)
+        bool setAsCurrent,
+        bool broadcastLine = false)
     {
         var sem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
             ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
@@ -370,8 +371,26 @@ public class IndexModel : PageModel
         });
         await _db.SaveChangesAsync();
 
+        if (broadcastLine)
+        {
+            try
+            {
+                var count = await _lineService.NotifyNewGroupProgressAsync(code.Trim(), title.Trim());
+                TempData["SuccessMessage"] = $"已新增課程進度：{code} {title}，並透過 LINE 廣播通知 {count} 位家長！";
+                return Redirect("/Admin#tab-admin-semester");
+            }
+            catch { }
+        }
+
         TempData["SuccessMessage"] = $"已新增課程進度：{code} {title}";
         return Redirect("/Admin#tab-admin-semester");
+    }
+
+    public async Task<IActionResult> OnPostBroadcastProgressAsync(string progressCode, string progressTitle)
+    {
+        var count = await _lineService.NotifyNewGroupProgressAsync(progressCode.Trim(), progressTitle.Trim());
+        TempData["SuccessMessage"] = $"已向全體已綁定家長發送新進度「{progressCode} {progressTitle}」開放預約 LINE 廣播（共 {count} 筆）！";
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostEndSemesterBonusExpiryAsync()

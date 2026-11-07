@@ -627,6 +627,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnPostFlagHomeworkAsync(
         int studentId,
         int courseProgressId,
+        string conditionType,
         string subjectNote)
     {
         var user = await GetCurrentTeacherOrAdminAsync();
@@ -634,8 +635,9 @@ public class IndexModel : PageModel
 
         try
         {
-            await _lineService.FlagHomeworkPoorAsync(studentId, user.Id, courseProgressId, subjectNote);
-            TempData["SuccessMessage"] = "已標記作業不佳並透過 LINE 發送預約輔導通知給家長！";
+            var cond = string.IsNullOrWhiteSpace(conditionType) ? "作業不佳" : conditionType.Trim();
+            await _lineService.FlagLearningStatusAsync(studentId, user.Id, courseProgressId, cond, subjectNote);
+            TempData["SuccessMessage"] = $"已標記學生「{cond}」並透過 LINE 發送輔導通知給家長！";
         }
         catch (Exception ex)
         {
@@ -649,6 +651,13 @@ public class IndexModel : PageModel
     {
         var count = await _lineService.Process48HourHomeworkRemindersAsync();
         TempData["SuccessMessage"] = $"已執行 48 小時作業未預約檢查，共發送 {count} 筆二次催促通知。";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostTriggerUnbookedReminderAsync()
+    {
+        var count = await _lineService.ProcessUnbookedRemindersAsync();
+        TempData["SuccessMessage"] = $"已執行未預約輔導催促檢查，共發送 {count} 筆未預約催促 LINE 通知。";
         return RedirectToPage();
     }
 

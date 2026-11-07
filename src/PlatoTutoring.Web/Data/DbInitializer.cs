@@ -373,6 +373,11 @@ BEGIN
     IF COL_LENGTH('BK_Users', 'IsProxyAdmin') IS NULL
         ALTER TABLE [BK_Users] ADD [IsProxyAdmin] bit NOT NULL CONSTRAINT [DF_BK_Users_IsProxyAdmin] DEFAULT 0;
 END
+IF OBJECT_ID(N'[BK_HomeworkWatchItems]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('BK_HomeworkWatchItems', 'ConditionType') IS NULL
+        ALTER TABLE [BK_HomeworkWatchItems] ADD [ConditionType] nvarchar(50) NOT NULL CONSTRAINT [DF_BK_HomeworkWatchItems_ConditionType] DEFAULT N'作業不佳';
+END
 IF OBJECT_ID(N'[BK_FieldOptions]', N'U') IS NULL
 BEGIN
     CREATE TABLE [BK_FieldOptions] (
@@ -412,6 +417,7 @@ END";
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_Users ADD COLUMN IsProxyAdmin INTEGER NOT NULL DEFAULT 0;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_WaitlistEntries ADD COLUMN CancelledAtUtc TEXT NULL;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_WaitlistEntries ADD COLUMN CancelReason TEXT NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE BK_HomeworkWatchItems ADD COLUMN ConditionType TEXT NOT NULL DEFAULT '作業不佳';"); } catch { }
             try
             {
                 await db.Database.ExecuteSqlRawAsync(@"

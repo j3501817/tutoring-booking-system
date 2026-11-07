@@ -378,6 +378,8 @@ public class HomeworkWatchItem
     public AppUser? TeacherUser { get; set; }
     public int CourseProgressId { get; set; }
     public CourseProgress? CourseProgress { get; set; }
+    [MaxLength(50)]
+    public string ConditionType { get; set; } = "作業不佳";
     [Required, MaxLength(200)]
     public string SubjectNote { get; set; } = string.Empty;
     public DateTime FirstNotifiedAtUtc { get; set; } = DateTime.UtcNow;

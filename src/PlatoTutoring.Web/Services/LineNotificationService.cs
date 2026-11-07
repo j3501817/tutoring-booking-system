@@ -72,10 +72,11 @@ public class LineNotificationService
         return firstLog;
     }
 
-    public async Task<HomeworkWatchItem> FlagHomeworkPoorAsync(
+    public async Task<HomeworkWatchItem> FlagLearningStatusAsync(
         int studentId,
         int teacherUserId,
         int courseProgressId,
+        string conditionType,
         string subjectNote,
         DateTime? nowUtc = null)
     {
@@ -85,11 +86,14 @@ public class LineNotificationService
         var progress = await _db.CourseProgresses.FindAsync(courseProgressId)
             ?? throw new InvalidOperationException("找不到課程進度。");
 
+        var cond = string.IsNullOrWhiteSpace(conditionType) ? "作業不佳" : conditionType.Trim();
+
         var item = new HomeworkWatchItem
         {
             StudentId = studentId,
             TeacherUserId = teacherUserId,
             CourseProgressId = courseProgressId,
+            ConditionType = cond,
             SubjectNote = subjectNote,
             FirstNotifiedAtUtc = timestamp,
             CreatedAtUtc = timestamp
@@ -97,15 +101,30 @@ public class LineNotificationService
         _db.HomeworkWatchItems.Add(item);
         await _db.SaveChangesAsync();
 
+        var notifType = cond == "作業不佳" ? "HomeworkPoor" : "LearningStatusAlert";
+        var msg = cond == "作業不佳"
+            ? $"【柏拉圖補習班通知】{student.FullName} 於進度「{progress.Code} {progress.Title}」作業狀況需加強（{subjectNote}），請前往網站預約輔導時段。"
+            : $"【柏拉圖補習班・學習狀況提醒】{student.FullName} 於進度「{progress.Code} {progress.Title}」出現「{cond}」狀況（備註：{subjectNote}），請前往網站預約輔導時段。";
+
         await SendToStudentParentsAsync(
             studentId,
-            "HomeworkPoor",
-            $"hw-poor:{item.Id}",
-            $"【柏拉圖補習班通知】{student.FullName} 於進度「{progress.Code} {progress.Title}」作業狀況需加強（{subjectNote}），請前往網站預約輔導時段。",
+            notifType,
+            $"learning-cond:{item.Id}:{cond}",
+            msg,
             $"/Parent?studentId={studentId}",
             timestamp);
 
         return item;
+    }
+
+    public async Task<HomeworkWatchItem> FlagHomeworkPoorAsync(
+        int studentId,
+        int teacherUserId,
+        int courseProgressId,
+        string subjectNote,
+        DateTime? nowUtc = null)
+    {
+        return await FlagLearningStatusAsync(studentId, teacherUserId, courseProgressId, "作業不佳", subjectNote, nowUtc);
     }
 
     public async Task<int> Process48HourHomeworkRemindersAsync(DateTime? nowUtc = null)
@@ -265,6 +284,57 @@ public class LineNotificationService
             nowUtc);
     }
 
+    /// <summary>4-1. 定時掃描被標記學習輔導需求且尚未預約輔導之學生，發送未預約提醒</summary>
+    public async Task<int> ProcessUnbookedRemindersAsync(DateTime? nowUtc = null)
+    {
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var cutoff = timestamp.AddHours(-24);
+
+        var unbookedItems = await _db.HomeworkWatchItems
+            .Include(h => h.Student)
+            .Include(h => h.CourseProgress)
+            .Where(h => !h.IsResolvedByBooking && h.FirstNotifiedAtUtc <= cutoff)
+            .ToListAsync();
+
+        var count = 0;
+        foreach (var item in unbookedItems)
+        {
+            var hasBookedSince = await _db.Bookings
+                .AnyAsync(b => b.StudentId == item.StudentId
+                               && b.Status == BookingStatus.Confirmed
+                               && b.CreatedAtUtc >= item.FirstNotifiedAtUtc);
+
+            if (hasBookedSince)
+            {
+                item.IsResolvedByBooking = true;
+                continue;
+            }
+
+            var dateStr = BookingService.ToTaipeiTime(timestamp).ToString("yyyyMMdd");
+            var idempotencyKey = $"unbooked-daily:{item.StudentId}:{dateStr}";
+            var alreadySent = await _db.LineNotificationLogs.AnyAsync(l => l.IdempotencyKey == idempotencyKey);
+            if (!alreadySent)
+            {
+                var cond = string.IsNullOrWhiteSpace(item.ConditionType) ? "作業或課堂輔導" : item.ConditionType;
+                var reason = $"{cond}（{item.SubjectNote}）";
+                var msg = $"【柏拉圖補習班・未預約提醒】{item.Student?.FullName} 的學習補強通知（{reason}）目前仍未完成預約時段，請儘速登入系統完成預約，以利老師安排進度。";
+
+                await SendToStudentParentsAsync(
+                    item.StudentId,
+                    "UnbookedReminder",
+                    idempotencyKey,
+                    msg,
+                    $"/Parent?studentId={item.StudentId}",
+                    timestamp);
+
+                count++;
+            }
+        }
+
+        await _db.SaveChangesAsync();
+        return count;
+    }
+
     /// <summary>5. 提醒兩日後有預約，記得到班或尚有一日可以取消改期</summary>
     public async Task NotifyTwoDaysBeforeReminderAsync(int studentId, string slotTimeZh, string progressTitle, DateTime? nowUtc = null)
     {
@@ -284,9 +354,57 @@ public class LineNotificationService
             nowUtc);
     }
 
-    /// <summary>6. 提醒團體輔導新進度開放預約了</summary>
-    public async Task NotifyNewGroupProgressAsync(string progressCode, string progressTitle, DateTime? nowUtc = null)
+    /// <summary>5-1. 每日排程開課前兩日提醒：掃描 48 小時左右 (36~60h) 之輔導時段發送 LINE 提醒（記得到班或尚有 1 日可取消改期）</summary>
+    public async Task<int> ProcessTwoDaysBeforeLessonRemindersAsync(DateTime? nowUtc = null)
     {
+        var timestamp = nowUtc ?? DateTime.UtcNow;
+        var startWindow = timestamp.AddHours(36);
+        var endWindow = timestamp.AddHours(60);
+
+        var upcomingBookings = await _db.Bookings
+            .Include(b => b.Student)
+            .Include(b => b.TutoringSlot)
+            .ThenInclude(s => s!.CourseProgress)
+            .Where(b => b.Status == BookingStatus.Confirmed &&
+                        b.TutoringSlot != null &&
+                        b.TutoringSlot.StartsAtUtc >= startWindow &&
+                        b.TutoringSlot.StartsAtUtc <= endWindow)
+            .ToListAsync();
+
+        var sentCount = 0;
+        foreach (var b in upcomingBookings)
+        {
+            var slot = b.TutoringSlot!;
+            var slotTimeZh = BookingService.ToTaipeiTime(slot.StartsAtUtc).ToString("yyyy/MM/dd HH:mm");
+            var progressTitle = slot.CourseProgress?.Title ?? "輔導課堂";
+            var dateStr = BookingService.ToTaipeiTime(slot.StartsAtUtc).ToString("yyyyMMdd");
+            var idempotencyKey = $"two-days-remind:{b.Id}:{dateStr}";
+
+            var alreadySent = await _db.LineNotificationLogs.AnyAsync(l => l.IdempotencyKey == idempotencyKey);
+            if (!alreadySent)
+            {
+                var msg = $"【柏拉圖補習班・到班提醒】{b.Student?.FullName} 於兩日後有預約輔導課堂！\n" +
+                          $"課堂時段：{slotTimeZh}（{progressTitle}）\n" +
+                          $"請準時到班。若因故需取消或改期，尚有 1 日寬限期（開課 24 小時前免費取消退堂）。";
+
+                await SendToStudentParentsAsync(
+                    b.StudentId,
+                    "TwoDaysReminder",
+                    idempotencyKey,
+                    msg,
+                    $"/Parent?studentId={b.StudentId}#tab-parent-records",
+                    timestamp);
+
+                sentCount++;
+            }
+        }
+        return sentCount;
+    }
+
+    /// <summary>6. 提醒團體輔導新進度開放預約了</summary>
+    public async Task<int> NotifyNewGroupProgressAsync(string progressCode, string progressTitle, DateTime? nowUtc = null)
+    {
+        var timestamp = nowUtc ?? DateTime.UtcNow;
         var parents = await _db.Users
             .Where(u => u.Role == UserRole.Parent && !string.IsNullOrEmpty(u.LineUserId))
             .ToListAsync();
@@ -294,13 +412,40 @@ public class LineNotificationService
         var msg = $"【柏拉圖補習班・新進度公告】團體輔導新進度「{progressCode} {progressTitle}」現已開放預約！\n" +
                   $"團體輔導免費開放，歡迎儘早至線上預約時段選課。";
 
+        var count = 0;
         foreach (var p in parents)
         {
+            var idempotencyKey = $"new-group-progress:{progressCode}:{p.Id}";
+            var already = await _db.LineNotificationLogs.AnyAsync(l => l.IdempotencyKey == idempotencyKey);
+            if (already) continue;
+
+            var status = string.IsNullOrWhiteSpace(p.LineUserId) ? "Failed_NoLineId" : "Sent";
             if (_lineAuth != null && !string.IsNullOrWhiteSpace(p.LineUserId))
             {
-                await _lineAuth.SendPushMessageAsync(p.LineUserId, msg);
+                var (pSuccess, pMsg) = await _lineAuth.SendPushMessageAsync(p.LineUserId, msg);
+                if (!pSuccess && !pMsg.Contains("尚未設定"))
+                {
+                    status = "Failed_LineApi";
+                }
             }
+
+            _db.LineNotificationLogs.Add(new LineNotificationLog
+            {
+                RecipientParentUserId = p.Id,
+                LineUserId = p.LineUserId ?? "UNBOUND",
+                NotificationType = "NewGroupProgress",
+                IdempotencyKey = idempotencyKey,
+                MessageText = msg,
+                ActionUrl = "/Parent#tab-parent-booking",
+                Status = status,
+                RetryCount = 0,
+                SentAtUtc = timestamp
+            });
+            count++;
         }
+
+        await _db.SaveChangesAsync();
+        return count;
     }
 
     /// <summary>7. 候補成功也要通知</summary>

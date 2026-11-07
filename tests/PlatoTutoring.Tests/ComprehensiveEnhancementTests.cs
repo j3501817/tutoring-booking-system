@@ -33,8 +33,8 @@ public class ComprehensiveEnhancementTests
 
         db.SaveChanges();
 
-        var ledger = new CreditLedgerService(db);
         var line = new LineNotificationService(db);
+        var ledger = new CreditLedgerService(db, line);
         var booking = new BookingService(db, ledger, line);
         var linking = new StudentParentLinkingService(db);
 
@@ -295,7 +295,7 @@ public class ComprehensiveEnhancementTests
 
         // 1. 驗證各任務初始狀態
         var tasks = scheduleManager.GetScheduledTasks();
-        Assert.Equal(4, tasks.Count);
+        Assert.Equal(6, tasks.Count);
 
         var waitlistTask = tasks.First(t => t.JobCode == "WaitlistCleanup");
         Assert.True(waitlistTask.IsEnabled);
@@ -738,6 +738,126 @@ public class ComprehensiveEnhancementTests
         Assert.NotNull(log);
         Assert.Contains("學生乙", log.MessageText);
         Assert.Contains("原第 #2 順位", log.MessageText);
+    }
+
+    [Fact]
+    public async Task CompleteLineNotification_And_SystemAdminCenter_AllScenariosWork()
+    {
+        var (db, ledger, booking, line, _, options) = CreateServices();
+        var teacher = new AppUser { Username = "teacher_test", DisplayName = "測試老師", Role = UserRole.Teacher, PasswordHash = "h" };
+        var admin = new AppUser { Username = "admin_test", DisplayName = "系統管理員", Role = UserRole.Admin, PasswordHash = "h" };
+        var parent = new AppUser { Username = "parent_test", DisplayName = "王小明家長", Role = UserRole.Parent, PasswordHash = "h", LineUserId = "LINE_U_TEST_PARENT_123" };
+        db.Users.AddRange(teacher, admin, parent);
+        await db.SaveChangesAsync();
+
+        var sem = new Semester { Name = "115-1", StartDate = DateOnly.FromDateTime(DateTime.UtcNow), EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(4)), IsCurrent = true };
+        db.Semesters.Add(sem);
+        await db.SaveChangesAsync();
+
+        var progress = new CourseProgress { SemesterId = sem.Id, Code = "MATH-01", Title = "第一單元", WeekStartDate = sem.StartDate, WeekEndDate = sem.StartDate.AddDays(6), IsCurrentProgress = true };
+        db.CourseProgresses.Add(progress);
+        await db.SaveChangesAsync();
+
+        var student = new Student
+        {
+            FullName = "王小明",
+            School = "柏拉圖中學",
+            Grade = "國二",
+            ClassName = "A班",
+            GradeClass = "國二A班",
+            PaidCredits = 2,
+            BonusCredits = 1,
+            EnrollmentStatus = StudentEnrollmentStatus.Enrolled
+        };
+        db.Students.Add(student);
+        await db.SaveChangesAsync();
+
+        db.ParentStudentLinks.Add(new ParentStudentLink { ParentUserId = parent.Id, StudentId = student.Id, Relationship = "父親" });
+        await db.SaveChangesAsync();
+
+        // 1. 測試多元學習狀況標記（進度落差、觀念不清、輔導未完成、補課確認）
+        var watchItem = await line.FlagLearningStatusAsync(student.Id, teacher.Id, progress.Id, "進度落差", "第 3 單元隨堂考落後", DateTime.UtcNow);
+        Assert.Equal("進度落差", watchItem.ConditionType);
+        Assert.False(watchItem.IsResolvedByBooking);
+
+        var alertLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "LearningStatusAlert");
+        Assert.NotNull(alertLog);
+        Assert.Contains("進度落差", alertLog.MessageText);
+        Assert.Contains(student.FullName, alertLog.MessageText);
+
+        // 2. 測試未預約催促提醒排程（ProcessUnbookedRemindersAsync）
+        var unbookedSent = await line.ProcessUnbookedRemindersAsync(DateTime.UtcNow.AddHours(25));
+        Assert.True(unbookedSent >= 1);
+        var unbookedLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "UnbookedReminder");
+        Assert.NotNull(unbookedLog);
+        Assert.Contains("未預約提醒", unbookedLog.MessageText);
+
+        // 3. 測試儲值入帳觸發堂數異動通知（CreditsChanged）
+        var topUp = await ledger.RecordTopUpAsync(student.Id, teacher.Id, 1000m, 2, new DateOnly(2026, 11, 1), "99881", "測試儲值入帳");
+        var topUpLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "CreditsChanged" && l.MessageText.Contains("儲值入帳"));
+        Assert.NotNull(topUpLog);
+        Assert.Contains("付費 +2 堂", topUpLog.MessageText);
+
+        // 4. 測試手動發放贈券觸發堂數異動通知
+        await ledger.ApplyManualAdjustmentAsync(student.Id, teacher.Id, 0, 1, "活動表揚贈送");
+        var bonusLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "CreditsChanged" && l.MessageText.Contains("獲得贈券"));
+        Assert.NotNull(bonusLog);
+        Assert.Contains("贈送 +1 堂", bonusLog.MessageText);
+
+        // 5. 測試完成預約扣堂觸發預約成功與堂數異動通知
+        var slot = await booking.CreateSlotAsync(
+            teacher.Id,
+            progress.Id,
+            "國二A班",
+            SlotType.SmallGroup,
+            DateTime.UtcNow.AddHours(48),
+            DateTime.UtcNow.AddHours(49.5),
+            3,
+            false,
+            "");
+
+        var b = await booking.CreateBookingAsync(slot.Id, student.Id, parent.Id, "考前救急");
+        Assert.Equal(BookingStatus.Confirmed, b.Status);
+
+        var bookConfirmLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "BookingConfirmed");
+        Assert.NotNull(bookConfirmLog);
+        Assert.Contains("預約成功", bookConfirmLog.MessageText);
+
+        var deductLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "CreditsChanged" && l.MessageText.Contains("完成預約扣堂"));
+        Assert.NotNull(deductLog);
+
+        // 6. 測試開課前兩日提醒排程（ProcessTwoDaysBeforeLessonRemindersAsync）
+        var twoDaysSent = await line.ProcessTwoDaysBeforeLessonRemindersAsync(DateTime.UtcNow);
+        Assert.True(twoDaysSent >= 1);
+        var twoDaysLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "TwoDaysReminder");
+        Assert.NotNull(twoDaysLog);
+        Assert.Contains("到班提醒", twoDaysLog.MessageText);
+        Assert.Contains("兩日後有預約", twoDaysLog.MessageText);
+        Assert.Contains("1 日寬限期", twoDaysLog.MessageText);
+
+        // 7. 測試團體輔導新進度開放預約 LINE 廣播（NotifyNewGroupProgressAsync）
+        var broadcastCount = await line.NotifyNewGroupProgressAsync("MATH-G7-09", "一元一次方程式應用");
+        Assert.True(broadcastCount >= 1);
+        var broadcastLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "NewGroupProgress");
+        Assert.NotNull(broadcastLog);
+        Assert.Contains("新進度「MATH-G7-09 一元一次方程式應用」現已開放預約", broadcastLog.MessageText);
+
+        // 8. 測試退班結清退還費用觸發堂數異動通知
+        var settlement = await ledger.ExecuteDropoutSettlementAsync(student.Id, admin.Id, "因搬家退班辦理退款");
+        Assert.NotNull(settlement);
+        var refundLog = await db.LineNotificationLogs.FirstOrDefaultAsync(l => l.NotificationType == "CreditsChanged" && l.MessageText.Contains("退還費用"));
+        Assert.NotNull(refundLog);
+        Assert.Contains("退班結算結清", refundLog.MessageText);
+
+        // 9. 測試 SystemAdmin 通知管理中心加載與重試
+        var sysAdminModel = new PlatoTutoring.Web.Pages.SystemAdmin.IndexModel(
+            db, ledger, booking,
+            new ScheduleManagerService(new ServiceCollection().BuildServiceProvider(), Microsoft.Extensions.Logging.Abstractions.NullLogger<ScheduleManagerService>.Instance),
+            line);
+        await sysAdminModel.OnGetAsync();
+        Assert.NotEmpty(sysAdminModel.RecentLineLogs);
+        Assert.True(sysAdminModel.RecentLineLogs.Count <= 10);
+        Assert.True(sysAdminModel.LineSentCount > 0);
     }
 }
 

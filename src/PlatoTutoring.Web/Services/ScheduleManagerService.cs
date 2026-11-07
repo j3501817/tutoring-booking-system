@@ -155,6 +155,36 @@ public class ScheduleManagerService : IScheduleManagerService
             IsLastSuccess = true
         });
 
+        _tasks.Add(new ScheduledTaskItem
+        {
+            JobCode = "TwoDaysLessonReminder",
+            Name = "開課前兩日（48小時）到班與取消期限 LINE 提醒",
+            Description = "掃描開課前兩日（約 36~60 小時）之預約時段，發送 LINE 提醒家長記得到班，並告知尚有 1 日寬限期可免費線上取消改期。",
+            IsEnabled = true,
+            FrequencyType = ScheduleFrequencyType.DailyTime,
+            DailyTime = "09:00",
+            IntervalMinutes = 1440,
+            LastRunAtUtc = DateTime.UtcNow.AddHours(-3),
+            LastDuration = TimeSpan.FromMilliseconds(260),
+            LastResult = "已掃描開課前兩日之預約，推播完成。",
+            IsLastSuccess = true
+        });
+
+        _tasks.Add(new ScheduledTaskItem
+        {
+            JobCode = "UnbookedReminder",
+            Name = "提醒預約後仍未預約輔導之 LINE 催促排程",
+            Description = "掃描被標記學習輔導需求（如作業不佳、進度落差等）且超過 24 小時尚未預約輔導之學生，每日定時推播未預約提醒。",
+            IsEnabled = true,
+            FrequencyType = ScheduleFrequencyType.DailyTime,
+            DailyTime = "18:00",
+            IntervalMinutes = 1440,
+            LastRunAtUtc = DateTime.UtcNow.AddHours(-6),
+            LastDuration = TimeSpan.FromMilliseconds(210),
+            LastResult = "已掃描未預約輔導學生名單，催促推播完成。",
+            IsLastSuccess = true
+        });
+
         // 為每個排程初始化近 3 筆預載歷史
         foreach (var task in _tasks)
         {
@@ -470,6 +500,26 @@ public class ScheduleManagerService : IScheduleManagerService
                     var sentCount = await lineService.Process48HourHomeworkRemindersAsync();
                     sw.Stop();
                     var successMsg = $"執行成功！已掃描作業缺繳名單，共發送 {sentCount} 筆 48 小時二次催促 LINE 通知。";
+                    RecordExecution(jobCode, true, successMsg, sw.Elapsed, triggeredBy);
+                    return (true, successMsg);
+                }
+
+                case "TwoDaysLessonReminder":
+                {
+                    var lineService = scope.ServiceProvider.GetRequiredService<LineNotificationService>();
+                    var sentCount = await lineService.ProcessTwoDaysBeforeLessonRemindersAsync();
+                    sw.Stop();
+                    var successMsg = $"執行成功！已掃描開課前兩日（48小時）課堂，共發送 {sentCount} 筆到班與取消期限 LINE 提醒。";
+                    RecordExecution(jobCode, true, successMsg, sw.Elapsed, triggeredBy);
+                    return (true, successMsg);
+                }
+
+                case "UnbookedReminder":
+                {
+                    var lineService = scope.ServiceProvider.GetRequiredService<LineNotificationService>();
+                    var sentCount = await lineService.ProcessUnbookedRemindersAsync();
+                    sw.Stop();
+                    var successMsg = $"執行成功！已掃描尚未預約輔導之學生，共發送 {sentCount} 筆未預約催促 LINE 通知。";
                     RecordExecution(jobCode, true, successMsg, sw.Elapsed, triggeredBy);
                     return (true, successMsg);
                 }
