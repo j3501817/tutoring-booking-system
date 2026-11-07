@@ -157,34 +157,13 @@
         <!-- 分頁一：線上預約時段（先顯示月曆，點日期之後展開當天課堂列表） -->
         <div class="tab-pane fade show active" id="tab-parent-book" role="tabpanel">
             
-            <!-- 月曆卡片 (先顯示月曆，標示小組與團體) -->
+            <!-- 月曆卡片 (改為只顯示今天起未來一週共七天) -->
             <div class="booking-month-calendar card-plato p-3 p-md-4 mb-4 shadow-sm">
                 <div class="calendar-month-header">
                     <div class="d-flex align-items-center gap-2 flex-wrap my-auto">
                         <h2 class="h5 fw-bold mb-0 text-dark d-flex align-items-center">
-                            <i class="bi bi-calendar3 text-primary me-2"></i>@Model.CalendarYear 年 @Model.CalendarMonth 月 課堂月曆
+                            <i class="bi bi-calendar-week text-primary me-2"></i>課堂預約行事曆（今天起一週）
                         </h2>
-                        <div class="btn-group btn-group-sm ms-md-2 my-auto align-self-center" role="group">
-                            <a asp-page="/Parent/Index"
-                               asp-route-studentId="@student.Id"
-                               asp-route-year="@Model.PrevYear"
-                               asp-route-month="@Model.PrevMonth"
-                               class="btn btn-outline-secondary d-inline-flex align-items-center py-1" title="上一月">
-                                <i class="bi bi-chevron-left me-1"></i>上月
-                            </a>
-                            <a asp-page="/Parent/Index"
-                               asp-route-studentId="@student.Id"
-                               class="btn btn-outline-dark d-inline-flex align-items-center py-1" title="返回當月">
-                                本月
-                            </a>
-                            <a asp-page="/Parent/Index"
-                               asp-route-studentId="@student.Id"
-                               asp-route-year="@Model.NextYear"
-                               asp-route-month="@Model.NextMonth"
-                               class="btn btn-outline-secondary d-inline-flex align-items-center py-1" title="下一月">
-                                下月<i class="bi bi-chevron-right ms-1"></i>
-                            </a>
-                        </div>
                     </div>
 
                     <!-- 週期預約按鈕與圖例說明 -->
@@ -214,28 +193,22 @@
                     </div>
                 </div>
 
-                <!-- 星期列 (日 一 二 三 四 五 六) -->
+                <!-- 星期列 (對應今天起 7 天之星期) -->
                 <div class="calendar-month-grid mb-1">
-                    <div class="calendar-weekday-cell weekend">週日</div>
-                    <div class="calendar-weekday-cell">週一</div>
-                    <div class="calendar-weekday-cell">週二</div>
-                    <div class="calendar-weekday-cell">週三</div>
-                    <div class="calendar-weekday-cell">週四</div>
-                    <div class="calendar-weekday-cell">週五</div>
-                    <div class="calendar-weekday-cell weekend">週六</div>
+                    @foreach (var cellDate in Model.SevenDays)
+                    {
+                        var isWeekend = cellDate.DayOfWeek == DayOfWeek.Saturday || cellDate.DayOfWeek == DayOfWeek.Sunday;
+                        var isToday = cellDate == Model.TodayDate;
+                        <div class="calendar-weekday-cell @(isWeekend ? "weekend" : "") @(isToday ? "border border-primary text-primary fw-bold" : "")">
+                            週@("日一二三四五六"[(int)cellDate.DayOfWeek])
+                        </div>
+                    }
                 </div>
 
-                <!-- 日期網格 -->
+                <!-- 日期網格（今天起未來 7 天，共 1 列 7 個格子） -->
                 <div class="calendar-month-grid" id="parentCalendarGrid">
-                    <!-- 第一週前的空白格 -->
-                    @for (int p = 0; p < Model.StartDayOfWeek; p++)
+                    @foreach (var cellDate in Model.SevenDays)
                     {
-                        <div class="calendar-month-cell empty-cell"></div>
-                    }
-
-                    @for (int day = 1; day <= Model.DaysInMonth; day++)
-                    {
-                        var cellDate = new DateOnly(Model.CalendarYear, Model.CalendarMonth, day);
                         var cellDateStr = cellDate.ToString("yyyy-MM-dd");
                         var cellDateDisplayZh = $"{cellDate:yyyy/MM/dd}（週{"日一二三四五六"[(int)cellDate.DayOfWeek]}）";
                         var isHoliday = Model.HolidayDates.Contains(cellDate);
@@ -243,7 +216,7 @@
                         CalendarDaySummary? summary = null;
                         var hasSlots = !isHoliday && Model.CalendarDaysSummary.TryGetValue(cellDate, out summary) && summary.TotalSlots > 0;
                         var isSelected = Model.SelectedDate.HasValue && Model.SelectedDate.Value == cellDate;
-                        var isToday = cellDate == DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
+                        var isToday = cellDate == Model.TodayDate;
 
                         <div class="calendar-month-cell @(isHoliday ? "is-holiday" : hasSlots ? "has-slots" : "no-slots") @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
                              data-date="@cellDateStr"
@@ -255,9 +228,13 @@
                              @(isHoliday ? $"onclick=\"showHolidayNoticeModal('{cellDateDisplayZh}', '{Html.Raw(holidayName ?? "機構休假日")}')\"" : hasSlots ? "onclick=\"selectCalendarDate(this.dataset.date, this.dataset.dateZh)\"" : "")>
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : isHoliday ? "text-danger fw-bold" : "")">
-                                    @day
+                                    @($"{cellDate:M/d}")
                                 </span>
-                                @if (isHoliday)
+                                @if (isToday)
+                                {
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle p-0 px-1" style="font-size: 0.65rem;">今天</span>
+                                }
+                                else if (isHoliday)
                                 {
                                     <span class="badge bg-danger text-white p-0 px-1" style="font-size: 0.65rem;">休假</span>
                                 }
