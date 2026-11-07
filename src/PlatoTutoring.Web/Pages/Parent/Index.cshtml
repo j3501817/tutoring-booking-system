@@ -157,13 +157,53 @@
         <!-- 分頁一：線上預約時段（先顯示月曆，點日期之後展開當天課堂列表） -->
         <div class="tab-pane fade show active" id="tab-parent-book" role="tabpanel">
             
-            <!-- 月曆卡片 (改為只顯示今天起未來一週共七天) -->
+            <!-- 月曆卡片 (顯示 7 天，支援往後七天與往前七天導覽，往前只到今天為止) -->
             <div class="booking-month-calendar card-plato p-3 p-md-4 mb-4 shadow-sm">
                 <div class="calendar-month-header">
                     <div class="d-flex align-items-center gap-2 flex-wrap my-auto">
                         <h2 class="h5 fw-bold mb-0 text-dark d-flex align-items-center">
-                            <i class="bi bi-calendar-week text-primary me-2"></i>課堂預約行事曆（今天起一週）
+                            <i class="bi bi-calendar-week text-primary me-2"></i>課堂預約行事曆
+                            <span class="text-secondary fw-normal fs-6 ms-2">（@($"{Model.CurrentStartDate:M/d}") ～ @($"{Model.CurrentEndDate:M/d}")）</span>
                         </h2>
+                        <div class="btn-group btn-group-sm ms-md-2 my-auto align-self-center" role="group">
+                            @if (Model.CanGoPrevWeek)
+                            {
+                                <a asp-page="/Parent/Index"
+                                   asp-route-studentId="@student?.Id"
+                                   asp-route-startDate="@Model.PrevWeekStartDate?.ToString("yyyy-MM-dd")"
+                                   asp-fragment="tab-parent-book"
+                                   class="btn btn-outline-secondary d-inline-flex align-items-center py-1"
+                                   title="往前七天（最多至今天）">
+                                    <i class="bi bi-chevron-left me-1"></i>往前七天
+                                </a>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center py-1 disabled opacity-50" disabled title="往前只到今天為止">
+                                    <i class="bi bi-chevron-left me-1"></i>往前七天
+                                </button>
+                            }
+
+                            @if (!Model.IsCurrentWeek)
+                            {
+                                <a asp-page="/Parent/Index"
+                                   asp-route-studentId="@student?.Id"
+                                   asp-fragment="tab-parent-book"
+                                   class="btn btn-outline-dark d-inline-flex align-items-center py-1"
+                                   title="返回今天起算之一週">
+                                    本週
+                                </a>
+                            }
+
+                            <a asp-page="/Parent/Index"
+                               asp-route-studentId="@student?.Id"
+                               asp-route-startDate="@Model.NextWeekStartDate.ToString("yyyy-MM-dd")"
+                               asp-fragment="tab-parent-book"
+                               class="btn btn-outline-secondary d-inline-flex align-items-center py-1"
+                               title="往後七天">
+                                往後七天<i class="bi bi-chevron-right ms-1"></i>
+                            </a>
+                        </div>
                     </div>
 
                     <!-- 週期預約按鈕與圖例說明 -->
