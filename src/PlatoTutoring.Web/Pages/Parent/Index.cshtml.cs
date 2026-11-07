@@ -53,6 +53,12 @@ public class IndexModel : PageModel
     public Dictionary<DateOnly, string> HolidayNames { get; set; } = new();
 
     public DateOnly TodayDate { get; set; }
+    public DateOnly CurrentStartDate { get; set; }
+    public DateOnly CurrentEndDate { get; set; }
+    public DateOnly? PrevWeekStartDate { get; set; }
+    public DateOnly NextWeekStartDate { get; set; }
+    public bool CanGoPrevWeek => PrevWeekStartDate.HasValue;
+    public bool IsCurrentWeek => CurrentStartDate == TodayDate;
     public List<DateOnly> SevenDays { get; set; } = new();
     public Dictionary<DateOnly, CalendarDaySummary> CalendarDaysSummary { get; set; } = new();
     public int CalendarYear { get; set; }
@@ -64,7 +70,7 @@ public class IndexModel : PageModel
     public int StartDayOfWeek { get; set; }
     public int DaysInMonth { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(int? studentId, string? date, int? year = null, int? month = null)
+    public async Task<IActionResult> OnGetAsync(int? studentId, string? date, int? year = null, int? month = null, string? startDate = null)
     {
         await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
         await _bookingService.ProcessExpiredWaitlistHoldsAsync();
@@ -167,7 +173,33 @@ public class IndexModel : PageModel
 
         var nowTpe = BookingService.ToTaipeiTime(DateTime.UtcNow);
         TodayDate = DateOnly.FromDateTime(nowTpe);
-        SevenDays = Enumerable.Range(0, 7).Select(i => TodayDate.AddDays(i)).ToList();
+
+        // 起始日判定：往前只到今天為止，往後暫時不限
+        if (!string.IsNullOrWhiteSpace(startDate) && DateOnly.TryParse(startDate, out var parsedStart))
+        {
+            CurrentStartDate = parsedStart < TodayDate ? TodayDate : parsedStart;
+        }
+        else
+        {
+            CurrentStartDate = TodayDate;
+        }
+
+        SevenDays = Enumerable.Range(0, 7).Select(i => CurrentStartDate.AddDays(i)).ToList();
+        CurrentEndDate = SevenDays.Last();
+
+        // 往前七天計算：若當前起始日大於今天，可往前七天（最多退到今天）
+        if (CurrentStartDate > TodayDate)
+        {
+            var targetPrev = CurrentStartDate.AddDays(-7);
+            PrevWeekStartDate = targetPrev < TodayDate ? TodayDate : targetPrev;
+        }
+        else
+        {
+            PrevWeekStartDate = null;
+        }
+
+        // 往後七天計算：往後暫時不限
+        NextWeekStartDate = CurrentStartDate.AddDays(7);
 
         if (!string.IsNullOrWhiteSpace(date) && DateOnly.TryParse(date, out var parsedDate))
         {
@@ -178,20 +210,16 @@ public class IndexModel : PageModel
         }
         else
         {
-            // 精簡體驗：未選日期時預設選取今天或未來一週內最近有課的一天，讓時段列表直接展示
-            var today = TodayDate;
-            if (SlotDates.Contains(today))
+            // 精簡體驗：未選日期時優先在當前 7 天範圍內選取最近有課的一天，讓時段列表直接展示
+            var upcomingInSevenDays = SevenDays.FirstOrDefault(d => SlotDates.Contains(d));
+            if (upcomingInSevenDays != default)
             {
-                SelectedDate = today;
+                SelectedDate = upcomingInSevenDays;
             }
             else
             {
-                var upcomingInSevenDays = SevenDays.FirstOrDefault(d => SlotDates.Contains(d));
-                SelectedDate = upcomingInSevenDays != default
-                    ? upcomingInSevenDays
-                    : (SlotDates.FirstOrDefault(d => d >= today) != default
-                        ? SlotDates.First(d => d >= today)
-                        : (SlotDates.Any() ? SlotDates.First() : null));
+                var upcoming = SlotDates.FirstOrDefault(d => d >= CurrentStartDate);
+                SelectedDate = upcoming != default ? upcoming : (SlotDates.Any() ? SlotDates.First() : null);
             }
 
             if (SelectedDate.HasValue)

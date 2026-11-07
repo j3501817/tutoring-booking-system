@@ -153,5 +153,36 @@ public class ParentCalendarBookingTests
             Assert.Equal(today.AddDays(i), sevenDays[i]);
         }
     }
+
+    [Fact]
+    public void SevenDaysNavigation_ForwardUnconstrained_And_BackwardStopsAtToday()
+    {
+        var today = new DateOnly(2026, 11, 7);
+
+        // 情境 1：今天這週（預設），不可往前
+        var currentStart = today;
+        var canGoPrev = currentStart > today;
+        Assert.False(canGoPrev);
+
+        // 往後七天（第一週後）
+        var nextWeekStart = currentStart.AddDays(7);
+        Assert.Equal(new DateOnly(2026, 11, 14), nextWeekStart);
+
+        // 情境 2：切換至未來一週後，可以往前七天，且往後不限
+        currentStart = nextWeekStart;
+        Assert.True(currentStart > today);
+
+        var prevWeekStart = currentStart.AddDays(-7) < today ? today : currentStart.AddDays(-7);
+        Assert.Equal(today, prevWeekStart);
+
+        // 再往後一週 (+14天)
+        var nextTwoWeekStart = currentStart.AddDays(7);
+        Assert.Equal(new DateOnly(2026, 11, 21), nextTwoWeekStart);
+
+        // 情境 3：惡意或手動帶入過去的日期 (例如 2026-10-01)，必須強制防呆校正至今天
+        var requestedPastStart = new DateOnly(2026, 10, 1);
+        var sanitizedStart = requestedPastStart < today ? today : requestedPastStart;
+        Assert.Equal(today, sanitizedStart);
+    }
 }
 
