@@ -184,5 +184,41 @@ public class ParentCalendarBookingTests
         var sanitizedStart = requestedPastStart < today ? today : requestedPastStart;
         Assert.Equal(today, sanitizedStart);
     }
+
+    [Fact]
+    public void PastSlots_AreFilteredOut_And_SelectedDateDoesNotFallbackToPast()
+    {
+        var today = new DateOnly(2026, 11, 8);
+        var sevenDays = Enumerable.Range(0, 7).Select(i => today.AddDays(i)).ToList();
+
+        var rawSlots = new List<TutoringSlot>
+        {
+            new TutoringSlot
+            {
+                Id = 1,
+                StartsAtUtc = new DateTime(2026, 10, 19, 10, 0, 0, DateTimeKind.Utc), // 過期時段 10/19
+                EndsAtUtc = new DateTime(2026, 10, 19, 11, 30, 0, DateTimeKind.Utc),
+                SlotType = SlotType.SmallGroup
+            }
+        };
+
+        // 過濾掉今天之前的過期課堂
+        var filteredSlots = rawSlots
+            .Where(s => DateOnly.FromDateTime(BookingService.ToTaipeiTime(s.StartsAtUtc)) >= today)
+            .ToList();
+
+        Assert.Empty(filteredSlots);
+
+        var slotDates = filteredSlots
+            .Select(s => DateOnly.FromDateTime(BookingService.ToTaipeiTime(s.StartsAtUtc)))
+            .Distinct()
+            .ToList();
+
+        var upcomingInSevenDays = sevenDays.FirstOrDefault(d => slotDates.Contains(d));
+        DateOnly? selectedDate = upcomingInSevenDays != default ? upcomingInSevenDays : null;
+
+        // 當本週 7 天內無課堂時，SelectedDate 應為 null，絕不會回退選到 10/19
+        Assert.Null(selectedDate);
+    }
 }
 
