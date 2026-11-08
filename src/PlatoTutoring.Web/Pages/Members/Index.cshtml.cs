@@ -955,20 +955,21 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostSwitchCurrentProgressAsync(int progressId)
     {
-        var all = await _db.CourseProgresses.ToListAsync();
-        foreach (var p in all)
+        var target = await _db.CourseProgresses.FirstOrDefaultAsync(p => p.Id == progressId);
+        if (target != null)
         {
-            p.IsCurrentProgress = (p.Id == progressId);
-        }
-        await _db.SaveChangesAsync();
+            target.IsCurrentProgress = !target.IsCurrentProgress;
+            await _db.SaveChangesAsync();
 
-        var active = all.FirstOrDefault(p => p.Id == progressId);
-        TempData["SuccessMessage"] = $"已切換目前開放預約進度為：{active?.Code} {active?.Title}";
+            TempData["SuccessMessage"] = target.IsCurrentProgress
+                ? $"已開放預約進度：{target.Title}"
+                : $"已關閉預約進度：{target.Title}";
+        }
         return Redirect("/Members#tab-member-semester");
     }
 
     public async Task<IActionResult> OnPostCreateProgressAsync(
-        string code,
+        string? code,
         string title,
         string gradeClass,
         DateOnly weekStartDate,
@@ -983,16 +984,14 @@ public class IndexModel : PageModel
             return Redirect("/Members#tab-member-semester");
         }
 
-        if (setAsCurrent)
-        {
-            var existing = await _db.CourseProgresses.ToListAsync();
-            foreach (var p in existing) p.IsCurrentProgress = false;
-        }
+        var finalCode = !string.IsNullOrWhiteSpace(code)
+            ? code.Trim()
+            : await GenerateNextProgressCodeAsync();
 
         _db.CourseProgresses.Add(new CourseProgress
         {
             SemesterId = sem.Id,
-            Code = code.Trim(),
+            Code = finalCode,
             Title = title.Trim(),
             GradeClass = gradeClass.Trim(),
             WeekStartDate = weekStartDate,
@@ -1001,8 +1000,30 @@ public class IndexModel : PageModel
         });
         await _db.SaveChangesAsync();
 
-        TempData["SuccessMessage"] = $"已建立每週課程進度「{code} {title}」！";
+        TempData["SuccessMessage"] = $"已建立每週課程進度「{title.Trim()}」！";
         return Redirect("/Members#tab-member-semester");
+    }
+
+    private async Task<string> GenerateNextProgressCodeAsync()
+    {
+        var existingCodes = await _db.CourseProgresses.Select(p => p.Code).ToListAsync();
+        var maxNum = existingCodes
+            .Select(c =>
+            {
+                if (!string.IsNullOrWhiteSpace(c) && c.StartsWith("W", StringComparison.OrdinalIgnoreCase) && int.TryParse(c.Substring(1), out var n))
+                    return n;
+                return 0;
+            })
+            .DefaultIfEmpty(0)
+            .Max();
+        var nextNum = Math.Max(maxNum + 1, existingCodes.Count + 1);
+        var autoCode = $"W{nextNum:D2}";
+        while (existingCodes.Contains(autoCode, StringComparer.OrdinalIgnoreCase))
+        {
+            nextNum++;
+            autoCode = $"W{nextNum:D2}";
+        }
+        return autoCode;
     }
 
     public async Task<IActionResult> OnPostEndSemesterBonusExpiryAsync()

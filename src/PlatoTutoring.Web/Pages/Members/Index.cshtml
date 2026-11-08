@@ -602,7 +602,7 @@
                         </form>
                     </div>
                     <div class="card-body">
-                        <div class="small fw-semibold mb-2">切換目前開放預約進度（家長僅可預約目前進度）：</div>
+                        <div class="small fw-semibold mb-2">切換目前開放預約進度（可同時開放多個進度，家長僅可預約已開放進度）：</div>
                         <div class="d-grid gap-2">
                             @if (Model.AllProgresses.Count == 0)
                             {
@@ -610,23 +610,29 @@
                             }
                             @foreach (var p in Model.AllProgresses)
                             {
-                                <div class="p-3 border rounded-3 d-flex justify-content-between align-items-center @(p.IsCurrentProgress ? "bg-light border-dark" : "")">
+                                <div class="p-3 border rounded-3 d-flex justify-content-between align-items-center flex-wrap gap-2 @(p.IsCurrentProgress ? "bg-light border-dark" : "")">
                                     <div>
-                                        <strong>@p.Code @p.Title</strong>
+                                        <strong>@p.Title</strong>
                                         <span class="badge bg-secondary ms-1">@p.GradeClass</span>
                                         <div class="small text-muted">@p.WeekStartDate.ToString("MM/dd") ~ @p.WeekEndDate.ToString("MM/dd")</div>
                                     </div>
-                                    @if (p.IsCurrentProgress)
-                                    {
-                                        <span class="badge bg-success px-3 py-2">目前開放進度</span>
-                                    }
-                                    else
-                                    {
-                                        <form method="post" asp-page-handler="SwitchCurrentProgress">
-                                            <input type="hidden" name="progressId" value="@p.Id" />
-                                            <button type="submit" class="btn btn-sm btn-outline-dark">設為目前進度</button>
-                                        </form>
-                                    }
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (p.IsCurrentProgress)
+                                        {
+                                            <span class="badge bg-success px-3 py-2">目前開放進度</span>
+                                            <form method="post" asp-page-handler="SwitchCurrentProgress">
+                                                <input type="hidden" name="progressId" value="@p.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">關閉進度</button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <form method="post" asp-page-handler="SwitchCurrentProgress">
+                                                <input type="hidden" name="progressId" value="@p.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-dark">設為目前進度</button>
+                                            </form>
+                                        }
+                                    </div>
                                 </div>
                             }
                         </div>
@@ -640,14 +646,10 @@
                         <h5 class="fw-bold mb-0">
                             <i class="bi bi-plus-square-fill me-2 text-primary"></i>新增每週課程進度
                         </h5>
-                        <div class="small text-muted">設定進度代碼、起訖日期與適用班別</div>
+                        <div class="small text-muted">設定進度主題名稱、起訖日期與適用班別</div>
                     </div>
                     <div class="card-body">
                         <form method="post" asp-page-handler="CreateProgress">
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold">進度代碼（如 W09）</label>
-                                <input type="text" name="code" class="form-control" placeholder="例如：W09" required />
-                            </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-semibold">進度主題名稱</label>
                                 <input type="text" name="title" class="form-control" placeholder="例如：幾何證明與相似形總複習" required />

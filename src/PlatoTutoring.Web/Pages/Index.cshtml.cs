@@ -55,8 +55,12 @@ public class IndexModel : PageModel
             var semester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent);
             CurrentSemesterName = semester?.Name ?? "未設定學期";
 
-            var progress = await _db.CourseProgresses.FirstOrDefaultAsync(p => p.IsCurrentProgress);
-            CurrentProgressTitle = progress != null ? $"{progress.Code} {progress.Title}" : "未設定目前進度";
+            var openProgresses = await _db.CourseProgresses
+                .Where(p => p.IsCurrentProgress)
+                .OrderByDescending(p => p.Id)
+                .Select(p => p.Title)
+                .ToListAsync();
+            CurrentProgressTitle = openProgresses.Any() ? string.Join("、", openProgresses) : "未設定目前進度";
 
             var activeStudents = await _db.Students.Where(s => !s.IsDroppedOut).ToListAsync();
             ActiveStudentCount = activeStudents.Count;
