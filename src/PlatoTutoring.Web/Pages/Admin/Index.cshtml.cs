@@ -324,20 +324,21 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostSwitchCurrentProgressAsync(int progressId)
     {
-        var all = await _db.CourseProgresses.ToListAsync();
-        foreach (var p in all)
+        var target = await _db.CourseProgresses.FirstOrDefaultAsync(p => p.Id == progressId);
+        if (target != null)
         {
-            p.IsCurrentProgress = (p.Id == progressId);
-        }
-        await _db.SaveChangesAsync();
+            target.IsCurrentProgress = !target.IsCurrentProgress;
+            await _db.SaveChangesAsync();
 
-        var active = all.FirstOrDefault(p => p.Id == progressId);
-        TempData["SuccessMessage"] = $"已切換目前開放預約進度為：{active?.Code} {active?.Title}";
+            TempData["SuccessMessage"] = target.IsCurrentProgress
+                ? $"已開放預約進度：{target.Title}"
+                : $"已關閉預約進度：{target.Title}";
+        }
         return Redirect("/Admin#tab-admin-semester");
     }
 
     public async Task<IActionResult> OnPostCreateProgressAsync(
-        string code,
+        string? code,
         string title,
         string gradeClass,
         DateOnly weekStartDate,
@@ -353,16 +354,30 @@ public class IndexModel : PageModel
             return Redirect("/Admin#tab-admin-semester");
         }
 
-        if (setAsCurrent)
+        var existingCodes = await _db.CourseProgresses.Select(p => p.Code).ToListAsync();
+        var maxNum = existingCodes
+            .Select(c =>
+            {
+                if (!string.IsNullOrWhiteSpace(c) && c.StartsWith("W", StringComparison.OrdinalIgnoreCase) && int.TryParse(c.Substring(1), out var n))
+                    return n;
+                return 0;
+            })
+            .DefaultIfEmpty(0)
+            .Max();
+        var nextNum = Math.Max(maxNum + 1, existingCodes.Count + 1);
+        var autoCode = $"W{nextNum:D2}";
+        while (existingCodes.Contains(autoCode, StringComparer.OrdinalIgnoreCase))
         {
-            var existing = await _db.CourseProgresses.ToListAsync();
-            foreach (var p in existing) p.IsCurrentProgress = false;
+            nextNum++;
+            autoCode = $"W{nextNum:D2}";
         }
+
+        var finalCode = !string.IsNullOrWhiteSpace(code) ? code.Trim() : autoCode;
 
         _db.CourseProgresses.Add(new CourseProgress
         {
             SemesterId = sem.Id,
-            Code = code.Trim(),
+            Code = finalCode,
             Title = title.Trim(),
             GradeClass = gradeClass.Trim(),
             WeekStartDate = weekStartDate,
@@ -375,14 +390,14 @@ public class IndexModel : PageModel
         {
             try
             {
-                var count = await _lineService.NotifyNewGroupProgressAsync(code.Trim(), title.Trim());
-                TempData["SuccessMessage"] = $"已新增課程進度：{code} {title}，並透過 LINE 廣播通知 {count} 位家長！";
+                var count = await _lineService.NotifyNewGroupProgressAsync(finalCode, title.Trim());
+                TempData["SuccessMessage"] = $"已新增課程進度：{title.Trim()}，並透過 LINE 廣播通知 {count} 位家長！";
                 return Redirect("/Admin#tab-admin-semester");
             }
             catch { }
         }
 
-        TempData["SuccessMessage"] = $"已新增課程進度：{code} {title}";
+        TempData["SuccessMessage"] = $"已新增課程進度：{title.Trim()}";
         return Redirect("/Admin#tab-admin-semester");
     }
 

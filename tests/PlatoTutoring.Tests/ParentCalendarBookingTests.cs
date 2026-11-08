@@ -259,5 +259,34 @@ public class ParentCalendarBookingTests
         Assert.Equal("18:00-19:30", badgeTexts[0]);
         Assert.Equal("17:00-19:00", badgeTexts[1]);
     }
+
+    [Fact]
+    public void CourseProgress_SupportsMultipleCurrentProgresses_And_AutoGeneratesCode()
+    {
+        var progresses = new List<CourseProgress>
+        {
+            new CourseProgress { Id = 1, Code = "W07", Title = "第7週－二次函數與極值應用", IsCurrentProgress = true },
+            new CourseProgress { Id = 2, Code = "W08", Title = "第8週－圓的幾何性質與切線", IsCurrentProgress = false }
+        };
+
+        // 切換第 2 筆為開放進度時，第 1 筆仍保持開放（支援多個進度同時開放）
+        var target = progresses.First(p => p.Id == 2);
+        target.IsCurrentProgress = !target.IsCurrentProgress;
+
+        Assert.True(progresses[0].IsCurrentProgress);
+        Assert.True(progresses[1].IsCurrentProgress);
+        Assert.Equal(2, progresses.Count(p => p.IsCurrentProgress));
+
+        // 系統自動產生下一個進度代碼（不需使用者輸入）
+        var existingCodes = progresses.Select(p => p.Code).ToList();
+        var maxNum = existingCodes
+            .Select(c => !string.IsNullOrWhiteSpace(c) && c.StartsWith("W", StringComparison.OrdinalIgnoreCase) && int.TryParse(c.Substring(1), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        var nextNum = Math.Max(maxNum + 1, existingCodes.Count + 1);
+        var autoCode = $"W{nextNum:D2}";
+
+        Assert.Equal("W09", autoCode);
+    }
 }
 

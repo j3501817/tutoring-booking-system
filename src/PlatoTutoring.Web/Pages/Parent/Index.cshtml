@@ -113,7 +113,7 @@
                         @foreach (var hw in Model.OpenHomeworkItems)
                         {
                             <li class="mb-1">
-                                <strong>@hw.CourseProgress?.Code @hw.CourseProgress?.Title：</strong>@hw.SubjectNote
+                                <strong>@hw.CourseProgress?.Title：</strong>@hw.SubjectNote
                                 <span class="text-muted">（通知時間：@BookingService.FormatTaipeiShortDateZh(hw.FirstNotifiedAtUtc)）</span>
                                 @if (hw.IsSecondReminderFlagged)
                                 {
@@ -402,7 +402,7 @@
                                     </div>
                                     <div class="small text-secondary d-flex flex-wrap align-items-center gap-3">
                                         <span><i class="bi bi-person-workspace me-1"></i>老師：<strong>@slot.TeacherUser?.DisplayName</strong></span>
-                                        <span><i class="bi bi-journal-bookmark me-1"></i>進度：@slot.CourseProgress?.Code @slot.CourseProgress?.Title</span>
+                                        <span><i class="bi bi-journal-bookmark me-1"></i>進度：@slot.CourseProgress?.Title</span>
                                         @if (!string.IsNullOrWhiteSpace(slot.Notes))
                                         {
                                             <span class="text-muted"><i class="bi bi-chat-left-text me-1"></i>@slot.Notes</span>
@@ -630,7 +630,7 @@
                                                     <td data-label="時段與進度">
                                                         <div>
                                                             <div class="fw-bold text-dark">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
-                                                            <div class="small text-muted">@slot.CourseProgress?.Code @slot.GradeClass</div>
+                                                            <div class="small text-muted">@slot.CourseProgress?.Title · @slot.GradeClass</div>
                                                         </div>
                                                     </td>
                                                     <td data-label="類型 / 目的">
@@ -720,7 +720,7 @@
                                                     <td data-label="時段與進度">
                                                         <div>
                                                             <div class="fw-bold text-dark">@sTpe.ToString("MM/dd") (@dayZh) @sTpe.ToString("HH:mm")</div>
-                                                            <div class="small text-muted">@slot.CourseProgress?.Code @slot.GradeClass</div>
+                                                            <div class="small text-muted">@slot.CourseProgress?.Title · @slot.GradeClass</div>
                                                         </div>
                                                     </td>
                                                     <td data-label="類型 / 目的">
@@ -1015,7 +1015,7 @@
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div class="fw-semibold">@slot.CourseProgress?.Code @slot.CourseProgress?.Title</div>
+                                                    <div class="fw-semibold">@slot.CourseProgress?.Title</div>
                                                     <div class="small text-muted">年別：@slot.GradeClass ｜ 師資：@slot.TeacherUser?.DisplayName</div>
                                                 </td>
                                                 <td>

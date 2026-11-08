@@ -331,7 +331,7 @@ public class IndexModel : PageModel
             success = true,
             slotId = slot.Id,
             timeDesc = $"{sTpe:yyyy/MM/dd} ({dayZh}) {sTpe:HH:mm} ~ {eTpe:HH:mm}",
-            progressTitle = $"{slot.CourseProgress?.Code} {slot.CourseProgress?.Title}".Trim(),
+            progressTitle = (slot.CourseProgress?.Title ?? "").Trim(),
             gradeClass = slot.GradeClass,
             slotTypeDesc = slot.SlotType == SlotType.SmallGroup ? "小組指導 (4人)" : "團體輔導 (20人)",
             teacherName = slot.TeacherUser?.DisplayName ?? "",

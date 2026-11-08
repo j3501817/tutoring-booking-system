@@ -171,7 +171,7 @@
                                         </span>
                                     </div>
                                     <div class="small text-secondary mb-2">
-                                        <div><strong>@ts.CourseProgress?.Code</strong> @ts.CourseProgress?.Title</div>
+                                        <div class="fw-semibold text-dark">@ts.CourseProgress?.Title</div>
                                         <div class="text-muted">適用班別：@ts.GradeClass ｜ 授課：@ts.TeacherUser?.DisplayName</div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center pt-2 border-top small">
@@ -211,7 +211,7 @@
                                 本課堂學生名冊：@curStartTpe.ToString("yyyy/MM/dd") (@curDayZh) @curStartTpe.ToString("HH:mm") – @curEndTpe.ToString("HH:mm")
                             </h3>
                             <div class="small text-secondary">
-                                進度：<strong>@curSlot.CourseProgress?.Code @curSlot.CourseProgress?.Title</strong> ｜ 班別：@curSlot.GradeClass ｜
+                                進度：<strong>@curSlot.CourseProgress?.Title</strong> ｜ 班別：@curSlot.GradeClass ｜
                                 類型：@(curSlot.SlotType == SlotType.SmallGroup ? "小組指導（扣 1 堂）" : "團體輔導（免費 0 堂）")
                             </div>
                         </div>
@@ -530,8 +530,7 @@
                                         <div class="small text-muted">@stTpe.ToString("HH:mm") – @edTpe.ToString("HH:mm") (@(durationMin)分鐘)</div>
                                     </td>
                                     <td data-label="課程進度">
-                                        <strong>@s.CourseProgress?.Code</strong>
-                                        <div class="small text-muted text-truncate" style="max-width: 180px;">@s.CourseProgress?.Title</div>
+                                        <div class="fw-semibold text-dark text-truncate" style="max-width: 180px;">@s.CourseProgress?.Title</div>
                                     </td>
                                     <td data-label="適用班別">
                                         <span class="badge bg-light text-dark border">@s.GradeClass</span>
@@ -697,7 +696,7 @@
                             <select id="hwProgress" name="courseProgressId" class="form-select" required>
                                 @foreach (var p in Model.ProgressList)
                                 {
-                                    <option value="@p.Id">@p.Code @p.Title</option>
+                                    <option value="@p.Id">@p.Title</option>
                                 }
                             </select>
                         </div>
@@ -745,7 +744,7 @@
                                 <div>
                                     <div class="fw-bold">
                                         @hw.Student?.FullName
-                                        <span class="badge bg-secondary ms-1">@hw.CourseProgress?.Code</span>
+                                        <span class="badge bg-secondary ms-1">@hw.CourseProgress?.Title</span>
                                         <span class="badge bg-info-subtle text-dark border ms-1">@(hw.ConditionType ?? "作業不佳")</span>
                                     </div>
                                     <div class="small text-secondary mt-1">@hw.SubjectNote</div>
@@ -796,7 +795,7 @@
                                         <input class="form-check-input" type="checkbox" name="courseProgressIds" value="@p.Id" id="createProg_@p.Id" />
                                         <label class="form-check-label d-flex align-items-center justify-content-between" for="createProg_@p.Id">
                                             <span>
-                                                <strong class="text-dark">@p.Code</strong> @p.Title
+                                                <strong class="text-dark">@p.Title</strong>
                                                 @if (p.IsCurrentProgress)
                                                 {
                                                     <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle ms-1">目前進度</span>
@@ -905,7 +904,7 @@
                                 var tpe = BookingService.ToTaipeiTime(sl.StartsAtUtc);
                                 var dayZh = "日一二三四五六"[(int)tpe.DayOfWeek];
                                 <option value="@sl.Id">
-                                    @tpe.ToString("yyyy/MM/dd") (@dayZh) @tpe.ToString("HH:mm") @sl.CourseProgress?.Code (@(sl.SlotType == SlotType.SmallGroup ? "小組扣1堂" : "團體免費")) 剩餘 @sl.RemainingSeats 名
+                                    @tpe.ToString("yyyy/MM/dd") (@dayZh) @tpe.ToString("HH:mm") @sl.CourseProgress?.Title (@(sl.SlotType == SlotType.SmallGroup ? "小組扣1堂" : "團體免費")) 剩餘 @sl.RemainingSeats 名
                                 </option>
                             }
                         </select>
@@ -1164,7 +1163,7 @@
                         <select id="editSlotProgress" name="courseProgressId" class="form-select" required>
                             @foreach (var p in Model.ProgressList)
                             {
-                                <option value="@p.Id">@p.Code @p.Title</option>
+                                <option value="@p.Id">@p.Title</option>
                             }
                         </select>
                     </div>
