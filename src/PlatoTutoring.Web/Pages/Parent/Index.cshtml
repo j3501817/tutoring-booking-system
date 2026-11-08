@@ -9,18 +9,18 @@
 
 <!-- 頂部一體化控制條：整合孩子切換、可用堂數、LINE 綁定與教務模式 -->
 <div class="card-plato p-3 mb-3 shadow-sm" style="background: linear-gradient(135deg, #ffffff 0%, #fcfbf9 100%); border-left: 4px solid var(--plato-terracotta);">
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-        <!-- 學生資訊與切換 -->
-        <div class="d-flex align-items-center gap-2 gap-md-3 flex-wrap">
-            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
-                 style="width: 42px; height: 42px; background: var(--plato-terracotta); font-size: 1.1rem; flex-shrink: 0;">
-                @(student?.FullName.Substring(0, 1) ?? "生")
-            </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 gap-lg-3">
+        <!-- 學生資訊與切換（在手機上維持同行緊湊對齊） -->
+        <div class="d-flex align-items-center justify-content-between justify-content-lg-start gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-lg-grow-0">
+                <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
+                     style="width: 38px; height: 38px; background: var(--plato-terracotta); font-size: 1rem; flex-shrink: 0;">
+                    @(student?.FullName.Substring(0, 1) ?? "生")
+                </div>
                 @if (Model.AuthorizedStudents.Count > 1)
                 {
-                    <div class="input-group input-group-sm" style="width: auto;">
-                        <span class="input-group-text bg-white fw-semibold text-secondary">
+                    <div class="input-group input-group-sm" style="max-width: 280px;">
+                        <span class="input-group-text bg-white fw-semibold text-secondary px-2">
                             <i class="bi bi-people-fill me-1"></i>孩子
                         </span>
                         <select class="form-select form-select-sm fw-bold text-dark border-secondary-subtle"
@@ -34,10 +34,14 @@
                 }
                 else
                 {
-                    <span class="fs-5 fw-bold text-dark">@student?.FullName</span>
-                    <span class="badge bg-secondary-subtle text-secondary border">@student?.DisplaySchoolGradeClass</span>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="fs-5 fw-bold text-dark">@student?.FullName</span>
+                        <span class="badge bg-secondary-subtle text-secondary border">@student?.DisplaySchoolGradeClass</span>
+                    </div>
                 }
+            </div>
 
+            <div class="d-flex align-items-center gap-1">
                 @if (student != null)
                 {
                     @if (student.EnrollmentStatus == StudentEnrollmentStatus.Enrolled)
@@ -62,16 +66,16 @@
         </div>
 
         <!-- 堂數與 LINE 通知緊湊膠囊列 -->
-        <div class="d-flex align-items-center gap-2 gap-md-3 flex-wrap">
+        <div class="d-flex align-items-center justify-content-between justify-content-lg-end gap-2 flex-wrap pt-1 pt-lg-0 border-top border-lg-0">
             @if (student != null)
             {
-                <div class="d-flex align-items-center gap-2 bg-light p-1 px-3 rounded-pill border">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 bg-light py-1 px-2 px-sm-3 rounded-pill border">
                     <i class="bi bi-wallet2 text-primary"></i>
                     <span class="small text-muted">可用堂數：</span>
-                    <strong class="fs-5" style="color: var(--plato-terracotta-dark);">@student.TotalCredits</strong>
-                    <span class="small text-muted me-1">堂</span>
-                    <span class="badge bg-white text-secondary border py-1 px-2 fw-normal" style="font-size: 0.75rem;">
-                        儲值 @student.PaidCredits ｜ 贈送 @student.BonusCredits
+                    <strong class="fs-5" style="color: var(--plato-terracotta-dark); line-height: 1;">@student.TotalCredits</strong>
+                    <span class="small text-muted">堂</span>
+                    <span class="badge bg-white text-secondary border py-1 px-2 fw-normal" style="font-size: 0.72rem;">
+                        儲值 @student.PaidCredits｜贈送 @student.BonusCredits
                     </span>
                 </div>
             }
@@ -81,12 +85,12 @@
                 <a href="/LineAuth/Login?returnUrl=@Url.Page("/Parent", null, new { studentId = student?.Id })"
                    class="btn btn-sm text-white fw-semibold rounded-pill px-3 shadow-sm d-inline-flex align-items-center"
                    style="background-color: #06c755; border-color: #06c755;" title="綁定 LINE 官方帳號接收即時通知">
-                    <i class="bi bi-line me-1"></i>綁定 LINE 通知
+                    <i class="bi bi-line me-1"></i>綁定 LINE
                 </a>
             }
             else
             {
-                <div class="d-inline-flex align-items-center gap-1 bg-white p-1 px-2 rounded-pill border small text-success">
+                <div class="d-inline-flex align-items-center gap-1 bg-white py-1 px-2 rounded-pill border small text-success fw-semibold">
                     <i class="bi bi-check-circle-fill"></i>
                     <span>LINE 已綁定</span>
                 </div>
@@ -124,94 +128,57 @@
     }
 
 
-    <!-- 膠囊式分段工作區頁籤 (Segmented Workspace Tabs) -->
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <ul class="nav nav-pills workspace-tabs-shell" id="parentWorkspaceTabs" role="tablist">
+    <!-- 三等分工作區導覽頁籤 (手機與桌機皆維持整齊單排三等分) -->
+    <div class="mb-3">
+        <ul class="nav nav-pills parent-tabs-shell" id="parentWorkspaceTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="btn-parent-book" data-bs-toggle="pill"
                         data-bs-target="#tab-parent-book" type="button" role="tab">
-                    <i class="bi bi-calendar-week"></i>
-                    <span>線上預約時段</span>
+                    <span class="parent-tab-top-row">
+                        <i class="bi bi-calendar-week"></i>
+                    </span>
+                    <span class="parent-tab-label">線上預約時段</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="btn-parent-records" data-bs-toggle="pill"
                         data-bs-target="#tab-parent-records" type="button" role="tab">
-                    <i class="bi bi-list-check"></i>
-                    <span>我的預約與候補</span>
-                    <span class="workspace-tab-count">@(Model.StudentBookings.Count(b => b.Status == BookingStatus.Confirmed) + Model.StudentWaitlistEntries.Count(w => w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold))</span>
+                    <span class="parent-tab-top-row">
+                        <i class="bi bi-list-check"></i>
+                        <span class="workspace-tab-count">@(Model.StudentBookings.Count(b => b.Status == BookingStatus.Confirmed) + Model.StudentWaitlistEntries.Count(w => w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold))</span>
+                    </span>
+                    <span class="parent-tab-label">我的預約與候補</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="btn-parent-ledger" data-bs-toggle="pill"
                         data-bs-target="#tab-parent-ledger" type="button" role="tab">
-                    <i class="bi bi-journal-text"></i>
-                    <span>堂數異動流水帳</span>
-                    <span class="workspace-tab-count">@Model.StudentLedgerEntries.Count</span>
+                    <span class="parent-tab-top-row">
+                        <i class="bi bi-journal-text"></i>
+                        <span class="workspace-tab-count">@Model.StudentLedgerEntries.Count</span>
+                    </span>
+                    <span class="parent-tab-label">堂數異動流水帳</span>
                 </button>
             </li>
         </ul>
     </div>
 
     <div class="tab-content" id="parentWorkspaceTabContent">
-        <!-- 分頁一：線上預約時段（先顯示月曆，點日期之後展開當天課堂列表） -->
+        <!-- 分頁一：線上預約時段（先顯示 7 日曆，點日期之後展開當天課堂列表） -->
         <div class="tab-pane fade show active" id="tab-parent-book" role="tabpanel">
             
-            <!-- 月曆卡片 (顯示 7 天，支援往後七天與往前七天導覽，往前只到今天為止) -->
+            <!-- 7 日預約日曆卡片 (專為手機與桌機優化，支援往後七天與往前七天導覽，往前只到今天為止) -->
             <div class="booking-month-calendar card-plato p-3 p-md-4 mb-4 shadow-sm">
-                <div class="calendar-month-header">
-                    <div class="d-flex align-items-center gap-2 flex-wrap my-auto">
-                        <h2 class="h5 fw-bold mb-0 text-dark d-flex align-items-center">
-                            <i class="bi bi-calendar-week text-primary me-2"></i>課堂預約行事曆
-                            <span class="text-secondary fw-normal fs-6 ms-2">（@($"{Model.CurrentStartDate:M/d}") ～ @($"{Model.CurrentEndDate:M/d}")）</span>
-                        </h2>
-                        <div class="btn-group btn-group-sm ms-md-2 my-auto align-self-center" role="group">
-                            @if (Model.CanGoPrevWeek)
-                            {
-                                <a asp-page="/Parent/Index"
-                                   asp-route-studentId="@student?.Id"
-                                   asp-route-startDate="@Model.PrevWeekStartDate?.ToString("yyyy-MM-dd")"
-                                   asp-fragment="tab-parent-book"
-                                   class="btn btn-outline-secondary d-inline-flex align-items-center py-1"
-                                   title="往前七天（最多至今天）">
-                                    <i class="bi bi-chevron-left me-1"></i>往前七天
-                                </a>
-                            }
-                            else
-                            {
-                                <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center py-1 disabled opacity-50" disabled title="往前只到今天為止">
-                                    <i class="bi bi-chevron-left me-1"></i>往前七天
-                                </button>
-                            }
-
-                            @if (!Model.IsCurrentWeek)
-                            {
-                                <a asp-page="/Parent/Index"
-                                   asp-route-studentId="@student?.Id"
-                                   asp-fragment="tab-parent-book"
-                                   class="btn btn-outline-dark d-inline-flex align-items-center py-1"
-                                   title="返回今天起算之一週">
-                                    本週
-                                </a>
-                            }
-
-                            <a asp-page="/Parent/Index"
-                               asp-route-studentId="@student?.Id"
-                               asp-route-startDate="@Model.NextWeekStartDate.ToString("yyyy-MM-dd")"
-                               asp-fragment="tab-parent-book"
-                               class="btn btn-outline-secondary d-inline-flex align-items-center py-1"
-                               title="往後七天">
-                                往後七天<i class="bi bi-chevron-right ms-1"></i>
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- 週期預約按鈕與圖例說明 -->
-                    <div class="d-flex align-items-center gap-2 flex-wrap small">
+                <!-- 第一層：標題與週期預約按鈕 -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <h2 class="h5 fw-bold mb-0 text-dark d-flex align-items-center">
+                        <i class="bi bi-calendar-week text-primary me-2"></i>課堂預約行事曆
+                    </h2>
+                    <div>
                         @if (isEnrollmentBlocked)
                         {
                             <button type="button"
-                                    class="btn btn-sm btn-primary fw-bold"
+                                    class="btn btn-sm btn-primary fw-bold rounded-pill px-3"
                                     onclick="showEnrollmentBlockedModal('@student?.FullName', '該學生@(enrollmentStatusDesc)，暫無法預約課堂；請洽班主任辦理學期續報。')">
                                 <i class="bi bi-arrow-repeat me-1"></i>週期預約
                             </button>
@@ -219,38 +186,75 @@
                         else
                         {
                             <button type="button"
-                                    class="btn btn-sm btn-primary fw-bold"
+                                    class="btn btn-sm btn-primary fw-bold rounded-pill px-3"
                                     data-bs-toggle="modal"
                                     data-bs-target="#modalRecurringBooking"
                                     onclick="openRecurringBookingModal()">
                                 <i class="bi bi-arrow-repeat me-1"></i>週期預約
                             </button>
                         }
-                        <span class="text-secondary ms-2 me-1">標示說明：</span>
-                        <span class="badge badge-slot-small"><i class="bi bi-people-fill me-1"></i>小組指導</span>
-                        <span class="badge badge-slot-group"><i class="bi bi-collection-fill me-1"></i>團體輔導</span>
-                        <span class="badge bg-secondary"><i class="bi bi-moon-stars-fill me-1"></i>休假日</span>
                     </div>
                 </div>
 
-                <!-- 星期列 (對應今天起 7 天之星期) -->
-                <div class="calendar-month-grid mb-1">
-                    @foreach (var cellDate in Model.SevenDays)
+                <!-- 第二層：滿版三段式週次切換控制條 -->
+                <div class="calendar-week-switcher mb-2">
+                    @if (Model.CanGoPrevWeek)
                     {
-                        var isWeekend = cellDate.DayOfWeek == DayOfWeek.Saturday || cellDate.DayOfWeek == DayOfWeek.Sunday;
-                        var isToday = cellDate == Model.TodayDate;
-                        <div class="calendar-weekday-cell @(isWeekend ? "weekend" : "") @(isToday ? "border border-primary text-primary fw-bold" : "")">
-                            週@("日一二三四五六"[(int)cellDate.DayOfWeek])
-                        </div>
+                        <a asp-page="/Parent/Index"
+                           asp-route-studentId="@student?.Id"
+                           asp-route-startDate="@Model.PrevWeekStartDate?.ToString("yyyy-MM-dd")"
+                           asp-fragment="tab-parent-book"
+                           class="btn btn-sm btn-white bg-white border shadow-sm d-inline-flex align-items-center fw-semibold px-2 px-sm-3 py-1"
+                           title="往前七天（最多至今天）">
+                            <i class="bi bi-chevron-left me-1"></i>往前七天
+                        </a>
                     }
+                    else
+                    {
+                        <button type="button" class="btn btn-sm bg-white border d-inline-flex align-items-center px-2 px-sm-3 py-1 disabled opacity-50" disabled title="往前只到今天為止">
+                            <i class="bi bi-chevron-left me-1"></i>往前七天
+                        </button>
+                    }
+
+                    <div class="calendar-week-range-badge">
+                        <span>@($"{Model.CurrentStartDate:M/d}") ～ @($"{Model.CurrentEndDate:M/d}")</span>
+                        @if (!Model.IsCurrentWeek)
+                        {
+                            <a asp-page="/Parent/Index"
+                               asp-route-studentId="@student?.Id"
+                               asp-fragment="tab-parent-book"
+                               class="badge bg-dark text-white text-decoration-none px-2 py-1"
+                               title="返回今天起算之一週">
+                                回本週
+                            </a>
+                        }
+                    </div>
+
+                    <a asp-page="/Parent/Index"
+                       asp-route-studentId="@student?.Id"
+                       asp-route-startDate="@Model.NextWeekStartDate.ToString("yyyy-MM-dd")"
+                       asp-fragment="tab-parent-book"
+                       class="btn btn-sm btn-white bg-white border shadow-sm d-inline-flex align-items-center fw-semibold px-2 px-sm-3 py-1"
+                       title="往後七天">
+                        往後七天<i class="bi bi-chevron-right ms-1"></i>
+                    </a>
                 </div>
 
-                <!-- 日期網格（今天起未來 7 天，共 1 列 7 個格子） -->
-                <div class="calendar-month-grid" id="parentCalendarGrid">
+                <!-- 第三層：圖例說明 -->
+                <div class="d-flex align-items-center gap-2 flex-wrap small mb-3 pb-2 border-bottom">
+                    <span class="text-secondary">標示說明：</span>
+                    <span class="badge badge-slot-small"><i class="bi bi-people-fill me-1"></i>小組指導</span>
+                    <span class="badge badge-slot-group"><i class="bi bi-collection-fill me-1"></i>團體輔導</span>
+                    <span class="badge bg-secondary"><i class="bi bi-moon-stars-fill me-1"></i>休假日</span>
+                </div>
+
+                <!-- 第四層：7 天一體化日曆卡片網格（手機版 2x4 滿版矩陣，桌機版 1x7 單排） -->
+                <div class="parent-seven-day-grid" id="parentCalendarGrid">
                     @foreach (var cellDate in Model.SevenDays)
                     {
                         var cellDateStr = cellDate.ToString("yyyy-MM-dd");
                         var cellDateDisplayZh = $"{cellDate:yyyy/MM/dd}（週{"日一二三四五六"[(int)cellDate.DayOfWeek]}）";
+                        var isWeekend = cellDate.DayOfWeek == DayOfWeek.Saturday || cellDate.DayOfWeek == DayOfWeek.Sunday;
                         var isHoliday = Model.HolidayDates.Contains(cellDate);
                         var holidayName = isHoliday && Model.HolidayNames.TryGetValue(cellDate, out var hn) ? hn : null;
                         CalendarDaySummary? summary = null;
@@ -266,27 +270,37 @@
                              tabindex="0"
                              aria-label="@(isHoliday ? $"{cellDateDisplayZh} 為機構休假日（{holidayName}）點擊查看詳情" : hasSlots ? $"{cellDateDisplayZh} 有課堂可預約，點擊展開時段列表" : cellDateDisplayZh)"
                              @(isHoliday ? $"onclick=\"showHolidayNoticeModal('{cellDateDisplayZh}', '{Html.Raw(holidayName ?? "機構休假日")}')\"" : hasSlots ? "onclick=\"selectCalendarDate(this.dataset.date, this.dataset.dateZh)\"" : "")>
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="calendar-day-number @(isToday ? "badge bg-primary text-white" : isHoliday ? "text-danger fw-bold" : "")">
+                            
+                            <div>
+                                <!-- 卡片頂部：星期幾 + 今天/休假標籤 -->
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="calendar-cell-weekday @(isToday ? "text-primary" : isWeekend ? "weekend" : "")">
+                                        週@("日一二三四五六"[(int)cellDate.DayOfWeek])
+                                    </span>
+                                    @if (isToday)
+                                    {
+                                        <span class="badge bg-primary text-white p-0 px-1" style="font-size: 0.65rem;">今天</span>
+                                    }
+                                    else if (isHoliday)
+                                    {
+                                        <span class="badge bg-danger text-white p-0 px-1" style="font-size: 0.65rem;">休假</span>
+                                    }
+                                </div>
+
+                                <!-- 卡片中段：醒目月/日數字 -->
+                                <div class="calendar-cell-date-main @(isHoliday ? "text-danger" : isToday ? "text-primary" : "")">
                                     @($"{cellDate:M/d}")
-                                </span>
-                                @if (isToday)
-                                {
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle p-0 px-1" style="font-size: 0.65rem;">今天</span>
-                                }
-                                else if (isHoliday)
-                                {
-                                    <span class="badge bg-danger text-white p-0 px-1" style="font-size: 0.65rem;">休假</span>
-                                }
+                                </div>
                             </div>
 
+                            <!-- 卡片底部：課堂類型徽章或休假/無課堂提示 -->
                             @if (isHoliday)
                             {
                                 <div class="calendar-cell-badges d-flex flex-column gap-1">
-                                    <span class="badge bg-secondary text-white text-truncate p-1" style="font-size: 0.72rem;" title="節日/休假原因：@holidayName">
+                                    <span class="badge bg-secondary text-white text-truncate p-1" style="font-size: 0.68rem;" title="節日/休假原因：@holidayName">
                                         🏖️ @(holidayName ?? "休假日")
                                     </span>
-                                    <span class="small text-danger fw-semibold" style="font-size: 0.68rem;">
+                                    <span class="small text-danger fw-semibold text-center" style="font-size: 0.65rem;">
                                         停課不開放
                                     </span>
                                 </div>
@@ -308,27 +322,38 @@
                                     }
                                 </div>
                             }
+                            else
+                            {
+                                <div class="calendar-no-slot-hint">無課堂</div>
+                            }
                         </div>
                     }
                 </div>
+            </div>
+
+            <!-- 未選擇日期或該週無課堂時的溫馨提示 -->
+            <div id="noDateSelectedPrompt" class="@(Model.SelectedDate.HasValue ? "d-none" : "") card-plato p-3 p-md-4 mb-4 text-center bg-white border shadow-sm">
+                <i class="bi bi-hand-index-thumb fs-3 text-primary mb-1 d-block"></i>
+                <div class="fw-bold text-dark mb-1">請點選上方日曆標示有「小組指導」或「團體輔導」的日期</div>
+                <div class="small text-secondary">點選日期卡片後，下方將立即展開當日可預約的課堂時段清單；亦可點擊「往後七天」查看後續週次。</div>
             </div>
 
             <!-- 點日期之後展開：當天課堂列表容器 -->
             <div id="daySlotsContainer" class="@(Model.SelectedDate.HasValue ? "" : "d-none") mb-4">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 p-3 bg-white rounded-3 border shadow-sm">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="metric-icon-box ocean"><i class="bi bi-calendar-event"></i></span>
+                        <span class="metric-icon-box ocean flex-shrink-0"><i class="bi bi-calendar-event"></i></span>
                         <div>
-                            <h3 class="h5 fw-bold mb-0 text-dark" id="selectedDateTitle">
-                                @(Model.SelectedDate.HasValue ? $"📅 {Model.SelectedDate.Value:yyyy/MM/dd}（週{"日一二三四五六"[(int)Model.SelectedDate.Value.DayOfWeek]}）課堂列表" : "")
+                            <h3 class="h6 fw-bold mb-0 text-dark" id="selectedDateTitle">
+                                @(Model.SelectedDate.HasValue ? $"{Model.SelectedDate.Value:yyyy/MM/dd}（週{"日一二三四五六"[(int)Model.SelectedDate.Value.DayOfWeek]}）課堂列表" : "")
                             </h3>
                             <span class="small text-muted" id="selectedDateSubtitle">
                                 @(Model.SelectedDate.HasValue ? $"當天共開放 {Model.AvailableSlots.Count} 堂輔導課" : "")
                             </span>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelectedDate()">
-                        <i class="bi bi-x-circle me-1"></i>收合課堂列表
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="clearSelectedDate()">
+                        <i class="bi bi-x-circle me-1"></i>收合列表
                     </button>
                 </div>
 
@@ -1172,7 +1197,7 @@
             const titleElem = document.getElementById('selectedDateTitle');
             const subTitleElem = document.getElementById('selectedDateSubtitle');
             if (titleElem) {
-                titleElem.textContent = `📅 ${dateZh || dateStr} 當日課堂列表`;
+                titleElem.textContent = `${dateZh || dateStr} 課堂列表`;
             }
             if (subTitleElem) {
                 subTitleElem.textContent = matchCount > 0 
@@ -1199,9 +1224,11 @@
                 cell.classList.remove('selected-day');
             });
 
-            // 2. 隱藏課堂容器
+            // 2. 隱藏課堂容器，顯示未選擇提示
+            const noDatePrompt = document.getElementById('noDateSelectedPrompt');
             const daySlotsContainer = document.getElementById('daySlotsContainer');
             if (daySlotsContainer) daySlotsContainer.classList.add('d-none');
+            if (noDatePrompt) noDatePrompt.classList.remove('d-none');
 
             // 3. 隱藏所有課堂卡片
             document.querySelectorAll('.slot-card-item').forEach(card => {

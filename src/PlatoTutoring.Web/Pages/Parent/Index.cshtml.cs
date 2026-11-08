@@ -156,12 +156,20 @@ public class IndexModel : PageModel
                 .ToListAsync();
         }
 
-        var allCurrentSlots = await _db.TutoringSlots
+        var nowTpe = BookingService.ToTaipeiTime(DateTime.UtcNow);
+        TodayDate = DateOnly.FromDateTime(nowTpe);
+
+        var rawCurrentSlots = await _db.TutoringSlots
             .Include(s => s.TeacherUser)
             .Include(s => s.CourseProgress)
             .Where(s => s.CourseProgress != null && s.CourseProgress.IsCurrentProgress)
             .OrderBy(s => s.StartsAtUtc)
             .ToListAsync();
+
+        // 嚴格過濾：今天之前的過期課堂不再顯示
+        var allCurrentSlots = rawCurrentSlots
+            .Where(s => DateOnly.FromDateTime(BookingService.ToTaipeiTime(s.StartsAtUtc)) >= TodayDate)
+            .ToList();
 
         AllCurrentSlots = allCurrentSlots;
 
@@ -170,9 +178,6 @@ public class IndexModel : PageModel
             .Distinct()
             .OrderBy(d => d)
             .ToList();
-
-        var nowTpe = BookingService.ToTaipeiTime(DateTime.UtcNow);
-        TodayDate = DateOnly.FromDateTime(nowTpe);
 
         // 起始日判定：往前只到今天為止，往後暫時不限
         if (!string.IsNullOrWhiteSpace(startDate) && DateOnly.TryParse(startDate, out var parsedStart))
@@ -201,7 +206,7 @@ public class IndexModel : PageModel
         // 往後七天計算：往後暫時不限
         NextWeekStartDate = CurrentStartDate.AddDays(7);
 
-        if (!string.IsNullOrWhiteSpace(date) && DateOnly.TryParse(date, out var parsedDate))
+        if (!string.IsNullOrWhiteSpace(date) && DateOnly.TryParse(date, out var parsedDate) && parsedDate >= TodayDate)
         {
             SelectedDate = parsedDate;
             AvailableSlots = allCurrentSlots
@@ -210,17 +215,9 @@ public class IndexModel : PageModel
         }
         else
         {
-            // 精簡體驗：未選日期時優先在當前 7 天範圍內選取最近有課的一天，讓時段列表直接展示
+            // 僅在當前顯示的 7 天範圍內選取最近有課的一天，絕不回退選取過去或其他週的舊日期
             var upcomingInSevenDays = SevenDays.FirstOrDefault(d => SlotDates.Contains(d));
-            if (upcomingInSevenDays != default)
-            {
-                SelectedDate = upcomingInSevenDays;
-            }
-            else
-            {
-                var upcoming = SlotDates.FirstOrDefault(d => d >= CurrentStartDate);
-                SelectedDate = upcoming != default ? upcoming : (SlotDates.Any() ? SlotDates.First() : null);
-            }
+            SelectedDate = upcomingInSevenDays != default ? upcomingInSevenDays : null;
 
             if (SelectedDate.HasValue)
             {
@@ -230,7 +227,7 @@ public class IndexModel : PageModel
             }
             else
             {
-                AvailableSlots = allCurrentSlots;
+                AvailableSlots = new List<TutoringSlot>();
             }
         }
 

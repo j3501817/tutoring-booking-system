@@ -46,6 +46,7 @@ public static class DbInitializer
             {
                 await BackfillStudentSchoolGradeClassAsync(db);
                 await EnsureCreditBatchesAndLedgerConsistentAsync(db);
+                await RefreshExpiredDemoSlotsAsync(db);
                 _isInitialized = true;
                 return;
             }
@@ -802,6 +803,51 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
         {
             Console.WriteLine($"[EnsureCreditBatchesAndLedgerConsistentAsync Error] {ex}");
             throw;
+        }
+    }
+
+    private static async Task RefreshExpiredDemoSlotsAsync(AppDbContext db)
+    {
+        try
+        {
+            var todayStartUtc = DateTime.UtcNow.Date;
+            var hasUpcomingSlots = await db.TutoringSlots
+                .AnyAsync(s => s.StartsAtUtc >= todayStartUtc);
+
+            if (hasUpcomingSlots) return;
+
+            var demoNotes = new[]
+            {
+                "國三二次函數小組指導（A組）",
+                "段考前加開小組指導（B組）",
+                "週五常態團體自習與作業問答（免費不扣堂）",
+                "週末精緻一對一／滿額候補示範時段"
+            };
+
+            var expiredDemoSlots = await db.TutoringSlots
+                .Where(s => s.Notes != null && demoNotes.Contains(s.Notes))
+                .OrderBy(s => s.Id)
+                .ToListAsync();
+
+            if (!expiredDemoSlots.Any()) return;
+
+            var baseUtc = DateTime.UtcNow.Date.AddDays(1);
+            for (int i = 0; i < expiredDemoSlots.Count; i++)
+            {
+                var slot = expiredDemoSlots[i];
+                var duration = slot.EndsAtUtc - slot.StartsAtUtc;
+                if (duration <= TimeSpan.Zero) duration = TimeSpan.FromHours(1.5);
+
+                var startHour = slot.SlotType == SlotType.GroupCounseling ? 9.0 : (i == 3 ? 6.0 : 10.0);
+                slot.StartsAtUtc = baseUtc.AddDays(i).AddHours(startHour);
+                slot.EndsAtUtc = slot.StartsAtUtc.Add(duration);
+            }
+
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[RefreshExpiredDemoSlotsAsync Warning] {ex.Message}");
         }
     }
 }

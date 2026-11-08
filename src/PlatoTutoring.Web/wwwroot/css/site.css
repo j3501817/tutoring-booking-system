@@ -836,3 +836,204 @@ html, body {
   }
 }
 
+/* =========================================================
+   家長端專屬優化：三等分導覽 Tab 與行動優先 7 日預約日曆
+   ========================================================= */
+.parent-tabs-shell {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  background: #ebe7de;
+  padding: 0.35rem;
+  border-radius: 0.9rem;
+  gap: 0.35rem;
+  border: 1px solid #dcd6ca;
+}
+
+.parent-tabs-shell .nav-item {
+  width: 100%;
+  margin: 0;
+}
+
+.parent-tabs-shell .nav-link {
+  width: 100%;
+  height: 100%;
+  color: #495460;
+  font-weight: 600;
+  font-size: 0.93rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.68rem;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transition: all 0.18s ease;
+  min-height: 48px;
+}
+
+.parent-tabs-shell .nav-link:hover {
+  color: var(--plato-ink);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.parent-tabs-shell .nav-link.active {
+  background: #ffffff;
+  color: var(--plato-ink);
+  border-color: rgba(200, 125, 75, 0.35);
+  box-shadow: inset 0 -3px 0 var(--plato-terracotta), 0 3px 10px rgba(20, 28, 36, 0.08);
+}
+
+.parent-tabs-shell .nav-link.active i {
+  color: var(--plato-terracotta);
+}
+
+.parent-tab-top-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.parent-tab-label {
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+/* 週次切換控制條 */
+.calendar-week-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f6f4ef;
+  border: 1px solid #e2ddd2;
+  border-radius: 0.7rem;
+  padding: 0.3rem 0.4rem;
+  gap: 0.4rem;
+}
+
+.calendar-week-range-badge {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--plato-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+}
+
+/* 家長 7 日預約卡片網格（整合星期與日期於同一卡片，杜絕錯位） */
+.parent-seven-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.parent-seven-day-grid .calendar-month-cell {
+  min-height: 98px;
+  border: 1.5px solid #e4e9ef;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.5rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.parent-seven-day-grid .calendar-month-cell.no-slots {
+  background: #f9fafb;
+  border-color: #edf0f3;
+  opacity: 0.85;
+}
+
+.parent-seven-day-grid .calendar-month-cell.has-slots {
+  background: #ffffff;
+  border-color: #cbd8e6;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.03);
+}
+
+.parent-seven-day-grid .calendar-month-cell.today-cell {
+  background: #f2f8ff;
+  border-color: #9ec5fe;
+}
+
+.calendar-cell-weekday {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5c6672;
+}
+
+.calendar-cell-weekday.weekend {
+  color: var(--plato-terracotta-dark);
+}
+
+.calendar-cell-date-main {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--plato-ink);
+  line-height: 1.2;
+  margin: 0.15rem 0 0.3rem 0;
+}
+
+.calendar-no-slot-hint {
+  font-size: 0.7rem;
+  color: #9aa3af;
+  text-align: center;
+  padding: 0.18rem 0;
+  background: #f1f3f5;
+  border-radius: 0.3rem;
+}
+
+@media (max-width: 767.98px) {
+  .parent-tabs-shell {
+    padding: 0.28rem;
+    gap: 0.25rem;
+  }
+
+  .parent-tabs-shell .nav-link {
+    flex-direction: column;
+    padding: 0.45rem 0.2rem;
+    gap: 0.2rem;
+    min-height: 58px;
+  }
+
+  .parent-tab-top-row i {
+    font-size: 1.05rem;
+  }
+
+  .parent-tab-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .parent-tabs-shell .workspace-tab-count {
+    font-size: 0.68rem;
+    padding: 0.06rem 0.42rem;
+  }
+
+  /* 手機版 7 日曆：採用 4 欄矩陣，第 1 天佔 2 欄 + 後 6 天各佔 1 欄 = 完美填滿 2x4 雙排無缺角 */
+  .parent-seven-day-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.42rem;
+  }
+
+  .parent-seven-day-grid .calendar-month-cell:first-child {
+    grid-column: span 2;
+  }
+
+  .parent-seven-day-grid .calendar-month-cell {
+    min-height: 88px;
+    padding: 0.45rem 0.4rem;
+  }
+
+  .calendar-cell-date-main {
+    font-size: 1rem;
+  }
+
+  .parent-seven-day-grid .badge-slot-small,
+  .parent-seven-day-grid .badge-slot-group {
+    font-size: 0.7rem;
+    padding: 0.18rem 0.25rem;
+  }
+}
+
