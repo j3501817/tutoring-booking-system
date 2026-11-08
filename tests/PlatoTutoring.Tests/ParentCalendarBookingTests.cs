@@ -220,5 +220,44 @@ public class ParentCalendarBookingTests
         // 當本週 7 天內無課堂時，SelectedDate 應為 null，絕不會回退選到 10/19
         Assert.Null(selectedDate);
     }
+
+    [Fact]
+    public void CalendarDaySummary_Slots_DisplaysSlotTimeRangeInsteadOfTypeName()
+    {
+        var summary = new CalendarDaySummary
+        {
+            Date = new DateOnly(2026, 11, 9),
+            SmallGroupCount = 1,
+            GroupCount = 1,
+            Slots = new List<TutoringSlot>
+            {
+                new TutoringSlot
+                {
+                    Id = 10,
+                    StartsAtUtc = new DateTime(2026, 11, 9, 10, 0, 0, DateTimeKind.Utc), // Taipei 18:00
+                    EndsAtUtc = new DateTime(2026, 11, 9, 11, 30, 0, DateTimeKind.Utc),   // Taipei 19:30
+                    SlotType = SlotType.SmallGroup
+                },
+                new TutoringSlot
+                {
+                    Id = 11,
+                    StartsAtUtc = new DateTime(2026, 11, 9, 9, 0, 0, DateTimeKind.Utc),  // Taipei 17:00
+                    EndsAtUtc = new DateTime(2026, 11, 9, 11, 0, 0, DateTimeKind.Utc),   // Taipei 19:00
+                    SlotType = SlotType.GroupCounseling
+                }
+            }
+        };
+
+        var badgeTexts = summary.Slots.Select(daySlot =>
+        {
+            var startTpe = BookingService.ToTaipeiTime(daySlot.StartsAtUtc);
+            var endTpe = BookingService.ToTaipeiTime(daySlot.EndsAtUtc);
+            return $"{startTpe:HH:mm}-{endTpe:HH:mm}";
+        }).ToList();
+
+        Assert.Equal(2, badgeTexts.Count);
+        Assert.Equal("18:00-19:30", badgeTexts[0]);
+        Assert.Equal("17:00-19:00", badgeTexts[1]);
+    }
 }
 

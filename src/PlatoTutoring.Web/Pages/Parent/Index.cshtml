@@ -137,7 +137,7 @@
                     <span class="parent-tab-top-row">
                         <i class="bi bi-calendar-week"></i>
                     </span>
-                    <span class="parent-tab-label">線上預約時段</span>
+                    <span class="parent-tab-label">線上預約</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -147,7 +147,7 @@
                         <i class="bi bi-list-check"></i>
                         <span class="workspace-tab-count">@(Model.StudentBookings.Count(b => b.Status == BookingStatus.Confirmed) + Model.StudentWaitlistEntries.Count(w => w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.NotifiedHold))</span>
                     </span>
-                    <span class="parent-tab-label">我的預約與候補</span>
+                    <span class="parent-tab-label">預約與候補</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -157,7 +157,7 @@
                         <i class="bi bi-journal-text"></i>
                         <span class="workspace-tab-count">@Model.StudentLedgerEntries.Count</span>
                     </span>
-                    <span class="parent-tab-label">堂數異動流水帳</span>
+                    <span class="parent-tab-label">堂數異動</span>
                 </button>
             </li>
         </ul>
@@ -308,16 +308,15 @@
                             else if (hasSlots && summary != null)
                             {
                                 <div class="calendar-cell-badges d-flex flex-column gap-1">
-                                    @if (summary.SmallGroupCount > 0)
+                                    @foreach (var daySlot in summary.Slots)
                                     {
-                                        <span class="badge badge-slot-small text-truncate" title="小組指導（點擊查看時段）">
-                                            小組指導
-                                        </span>
-                                    }
-                                    @if (summary.GroupCount > 0)
-                                    {
-                                        <span class="badge badge-slot-group text-truncate" title="團體輔導（點擊查看時段）">
-                                            團體輔導
+                                        var slotStartTpe = BookingService.ToTaipeiTime(daySlot.StartsAtUtc);
+                                        var slotEndTpe = BookingService.ToTaipeiTime(daySlot.EndsAtUtc);
+                                        var slotTimeText = $"{slotStartTpe:HH:mm}-{slotEndTpe:HH:mm}";
+                                        var isSmallSlot = daySlot.SlotType == SlotType.SmallGroup;
+                                        <span class="badge @(isSmallSlot ? "badge-slot-small" : "badge-slot-group") calendar-slot-time-badge text-truncate"
+                                              title="@(isSmallSlot ? "小組指導" : "團體輔導") @slotTimeText（點擊查看課堂）">
+                                            @slotTimeText
                                         </span>
                                     }
                                 </div>
@@ -334,7 +333,7 @@
             <!-- 未選擇日期或該週無課堂時的溫馨提示 -->
             <div id="noDateSelectedPrompt" class="@(Model.SelectedDate.HasValue ? "d-none" : "") card-plato p-3 p-md-4 mb-4 text-center bg-white border shadow-sm">
                 <i class="bi bi-hand-index-thumb fs-3 text-primary mb-1 d-block"></i>
-                <div class="fw-bold text-dark mb-1">請點選上方日曆標示有「小組指導」或「團體輔導」的日期</div>
+                <div class="fw-bold text-dark mb-1">請點選上方日曆標示有「課堂時段」的日期</div>
                 <div class="small text-secondary">點選日期卡片後，下方將立即展開當日可預約的課堂時段清單；亦可點擊「往後七天」查看後續週次。</div>
             </div>
 

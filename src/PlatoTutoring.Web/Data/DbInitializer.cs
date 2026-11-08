@@ -70,6 +70,8 @@ public static class DbInitializer
             if (await db.Users.AnyAsync())
             {
                 await BackfillStudentSchoolGradeClassAsync(db);
+                await EnsureCreditBatchesAndLedgerConsistentAsync(db);
+                await RefreshExpiredDemoSlotsAsync(db);
                 _isInitialized = true;
                 return;
             }
@@ -811,12 +813,17 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
         try
         {
             var todayStartUtc = DateTime.UtcNow.Date;
-            var hasUpcomingSlots = await db.TutoringSlots
-                .AnyAsync(s => s.StartsAtUtc >= todayStartUtc);
+            var allSlots = await db.TutoringSlots
+                .Include(s => s.CourseProgress)
+                .OrderBy(s => s.Id)
+                .ToListAsync();
 
-            if (hasUpcomingSlots) return;
+            var hasUpcomingCurrentProgressSlots = allSlots
+                .Any(s => s.CourseProgress != null && s.CourseProgress.IsCurrentProgress && s.StartsAtUtc >= todayStartUtc);
 
-            var demoNotes = new[]
+            if (hasUpcomingCurrentProgressSlots) return;
+
+            var demoNotes = new HashSet<string>
             {
                 "國三二次函數小組指導（A組）",
                 "段考前加開小組指導（B組）",
@@ -824,10 +831,10 @@ CREATE TABLE IF NOT EXISTS ""BK_StudentStatusLogs"" (
                 "週末精緻一對一／滿額候補示範時段"
             };
 
-            var expiredDemoSlots = await db.TutoringSlots
+            var expiredDemoSlots = allSlots
                 .Where(s => s.Notes != null && demoNotes.Contains(s.Notes))
                 .OrderBy(s => s.Id)
-                .ToListAsync();
+                .ToList();
 
             if (!expiredDemoSlots.Any()) return;
 

@@ -975,6 +975,12 @@ html, body {
   margin: 0.15rem 0 0.3rem 0;
 }
 
+.calendar-slot-time-badge {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
 .calendar-no-slot-hint {
   font-size: 0.7rem;
   color: #9aa3af;
@@ -1002,7 +1008,7 @@ html, body {
   }
 
   .parent-tab-label {
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 700;
   }
 
@@ -1023,7 +1029,7 @@ html, body {
 
   .parent-seven-day-grid .calendar-month-cell {
     min-height: 88px;
-    padding: 0.45rem 0.4rem;
+    padding: 0.45rem 0.35rem;
   }
 
   .calendar-cell-date-main {
@@ -1032,8 +1038,8 @@ html, body {
 
   .parent-seven-day-grid .badge-slot-small,
   .parent-seven-day-grid .badge-slot-group {
-    font-size: 0.7rem;
-    padding: 0.18rem 0.25rem;
+    font-size: 0.66rem;
+    padding: 0.2rem 0.18rem;
   }
 }
 

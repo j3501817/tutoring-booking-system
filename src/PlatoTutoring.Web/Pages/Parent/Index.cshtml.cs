@@ -14,6 +14,7 @@ public class CalendarDaySummary
     public DateOnly Date { get; set; }
     public int SmallGroupCount { get; set; }
     public int GroupCount { get; set; }
+    public List<TutoringSlot> Slots { get; set; } = new();
     public int TotalSlots => SmallGroupCount + GroupCount;
     public int TotalRemainingSeats { get; set; }
     public bool HasMyBooking { get; set; }
@@ -284,6 +285,7 @@ public class IndexModel : PageModel
                 summary.GroupCount++;
             }
 
+            summary.Slots.Add(slot);
             summary.TotalRemainingSeats += slot.RemainingSeats;
 
             if (SelectedStudent != null && StudentBookings.Any(b => b.TutoringSlotId == slot.Id && b.Status == BookingStatus.Confirmed))
