@@ -74,6 +74,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnGetAsync(int? studentId, string? date, int? year = null, int? month = null, string? startDate = null)
     {
         await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
+        await _bookingService.SyncCurrentProgressesByDateAsync();
         await _bookingService.ProcessExpiredWaitlistHoldsAsync();
 
         var user = await GetCurrentParentOrAdminAsync();

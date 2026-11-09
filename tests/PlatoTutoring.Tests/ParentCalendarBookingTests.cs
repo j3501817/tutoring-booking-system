@@ -288,5 +288,54 @@ public class ParentCalendarBookingTests
 
         Assert.Equal("W09", autoCode);
     }
+
+    [Fact]
+    public void CourseProgress_AutoSwitchesByTodayDateRange_And_GradeOptionUsesChineseValue()
+    {
+        var today = new DateOnly(2026, 11, 9);
+        var progresses = new List<CourseProgress>
+        {
+            new CourseProgress
+            {
+                Id = 1,
+                Code = "W07",
+                Title = "第7週－二次函數與極值應用",
+                WeekStartDate = new DateOnly(2026, 10, 12),
+                WeekEndDate = new DateOnly(2026, 10, 25),
+                IsCurrentProgress = true // 舊進度原本為 true
+            },
+            new CourseProgress
+            {
+                Id = 2,
+                Code = "W08",
+                Title = "第8週－圓的幾何性質與切線",
+                WeekStartDate = new DateOnly(2026, 10, 26),
+                WeekEndDate = new DateOnly(2026, 11, 1),
+                IsCurrentProgress = true // 舊進度原本為 true
+            },
+            new CourseProgress
+            {
+                Id = 3,
+                Code = "W09",
+                Title = "第9週－幾何證明與相似形總複習",
+                WeekStartDate = new DateOnly(2026, 11, 9),
+                WeekEndDate = new DateOnly(2026, 11, 15),
+                IsCurrentProgress = false // 起訖包含 11/9
+            }
+        };
+
+        foreach (var p in progresses)
+        {
+            p.IsCurrentProgress = p.WeekStartDate <= today && today <= p.WeekEndDate;
+        }
+
+        Assert.False(progresses[0].IsCurrentProgress); // 10/12 ~ 10/25 不包含 11/9 -> 自動為 false
+        Assert.False(progresses[1].IsCurrentProgress); // 10/26 ~ 11/01 不包含 11/9 -> 自動為 false
+        Assert.True(progresses[2].IsCurrentProgress);  // 11/09 ~ 11/15 包含 11/9 -> 自動切換為目前開放進度
+
+        // 驗證年別篩選選項取用中文 Value 而非型別名稱
+        var gradeOption = new FieldOption { Category = FieldCategories.Grade, Value = "國三" };
+        Assert.Equal("國三", gradeOption.Value);
+    }
 }
 

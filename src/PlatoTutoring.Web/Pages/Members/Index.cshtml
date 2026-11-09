@@ -602,7 +602,7 @@
                         </form>
                     </div>
                     <div class="card-body">
-                        <div class="small fw-semibold mb-2">切換目前開放預約進度（可同時開放多個進度，家長僅可預約已開放進度）：</div>
+                        <div class="small fw-semibold mb-2">系統依今日日期自動切換開放進度（課程起訖包含今日即自動設為目前開放進度，反之則否）：</div>
                         <div class="d-grid gap-2">
                             @if (Model.AllProgresses.Count == 0)
                             {
@@ -620,17 +620,10 @@
                                         @if (p.IsCurrentProgress)
                                         {
                                             <span class="badge bg-success px-3 py-2">目前開放進度</span>
-                                            <form method="post" asp-page-handler="SwitchCurrentProgress">
-                                                <input type="hidden" name="progressId" value="@p.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary">關閉進度</button>
-                                            </form>
                                         }
                                         else
                                         {
-                                            <form method="post" asp-page-handler="SwitchCurrentProgress">
-                                                <input type="hidden" name="progressId" value="@p.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-dark">設為目前進度</button>
-                                            </form>
+                                            <span class="badge bg-light text-secondary border px-3 py-2">非開放期間</span>
                                         }
                                     </div>
                                 </div>
@@ -668,9 +661,8 @@
                                     <input type="date" name="weekEndDate" class="form-control" value="@DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8).AddDays(6)).ToString("yyyy-MM-dd")" required />
                                 </div>
                             </div>
-                            <div class="form-check mb-3 small">
-                                <input type="checkbox" class="form-check-input" id="setAsCurrent" name="setAsCurrent" value="true" />
-                                <label class="form-check-label" for="setAsCurrent">立即設為目前開放進度</label>
+                            <div class="small text-muted mb-3">
+                                <i class="bi bi-info-circle me-1"></i>課程起訖日期包含今日者，系統將自動設為目前開放進度。
                             </div>
                             <button type="submit" class="btn btn-primary w-100 fw-bold">
                                 <i class="bi bi-check2-circle me-1"></i>新增課程進度
