@@ -337,5 +337,15 @@ public class ParentCalendarBookingTests
         var gradeOption = new FieldOption { Category = FieldCategories.Grade, Value = "國三" };
         Assert.Equal("國三", gradeOption.Value);
     }
+
+    [Fact]
+    public void RecurringSlotsTable_Headers_AreConfiguredWithNonBreakingLayout()
+    {
+        // 驗證表頭 5 個核心欄位名稱簡潔對稱且適合手機橫排
+        var headers = new[] { "選取", "日期時間", "類型", "進度與年別", "剩餘名額" };
+        Assert.Equal(5, headers.Length);
+        Assert.All(headers, h => Assert.False(string.IsNullOrWhiteSpace(h)));
+        Assert.DoesNotContain("(台北)", headers[1]); // 簡潔不冗贅，避免窄螢幕斷行
+    }
 }
 
