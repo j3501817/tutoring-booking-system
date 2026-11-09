@@ -937,7 +937,7 @@
                                         <option value="">全部年別</option>
                                         @foreach (var g in Model.GradeOptions)
                                         {
-                                            <option value="@g">@g</option>
+                                            <option value="@g.Value">@g.Value</option>
                                         }
                                     </select>
                                 </div>
@@ -1365,7 +1365,7 @@
                 const grade = row.getAttribute('data-grade') || '';
 
                 const matchesDay = activeDays.has(day);
-                const matchesGrade = !gradeFilter || grade === gradeFilter;
+                const matchesGrade = !gradeFilter || grade === gradeFilter || grade.includes(gradeFilter);
 
                 if (matchesDay && matchesGrade) {
                     row.classList.remove('d-none');

@@ -51,6 +51,7 @@ public class IndexModel : PageModel
         try
         {
             await DbInitializer.EnsureInitializedSafeAsync(_db, _ledgerService, _bookingService);
+            await _bookingService.SyncCurrentProgressesByDateAsync();
 
             var semester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent);
             CurrentSemesterName = semester?.Name ?? "未設定學期";

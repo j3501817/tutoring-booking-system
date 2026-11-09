@@ -39,6 +39,34 @@ public class BookingService
         return $"{tpe:MM/dd} ({day}) {tpe:HH:mm}";
     }
 
+    /// <summary>
+    /// 依台北時間今日日期自動同步所有課程進度之開放狀態：
+    /// 課程起訖日期（WeekStartDate ~ WeekEndDate）包含今日者自動設為目前開放進度（IsCurrentProgress = true），反之則設為 false。
+    /// </summary>
+    public async Task SyncCurrentProgressesByDateAsync(DateTime? nowUtc = null)
+    {
+        var todayTpe = DateOnly.FromDateTime(ToTaipeiTime(nowUtc ?? DateTime.UtcNow));
+        var progresses = await _db.CourseProgresses
+            .Where(p => p.WeekStartDate != default && p.WeekEndDate != default)
+            .ToListAsync();
+
+        var changed = false;
+        foreach (var p in progresses)
+        {
+            var shouldBeCurrent = p.WeekStartDate <= todayTpe && todayTpe <= p.WeekEndDate;
+            if (p.IsCurrentProgress != shouldBeCurrent)
+            {
+                p.IsCurrentProgress = shouldBeCurrent;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await _db.SaveChangesAsync();
+        }
+    }
+
     public async Task<TutoringSlot> CreateSlotAsync(
         int teacherUserId,
         int courseProgressId,

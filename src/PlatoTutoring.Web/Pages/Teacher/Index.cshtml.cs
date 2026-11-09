@@ -113,7 +113,8 @@ public class IndexModel : PageModel
             .Where(f => f.Category == FieldCategories.Class && f.IsActive)
             .OrderBy(f => f.SortOrder).ThenBy(f => f.Id).ToListAsync();
 
-        var todayDate = DateOnly.FromDateTime(DateTime.Today);
+        var todayDate = DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
+        await _bookingService.SyncCurrentProgressesByDateAsync();
         ProgressList = await _db.CourseProgresses
             .Where(p => p.WeekEndDate >= todayDate)
             .OrderByDescending(p => p.IsCurrentProgress)

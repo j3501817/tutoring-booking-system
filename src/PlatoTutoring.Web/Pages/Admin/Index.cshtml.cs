@@ -72,6 +72,7 @@ public class IndexModel : PageModel
 
         CurrentSemester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
             ?? await _db.Semesters.OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        await _bookingService.SyncCurrentProgressesByDateAsync();
         AllProgresses = await _db.CourseProgresses.OrderByDescending(p => p.Id).ToListAsync();
         AllStudents = await _db.Students.OrderBy(s => s.Id).ToListAsync();
         AllUsers = await _db.Users.OrderBy(u => u.Role).ThenBy(u => u.Id).ToListAsync();
@@ -324,16 +325,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostSwitchCurrentProgressAsync(int progressId)
     {
-        var target = await _db.CourseProgresses.FirstOrDefaultAsync(p => p.Id == progressId);
-        if (target != null)
-        {
-            target.IsCurrentProgress = !target.IsCurrentProgress;
-            await _db.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = target.IsCurrentProgress
-                ? $"已開放預約進度：{target.Title}"
-                : $"已關閉預約進度：{target.Title}";
-        }
+        await _bookingService.SyncCurrentProgressesByDateAsync();
         return Redirect("/Admin#tab-admin-semester");
     }
 
@@ -343,7 +335,7 @@ public class IndexModel : PageModel
         string gradeClass,
         DateOnly weekStartDate,
         DateOnly weekEndDate,
-        bool setAsCurrent,
+        bool setAsCurrent = false,
         bool broadcastLine = false)
     {
         var sem = await _db.Semesters.FirstOrDefaultAsync(s => s.IsCurrent)
@@ -373,6 +365,8 @@ public class IndexModel : PageModel
         }
 
         var finalCode = !string.IsNullOrWhiteSpace(code) ? code.Trim() : autoCode;
+        var todayTpe = DateOnly.FromDateTime(BookingService.ToTaipeiTime(DateTime.UtcNow));
+        var isCurrentByDate = weekStartDate <= todayTpe && todayTpe <= weekEndDate;
 
         _db.CourseProgresses.Add(new CourseProgress
         {
@@ -382,9 +376,10 @@ public class IndexModel : PageModel
             GradeClass = gradeClass.Trim(),
             WeekStartDate = weekStartDate,
             WeekEndDate = weekEndDate,
-            IsCurrentProgress = setAsCurrent
+            IsCurrentProgress = isCurrentByDate
         });
         await _db.SaveChangesAsync();
+        await _bookingService.SyncCurrentProgressesByDateAsync();
 
         if (broadcastLine)
         {
